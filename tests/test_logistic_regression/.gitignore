@@ -1,0 +1,4 @@
+check_correctness_cirrus_gd
+check_correctness_cirrus_sgd
+check_correctness_cirrus_sgd_sparse
+criteo_data

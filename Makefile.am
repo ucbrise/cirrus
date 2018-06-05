@@ -8,7 +8,7 @@ bin_PROGRAMS = parameter_server ps_test csv_to_libsvm
 
 LIBS         =  -laws-cpp-sdk-s3 -laws-cpp-sdk-core \
 		-lcurl -lssl -lcrypto -lz -ldl -lkrb5 -lk5crypto \
-		-lall -lkeyutils -lhiredis -lresolv
+		-lall -lkeyutils -lresolv
 
 LINCLUDES    = -L$(TOP_DIR)/third_party/aws-sdk-cpp/build/aws-cpp-sdk-core/ \
 	       -L$(TOP_DIR)/third_party/aws-sdk-cpp/build/aws-cpp-sdk-s3 \
@@ -20,7 +20,7 @@ LDFLAGS  = -static-libgcc  -static  -Wl,--whole-archive \
 	   -lpthread -Wl,--no-whole-archive
 
 CPPFLAGS = -static -static-libgcc -static-libstdc++ \
-           -I$(TOP_DIR) -I$(TOP_DIR)/examples/sparsehash/src/ \
+           -I$(TOP_DIR) \
            -I$(TOP_DIR)/third_party/flatbuffers/include \
            -I$(TOP_DIR)/third_party/eigen_source \
 	   -I$(TOP_DIR)/third_party/aws-sdk-cpp/aws-cpp-sdk-s3/include/ \
@@ -48,7 +48,7 @@ CPP_SOURCES_SOFTMAX = InputReader.cpp Utils.cpp \
               ModelGradient.cpp MlUtils.cpp Configuration.cpp \
               Checksum.cpp SoftmaxModel.cpp \
               Serializers.cpp  \
-              Redis.cpp SparseDataset.cpp MurmurHash3.cpp
+              SparseDataset.cpp MurmurHash3.cpp
 
 parameter_server_SOURCES  = parameter_server.cpp $(CPP_SOURCES)
 

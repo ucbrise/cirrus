@@ -1,11 +1,9 @@
 #include <Tasks.h>
 
 #include "Serializers.h"
-#include "Redis.h"
 #include "config.h"
 #include "S3SparseIterator.h"
 #include "Utils.h"
-#include "async.h"
 #include "SparseLRModel.h"
 #include "PSSparseServerInterface.h"
 #include "Configuration.h"

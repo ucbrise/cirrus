@@ -2,11 +2,8 @@
 
 #include "Configuration.h"
 #include "Serializers.h"
-#include "Redis.h"
 #include "Utils.h"
 #include "S3Iterator.h"
-#include "async.h"
-//#include "adapters/libevent.h"
 
 namespace cirrus {
 

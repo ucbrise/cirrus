@@ -4,11 +4,9 @@
 #include <Configuration.h>
 
 #include "config.h"
-#include "Redis.h"
 #include "LRModel.h"
 #include "MFModel.h"
 #include "SparseLRModel.h"
-#include "ProgressMonitor.h"
 #include "PSSparseServerInterface.h"
 #include "S3SparseIterator.h"
 
@@ -131,8 +129,6 @@ class PSSparseTask : public MLTask {
     void run(const Configuration& config);
 
   private:
-    redisContext* connect_redis();
-
     void put_model(const SparseLRModel& model);
     void publish_model(const SparseLRModel& model);
 
@@ -166,7 +162,6 @@ class ErrorSparseTask : public MLTask {
           LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, worker_id)
-      //mp(redis_ip, redis_port)
   {}
     void run(const Configuration& config);
 };
@@ -192,7 +187,6 @@ class PerformanceLambdaTask : public MLTask {
     void run(const Configuration& config);
 
   private:
-    redisContext* connect_redis();
 };
 
 class LoadingSparseTaskS3 : public MLTask {
@@ -313,7 +307,6 @@ class PSSparseServerTask : public MLTask {
     std::vector<char> buffer; // we use this buffer to hold data from workers
 
     volatile uint64_t gradientUpdatesCount = 0;
-    redisContext* redis_con;
     
     std::unique_ptr<SparseLRModel> lr_model; // last computed model
     std::unique_ptr<MFModel> mf_model; // last computed model

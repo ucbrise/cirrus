@@ -12,7 +12,6 @@
 #include <semaphore.h>
 #include "Synchronization.h"
 #include "Serializers.h"
-#include "ProgressMonitor.h"
 #include <CircularBuffer.h>
 
 namespace cirrus {

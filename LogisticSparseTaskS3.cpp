@@ -1,10 +1,8 @@
 #include <Tasks.h>
 
 #include "Serializers.h"
-#include "Redis.h"
 #include "Utils.h"
 #include "S3SparseIterator.h"
-#include "async.h"
 #include "PSSparseServerInterface.h"
 
 #include <pthread.h>

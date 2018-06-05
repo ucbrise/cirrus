@@ -15,8 +15,9 @@ fi
 KEYUTILS=keyutils-1.5.10
 wget http://people.redhat.com/~dhowells/keyutils/$KEYUTILS.tar.bz2
 tar xjf $KEYUTILS.tar.bz2
+mv $KEYUTILS keyutils
 rm $KEYUTILS.tar.bz2
-cd $KEYUTILS
+cd keyutils
 make -j 10
 
 # get kerberos
@@ -54,11 +55,13 @@ make -j 10
 
 #compile aws-sdk-cpp
 cd ../aws-sdk-cpp
-cmake ../aws-sdk-cpp -DBUILD_SHARED_LIBS=OFF -DBUILD_ONLY="s3;core"
+mkdir build
+cd build
+cmake .. -DBUILD_SHARED_LIBS=OFF -DBUILD_ONLY="s3;core"
 make -j 10
-cd .. # back to aws-sdk-cpp
+cd ../.. # back to third_party
 
-cd ../.. # back to top_dir
+cd .. # back to top_dir
 
 # main compilation
 touch config.rpath

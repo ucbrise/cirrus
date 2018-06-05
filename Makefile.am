@@ -1,4 +1,4 @@
-TOP_DIR = $(top_srcdir)
+TOP_DIR = $(top_srcdir)/
 
 AUTOMAKE_OPTIONS = foreign
 
@@ -10,25 +10,22 @@ LIBS         =  -laws-cpp-sdk-s3 -laws-cpp-sdk-core \
 		-lcurl -lssl -lcrypto -lz -ldl -lkrb5 -lk5crypto \
 		-lall -lkeyutils -lresolv
 
-#-levent
-
-LINCLUDES    = -L$(TOP_DIR)/third_party/aws-sdk-cpp/aws-cpp-sdk-core/ \
-	       -L$(TOP_DIR)/third_party/aws-sdk-cpp/aws-cpp-sdk-s3 \
+LINCLUDES    = -L$(TOP_DIR)/third_party/aws-sdk-cpp/build/aws-cpp-sdk-core/ \
+	       -L$(TOP_DIR)/third_party/aws-sdk-cpp/build/aws-cpp-sdk-s3 \
 	       -L$(TOP_DIR)/third_party/kerberos/src/lib \
-	       -L$(TOP_DIR)/third_party/keyutils-1.5.10 \
-	       -L$(TOP_DIR)/third_party/curl/lib
+	       -L$(TOP_DIR)/third_party/keyutils/
 
 LDADD    = $(LINCLUDES) $(LIBS)
 LDFLAGS  = -static-libgcc  -static  -Wl,--whole-archive \
 	   -lpthread -Wl,--no-whole-archive
+
 CPPFLAGS = -static -static-libgcc -static-libstdc++ \
+           -I$(TOP_DIR) \
            -I$(TOP_DIR)/third_party/flatbuffers/include \
            -I$(TOP_DIR)/third_party/eigen_source \
-           -I$(MPI_HOME)/include/ -Itest_aws \
 	   -I$(TOP_DIR)/third_party/aws-sdk-cpp/aws-cpp-sdk-s3/include/ \
 	   -I$(TOP_DIR)/third_party/aws-sdk-cpp/aws-cpp-sdk-core/include/  \
 	   -ggdb -frecord-gcc-switches -O3
-#-pg
 
 CPP_SOURCES = InputReader.cpp Utils.cpp \
               Dataset.cpp Matrix.cpp \
@@ -44,9 +41,7 @@ CPP_SOURCES = InputReader.cpp Utils.cpp \
 	      S3Iterator.cpp S3SparseIterator.cpp \
 	      PerformanceLambdaTask.cpp \
 	      S3.cpp SparseDataset.cpp \
-	      PSSparseServerTask.cpp PSSparseServerInterface.cpp \
-	      Synchronization.cpp
-
+	      PSSparseServerTask.cpp PSSparseServerInterface.cpp
 
 CPP_SOURCES_SOFTMAX = InputReader.cpp Utils.cpp \
               Dataset.cpp Matrix.cpp Model.cpp LRModel.cpp \

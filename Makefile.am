@@ -13,7 +13,8 @@ LIBS         =  -laws-cpp-sdk-s3 -laws-cpp-sdk-core \
 LINCLUDES    = -L$(TOP_DIR)/third_party/aws-sdk-cpp/build/aws-cpp-sdk-core/ \
 	       -L$(TOP_DIR)/third_party/aws-sdk-cpp/build/aws-cpp-sdk-s3 \
 	       -L$(TOP_DIR)/third_party/kerberos/src/lib \
-	       -L$(TOP_DIR)/third_party/keyutils/
+	       -L$(TOP_DIR)/third_party/keyutils/ \
+	       -L$(TOP_DIR)/third_party/curl/lib/.libs/
 
 LDADD    = $(LINCLUDES) $(LIBS)
 LDFLAGS  = -static-libgcc  -static  -Wl,--whole-archive \

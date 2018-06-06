@@ -34,10 +34,12 @@ env:
 
 before_install:
       - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
+      - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
       - sudo apt-get update -qq
       - ./bootstrap.sh
 
 install:
+  - sudo apt-get install -qq g++-6
   - export CXX=/usr/bin/g++-6
   - export CC=/usr/bin/gcc-6
   - gcc --version

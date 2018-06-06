@@ -40,6 +40,7 @@ before_install:
 
 install:
   - sudo apt-get install -qq g++-6
+  - sudo apt-get install libstdc++6
   - export CXX=/usr/bin/g++-6
   - export CC=/usr/bin/gcc-6
   - sudo ln -s /usr/bin/gcc-6 /usr/local/bin/gcc

@@ -4,12 +4,6 @@ sudo: required
 language: cpp
 compiler: gcc
 
-script:
-   - sudo ln -s /usr/bin/gcc-6 /usr/local/bin/gcc
-   - sudo ln -s /usr/bin/g++-6 /usr/local/bin/g++
-   - export CC=/usr/bin/gcc-6
-   - export CXX=/usr/bin/g++-6
-
 addons:
   apt:
     sources:
@@ -18,6 +12,12 @@ addons:
       - gcc-6
       - g++-6
       - cmake
+
+script:
+   - sudo ln -s /usr/bin/gcc-6 /usr/local/bin/gcc
+   - sudo ln -s /usr/bin/g++-6 /usr/local/bin/g++
+   - export CC=/usr/bin/gcc-6
+   - export CXX=/usr/bin/g++-6
 
 env:
   global:

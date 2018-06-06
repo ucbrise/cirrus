@@ -44,6 +44,8 @@ install:
   - export CC=/usr/bin/gcc-6
   - gcc --version
   - g++ --version
+  - which g++-6
+  - g++-6 --version
   - make -j 10
 
 addons:

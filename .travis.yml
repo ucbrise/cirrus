@@ -23,6 +23,8 @@ script:
    - sudo ln -s /usr/bin/g++-6 /usr/local/bin/g++
    - export CC=/usr/bin/gcc-6
    - export CXX=/usr/bin/g++-6
+   - gcc --version
+   - g++ --version
 
 env:
   global:
@@ -32,11 +34,14 @@ env:
 
 before_install:
       - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
+      - sudo apt-get update -qq
       - ./bootstrap.sh
 
 install:
   - export CXX=/usr/bin/g++-6
   - export CC=/usr/bin/gcc-6
+  - gcc --version
+  - g++ --version
   - make -j 10
 
 addons:

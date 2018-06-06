@@ -1,7 +1,7 @@
 Cirrus
 ==================================
 
-[![Travis Build Status](https://travis-ci.org/jcarreira/ddc.svg?branch=master)](https://travis-ci.org/jcarreira/ddc)
+[![Travis Build Status](https://travis-ci.org/jcarreira/cirrus.svg?branch=master)](https://travis-ci.org/jcarreira/cirrus)
 [![Coverity Scan Build Status](https://scan.coverity.com/projects/10708/badge.svg)](https://scan.coverity.com/projects/cirrus)
 
 Cirrus is a serverless machine learning library. This library provides a list of machine learning algorithms that can be executed on serverless lambdas in the cloud. Currently only Amazon lambdas are supported.

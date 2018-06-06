@@ -1,0 +1,27 @@
+sudo: required
+
+language: generic
+
+matrix:
+  include:
+    - os: linux
+      dist: trusty
+
+env:
+  global:
+   # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
+   #   via the "travis encrypt" command using the project repo's public key
+   - secure: "TP4WteOFsNsV0hiCjKHlWsbOKl/tXIJla9w4Zd9x6x9JxHSSdT2orVA8KU2LlOjBY9em+Zb0+8PkCs/2sKG3TH10bZPkgEaxq6EXYWCxAlqALATtLJnuTJvVZgCAdHiraGgSiniHG0mjQS9NTqT8nwT4x60zBwPWiWkyjbpZXseBC+VJi3LqNRC1TFx/vet7hn8jEDVDM1UJW4qMnkVq+d2MXLicNHXUkvTwzwzscsKTagg3uDHjyOZ3NwylmW88BY2nKjZXuCTAokdbtszFgqafsucrXVo/YtAETgFp+gD3+06NLgEqyHoXbl64PE4orfvQ22JC0YqIK1xO+jpsra7XMTxziZGVoN8hyXjiU3siKSKkkOa2lEPa7TCX25IWPzxhoHG1CA2It6+YX0fmJ9AcJtHCaSmWM2XJ3qHPSM2n5Km0S84CyTBlyACLv6Bx4myC8f0eLKFKH+Q8PwLvvL9qXY+6q9due24jDaULZEFRF/OnHLKluH+mqupyV24mh2CIqpIPNqUUPXDkvqKVRTehM0N4b/MVT7ylmZK06S6WeUP8qd6k+44D1ULEpVKi1RR6Lw545zpk8z7afQ5/sbIKkNorc066ciP5c6TjmPMlRdciNak39Jgk2k85iQhMXZv4soHWJ0HHCdDyD1OrT6FTFTYeIE5TZzbvzlx4v7o="
+
+before_install:
+      - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
+
+addons:
+  coverity_scan:
+    project:
+      name: "jcarreira/cirrus"
+      description: "Build submitted via Travis CI"
+    notification_email: joao@berkeley.edu
+    build_command_prepend: "./bootstrap.sh; ./configure; make clean"
+    build_command:   "make -j 8"
+    branch_pattern: coverity_scan

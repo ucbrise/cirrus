@@ -13,19 +13,23 @@ fi
 
 # get keyutils library
 KEYUTILS=keyutils-1.5.10
-wget http://people.redhat.com/~dhowells/keyutils/$KEYUTILS.tar.bz2
+if [ ! -f $KEYUTILS.tar.bz2 ]; then
+  wget http://people.redhat.com/~dhowells/keyutils/$KEYUTILS.tar.bz2
+fi
 tar xjf $KEYUTILS.tar.bz2
 mv $KEYUTILS keyutils
-rm $KEYUTILS.tar.bz2
+#rm $KEYUTILS.tar.bz2
 cd keyutils
 make -j 10
 
 # get kerberos
 cd ..
 KRBLIB='krb5-1.15.2'
-wget https://kerberos.org/dist/krb5/1.15/$KRBLIB.tar.gz
+if [ ! -f $KRBLIB.tar.gz ]; then
+  wget https://kerberos.org/dist/krb5/1.15/$KRBLIB.tar.gz
+fi
 tar xzf $KRBLIB.tar.gz
-rm $KRBLIB.tar.gz
+#rm $KRBLIB.tar.gz
 mv $KRBLIB kerberos
 cd kerberos/src
 ./configure --disable-shared --enable-static

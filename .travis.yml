@@ -2,7 +2,7 @@ dist: trusty
 sudo: required
 
 language: cpp
-compiler: gcc
+compiler: g++
 
 addons:
   apt:
@@ -12,6 +12,11 @@ addons:
       - gcc-6
       - g++-6
       - cmake
+
+notifications:
+ email:
+  on_success: never
+  on_failure: always
 
 script:
    - sudo ln -s /usr/bin/gcc-6 /usr/local/bin/gcc
@@ -30,7 +35,9 @@ before_install:
       - ./bootstrap.sh
 
 install:
-      - make -j 10
+  - export CXX=/usr/bin/g++-6
+  - export CC=/usr/bin/gcc-6
+  - make -j 10
 
 addons:
   coverity_scan:

@@ -1,0 +1,398 @@
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   ...
+   fun:init_mpi
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   ...
+   fun:init_mpi
+   ...
+}
+
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   ...
+   fun:ompi_mpi_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   ...
+   fun:ompi_mpi_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   ...
+   fun:orte_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   ...
+   fun:orte_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   ...
+   fun:rte_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   ...
+   fun:rte_init
+   ...
+}
+
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   close(fd)
+   ...
+   fun:ompi_init
+   ...
+}
+
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   ...
+   fun:_Z8init_mpiiPPc
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   ...
+   fun:_Z8init_mpiiPPc
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr16
+   ...
+   fun:_Z8init_mpiiPPc
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr2
+   ...
+   fun:_Z8init_mpiiPPc
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   ...
+   fun:_Z8init_mpiiPPc
+   fun:main
+}
+
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   ...
+   obj:/opt/mellanox/mxm/lib/libmxm.*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   ...
+   obj:/opt/mellanox/mxm/lib/libmxm.*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr16
+   ...
+   obj:/opt/mellanox/mxm/lib/libmxm.*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr2
+   ...
+   obj:/opt/mellanox/mxm/lib/libmxm.*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   ...
+   obj:/opt/mellanox/mxm/lib/libmxm.*
+   ...
+}
+
+
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   ...
+   fun:ompi_mpi_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   ...
+   fun:ompi_mpi_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr16
+   ...
+   fun:ompi_mpi_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr2
+   ...
+   fun:ompi_mpi_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   ...
+   fun:ompi_mpi_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:ompi_mpi_init
+   ...
+}
+
+
+
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   ...
+   fun:orte_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   ...
+   fun:orte_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr16
+   ...
+   fun:orte_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr2
+   ...
+   fun:orte_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   ...
+   fun:orte_init
+   ...
+}
+
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   ...
+   fun:mxm_*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   ...
+   fun:mxm_*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr16
+   ...
+   fun:mxm_*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr2
+   ...
+   fun:mxm_*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   ...
+   fun:mxm_*
+   ...
+}
+
+
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   ...
+   obj:/usr/lib/librdmacm.*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   ...
+   obj:/usr/lib/librdmacm.*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr16
+   ...
+   obj:/usr/lib/librdmacm.*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Addr2
+   ...
+   obj:/usr/lib/librdmacm.*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Value8
+   ...
+   obj:/usr/lib/librdmacm.*
+   ...
+}
+
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   mmap(offset)
+   ...
+   fun:rte_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   mmap(length)
+   ...
+   fun:rte_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   madvise(length)
+   ...
+   fun:rte_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   close(fd)
+   ...
+   fun:rte_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   epoll_ctl(event)
+   ...
+   fun:rte_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   epoll_ctl(fd)
+   ...
+   fun:rte_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   fcntl(fd)
+   ...
+   fun:rte_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   munmap(length)
+   ...
+   fun:rte_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   poll(ufds.fd)
+   ...
+   fun:rte_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   read(fd)
+   ...
+   fun:rte_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:rte_init
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   ...
+   fun:start_thread
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   write(buf)
+   ...
+   obj:/lib/x86_64-linux-gnu/libpthread-2.23.so
+   ...
+}

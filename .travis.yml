@@ -42,8 +42,8 @@ before_install:
 install:
   - export CXX=/usr/bin/g++-6
   - export CC=/usr/bin/gcc-6
-  - sudo ln -s /usr/bin/gcc-6 /usr/local/bin/gcc
-  - sudo ln -s /usr/bin/g++-6 /usr/local/bin/g++
+  - sudo ln -s -f /usr/bin/gcc-6 /usr/local/bin/gcc
+  - sudo ln -s -f /usr/bin/g++-6 /usr/local/bin/g++
   - ./bootstrap.sh
   - gcc --version
   - g++ --version

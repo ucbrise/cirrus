@@ -19,12 +19,11 @@ notifications:
   on_failure: always
 
 script:
-   - sudo ln -s /usr/bin/gcc-6 /usr/local/bin/gcc
-   - sudo ln -s /usr/bin/g++-6 /usr/local/bin/g++
    - export CC=/usr/bin/gcc-6
    - export CXX=/usr/bin/g++-6
    - gcc --version
    - g++ --version
+   - make -j 10
 
 env:
   global:
@@ -33,13 +32,13 @@ env:
    - secure: "WMXaTL2NpB2LZLSsCeRzUStnYwOtcmOSDGRevQ7nkmOezFj8BBcFBHJlYJiwwh4FNtBN5HS4A/bL0wOt8o106Je1F14epfRXfqXoBy+RX4HO6TfreM5tbfRUM9qCQuuNMfoNiU2QxUwbKrFTbdct6QYe5W3by2Yw3wA4ZsQ5IaMMH//xRkEdFuqUDFRmIuAOkIrWECswrmPFAxk9aMcfjRQnbJdPnOeak4be7DFwdoOQkI0yCl3FbE286DdXgfRzKqyvdEZi/lFRZ8c43OJxhSmH7N3oEII8mlYILSUYLEH6GxOvLZkKe7IMtNey5ZLZfo/jqozmorQx9jhGxFX/WwoF4j+7zL2S2HliZqKuTf+C0JnfqoX991eVlZOl3GOJ1zX0jh9plyaFf3X2oq2LF8ERZtA5oHV7SFCuA8xPWlefFK+v/5i1SV4EBwGckTjMpoF57YLrIqA3eVGH3xHKAfRx4JibdX2T0bcFQOZG+HuXa4cBbDSWoGw63QIZ1SfIqEenNqq/hb4h2nKgf/QVmQMRJgMJcQQJ7wQmNtQ3RHEKc3eOHJSzeXDFuEgy/Wn1fb250oTsz9cFZzjnAmfDRV3Vll6uISuYHwC0iso+uS/JDls6mH3trSo/10xgwqFwP8/uhB5mb7LUog5oVPYNF4AUjujWY2ZwfVTJoB2035Q="
 
 before_install:
-      - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
-      - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-      - sudo apt-get update -qq
-      - sudo apt-get install -qq g++-6
-      - sudo apt-get install libstdc++6
+  - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
 
 install:
+  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+  - sudo apt-get update -qq
+  - sudo apt-get install -qq g++-6
+  - sudo apt-get install libstdc++6
   - export CXX=/usr/bin/g++-6
   - export CC=/usr/bin/gcc-6
   - sudo ln -s -f /usr/bin/gcc-6 /usr/local/bin/gcc
@@ -51,7 +50,6 @@ install:
   - which g++
   - which g++-6
   - g++-6 --version
-  - make -j 10
 
 addons:
   coverity_scan:

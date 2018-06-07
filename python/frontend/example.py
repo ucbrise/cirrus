@@ -1,5 +1,8 @@
 import cirrus
 
+ACCESS_KEY="..."
+SECRET_KEY="..."
+
 def progress_callback(loss, cost, task):
   print "Current training loss:", loss, \
         "current cost ($): ", cost
@@ -22,7 +25,8 @@ model = cirrus.create_random_lr_model(10)
 lr_task = cirrus.LogisticRegression(\
              n_workers = 3, n_ps = 2, 
              dataset = data,
-             aws_key="...", 
+             aws_access_key=ACCESS_KEY,
+             aws_secret_access_key=SECRET_KEY
              learning_rate=0.0001, epsilon=0.0001,
              progress_callback = progress_callback,
              timeout = 100,

@@ -4,15 +4,17 @@ import boto3
 import time
 
 class Ec2VMManager:
-    def __init__(self, description):
+    def __init__(self, description, access_key, secret_key):
       print "Starting VM Manager"
       self.description = description
       self.ec2_client = boto3.client('ec2')
       self.ec2_resource = boto3.resource('ec2')
-      self.instances = []
+      self.access_key = access_key
+      self.secret_key = secret_key
+      self.instances = [] # vm instances managed by the manager
 
     def start_vm(self):
-      print "starting vm"
+      print "Starting EC2 vm"
       tags = [
                {'Key':'runtime','Value': 'Cirrus 0.1'},
                {'Key':'owner', 'Value': 'Cirrus'},
@@ -29,14 +31,7 @@ class Ec2VMManager:
       self.instances.append(instance)
 
       print "instance:", instance[0]
-
-      status = 'pending'
-      while status == 'pending':
-          time.sleep(4)
-          status = instance[0].update()
-          print "status: ", status
-          print "Waiting"
-      print "status: ", status
+      return instance[0].id
 
     def stop_vms(self):
       print "stopping all vms"
@@ -63,5 +58,15 @@ class Ec2VMManager:
       for instance in self.ec2_resource.instances.all():
         tags = self.get_tags(instance.id)
         print instance.id, ":", tags
+
+    def wait_until_running(self, instance_id):
+      while True:
+        for instance in self.ec2_resource.instances.all():
+          print "Comparing ", instance_id, " with", instance.id
+          if instance.id == instance_id:
+            print "Checking state: ", instance.state
+            if instance.state['Name'] == 'running':
+              return
+        time.sleep(1)
 
 

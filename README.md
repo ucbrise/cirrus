@@ -5,7 +5,7 @@ Cirrus
 [![Coverity Scan Build Status](https://scan.coverity.com/projects/10708/badge.svg)](https://scan.coverity.com/projects/cirrus)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-Cirrus is a serverless machine learning library. This library provides a list of machine learning algorithms that can be executed on serverless lambdas in the cloud. Currently only Amazon lambdas are supported.
+Cirrus is a serverless machine learning library. Cirrus provides a list of machine learning algorithms that can scale to many serverless lambdas in the cloud.
 
 Requirements
 ============

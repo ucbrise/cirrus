@@ -13,13 +13,17 @@ class Ec2VMManager:
       self.secret_key = secret_key
       self.instances = [] # vm instances managed by the manager
 
-    def start_vm(self):
+    def start_vm(self, number_vms):
+      assert(number_vms == 1) # for now we only support 1 vm
       print "Starting EC2 vm"
       tags = [
                {'Key':'runtime','Value': 'Cirrus 0.1'},
                {'Key':'owner', 'Value': 'Cirrus'},
              ]
       tag_specification = [{'ResourceType': 'instance', 'Tags': tags},]
+
+      print "Starting instance"
+      print "ImageId: ami-db710fa3", " InstanceType: m5.large"
       instance = self.ec2_resource.create_instances(
          # Ubuntu Server 16.04 LTS (HVM), SSD Volume Type - ami-db710fa3
          ImageId='ami-db710fa3',
@@ -30,10 +34,10 @@ class Ec2VMManager:
       )
       self.instances.append(instance)
 
-      print "instance:", instance[0]
-      return instance[0].id
+      print "instance started:", instance[0]
+      return instance[0] # return instance object
 
-    def stop_vms(self):
+    def stop_all_vms(self):
       print "stopping all vms"
       return # don't stop any vms until we
       #  understand whats going on
@@ -59,7 +63,8 @@ class Ec2VMManager:
         tags = self.get_tags(instance.id)
         print instance.id, ":", tags
 
-    def wait_until_running(self, instance_id):
+    def wait_until_running(self, vm_instance):
+      instance_id = vm_instance[0]
       while True:
         for instance in self.ec2_resource.instances.all():
           print "Comparing ", instance_id, " with", instance.id

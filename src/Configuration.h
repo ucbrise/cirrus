@@ -126,6 +126,7 @@ class Configuration {
       */
     int get_users() const;
     int get_items() const;
+
     bool get_use_adagrad() const;
     uint64_t get_netflix_workers() const;
 

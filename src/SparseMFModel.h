@@ -154,11 +154,6 @@ class SparseMFModel : public CirrusModel {
     // 1. item id
     // 2. item_bias
     // 3. item weights
-    /* XXX: Getting rid of this - Andy
-    std::unordered_map<int,
-      std::pair<FEATURE_TYPE,
-        std::vector<FEATURE_TYPE>>> item_models;
-    */
     std::pair<FEATURE_TYPE, std::vector<FEATURE_TYPE>> item_models[17770];
 
     FEATURE_TYPE& get_user_weights(uint64_t userId, uint64_t factor);

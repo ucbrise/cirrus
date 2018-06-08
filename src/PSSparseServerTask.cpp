@@ -13,26 +13,26 @@
 namespace cirrus {
     
 PSSparseServerTask::PSSparseServerTask(
-        uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-        uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-        uint64_t SAMPLE_BASE, uint64_t START_BASE,
-        uint64_t batch_size, uint64_t samples_per_batch,
-        uint64_t features_per_sample, uint64_t nworkers,
-        uint64_t worker_id) :
-MLTask(MODEL_GRAD_SIZE, MODEL_BASE,
-LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+    uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
+    uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
+    uint64_t SAMPLE_BASE, uint64_t START_BASE,
+    uint64_t batch_size, uint64_t samples_per_batch,
+    uint64_t features_per_sample, uint64_t nworkers,
+    uint64_t worker_id) :
+  MLTask(MODEL_GRAD_SIZE, MODEL_BASE,
+     LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
 batch_size, samples_per_batch, features_per_sample,
 nworkers, worker_id) {
-    std::cout << "PSSparseServerTask is built" << std::endl;
+std::cout << "PSSparseServerTask is built" << std::endl;
 
-    operation_to_name[0] = "SEND_LR_GRADIENT";
-    operation_to_name[1] = "SEND_MF_GRADIENT";
-    operation_to_name[2] = "GET_LR_FULL_MODEL";
-    operation_to_name[3] = "GET_MF_FULL_MODEL";
-    operation_to_name[4] = "GET_LR_SPARSE_MODEL";
-    operation_to_name[5] = "GET_MF_SPARSE_MODEL";
-    operation_to_name[6] = "SET_TASK_STATUS";
-    operation_to_name[7] = "GET_TASK_STATUS";
+operation_to_name[0] = "SEND_LR_GRADIENT";
+operation_to_name[1] = "SEND_MF_GRADIENT";
+operation_to_name[2] = "GET_LR_FULL_MODEL";
+operation_to_name[3] = "GET_MF_FULL_MODEL";
+operation_to_name[4] = "GET_LR_SPARSE_MODEL";
+operation_to_name[5] = "GET_MF_SPARSE_MODEL";
+operation_to_name[6] = "SET_TASK_STATUS";
+operation_to_name[7] = "GET_TASK_STATUS";
 
     for (int i = 0; i < 4; i++)
         holder[i] = new char[5000000];

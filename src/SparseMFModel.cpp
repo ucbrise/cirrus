@@ -29,7 +29,6 @@ void SparseMFModel::initialize_weights(uint64_t users, uint64_t items, uint64_t 
   nitems_ = items;
   nfactors_ = nfactors;
 
-//  randomize();
 }
 
 SparseMFModel::SparseMFModel(uint64_t users, uint64_t items, uint64_t nfactors) {
@@ -119,16 +118,13 @@ void SparseMFModel::loadSerialized(const void* data, uint64_t minibatch_size, ui
   }
   global_bias_ = 3.604;
   // now we read the item vectors
-
   for (uint64_t i = 0; i < num_item_ids; ++i) {
     std::pair<FEATURE_TYPE,
       std::vector<FEATURE_TYPE>> item_model;
     uint32_t item_id = load_value<uint32_t>(data);
-
     FEATURE_TYPE item_bias = load_value<FEATURE_TYPE>(data);
     std::get<0>(item_model) = item_bias;
     std::get<1>(item_model).resize(NUM_FACTORS);
-
     for (uint64_t j = 0; j < NUM_FACTORS; ++j) {
       FEATURE_TYPE item_weight = load_value<FEATURE_TYPE>(data);
       std::get<1>(item_model)[j] = item_weight;
@@ -213,8 +209,6 @@ std::unique_ptr<ModelGradient> SparseMFModel::minibatch_grad(
       gradient->users_bias_grad[real_user_id] += delta;
       user_bias += delta;
 
-      //std::cout << "real_user_id: " << real_user_id << std::endl;
-
 
       // compute gradient for item bias
       FEATURE_TYPE& item_bias = item_models[itemId].first;
@@ -236,9 +230,6 @@ std::unique_ptr<ModelGradient> SparseMFModel::minibatch_grad(
                    - user_fact_reg_ * get_user_weights(user_from_0, k));
         user_weights_grad[k] += delta_user_w;
         std::get<2>(user_models[user_from_0])[k] += delta_user_w;
-
-
-
 #ifdef DEBUG
         if (std::isnan(get_user_weights(user_from_0, k)) ||
             std::isinf(get_user_weights(user_from_0, k))) {
@@ -264,8 +255,7 @@ std::unique_ptr<ModelGradient> SparseMFModel::minibatch_grad(
         }
         //std::cout << "UPDATE HERE " << std::endl;
         item_weights_grad_map[itemId][k] += delta_item_w;
-
-        /*
+#ifdef DEBUG
         if (std::isnan(get_item_weights(itemId, k)) ||
             std::isinf(get_item_weights(itemId, k))) {
           std::cout << "error: " << error << std::endl;
@@ -273,7 +263,8 @@ std::unique_ptr<ModelGradient> SparseMFModel::minibatch_grad(
           std::cout << "item weight: " << get_item_weights(itemId, k) << std::endl;
           std::cout << "learning_rate: " << learning_rate << std::endl;
           throw std::runtime_error("nan in item weight");
-        } */
+        }
+#endif
       }
       //gradient->items_weights_grad.push_back(
       //    std::make_pair(itemId, std::move(item_weights_grad)));
@@ -303,20 +294,6 @@ FEATURE_TYPE& SparseMFModel::get_user_weights(uint64_t userId, uint64_t factor) 
 }
 
 FEATURE_TYPE& SparseMFModel::get_item_weights(uint64_t itemId, uint64_t factor) {
-#ifdef DEBUG
-  /*
-  if ((item_models.itemId) == item_models.end()) {
-    throw std::runtime_error("key not found");
-  }
-  if (factor >= item_models[itemId].second.size()) {
-    std::cout
-      << "itemId: " << itemId
-      << "factor: " << factor
-      << " size: " << item_models[itemId].second.size()
-      << std::endl;
-  }
-  */
-#endif
   return item_models[itemId].second[factor];
 }
 
@@ -339,25 +316,12 @@ double SparseMFModel::checksum() const {
 }
 
 void SparseMFModel::print() const {
-    //std::cout << "MODEL user weights: ";
-    //for (uint64_t i = 0; i < nusers_ * nfactors_; ++i) {
-    //  std::cout << " " << user_weights_[i];
-    //}
-    //std::cout << std::endl;
+    std::cout << "MODEL user weights: Not implemented";
+    std::cout << std::endl;
 }
 
 void SparseMFModel::check() const {
-  for (const auto& k : item_models) {
-    //int key = k.first;
-    //auto item_bias = k.second.first;
-
-    /*
-    const auto& item_weights = k.second.second;
-    if (item_weights.size() != NUM_FACTORS) { 
-      throw std::runtime_error("Item has wrong size");
-    }
-    */
-  }
+    std::cout << "SparseMFModel::check() Not Implmeneted" << std::endl;
 }
 
 void SparseMFModel::serializeFromDense(
@@ -396,7 +360,6 @@ void SparseMFModel::serializeFromDense(
     }
   }
 
-  //return buffer;
 }
 
 } // namespace cirrus

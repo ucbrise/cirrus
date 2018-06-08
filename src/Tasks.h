@@ -10,7 +10,6 @@
 #include "PSSparseServerInterface.h"
 #include "S3SparseIterator.h"
 
-
 #include <string>
 #include <vector>
 #include <map>
@@ -48,7 +47,6 @@ class MLTask {
     void run(const Configuration& config, int worker);
 
     void wait_for_start(int index, int nworkers);
-    bool get_worker_status(auto r, int worker_id);
 
   protected:
     uint64_t MODEL_GRAD_SIZE;
@@ -77,7 +75,7 @@ class LogisticSparseTaskS3 : public MLTask {
       MLTask(MODEL_GRAD_SIZE, MODEL_BASE,
           LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
           batch_size, samples_per_batch, features_per_sample,
-          nworkers, worker_id)
+          nworkers, worker_id), psint(nullptr)
   {}
 
     /**
@@ -109,10 +107,7 @@ class LogisticSparseTaskS3 : public MLTask {
     bool get_dataset_minibatch(
         std::unique_ptr<SparseDataset>& dataset,
         S3SparseIterator& s3_iter);
-    auto get_model(auto r, auto lmd);
     void push_gradient(LRSparseGradient*);
-    void unpack_minibatch(std::shared_ptr<FEATURE_TYPE> /*minibatch*/,
-        auto& samples, auto& labels);
 
     std::mutex redis_lock;
   
@@ -133,22 +128,13 @@ class PSSparseTask : public MLTask {
     void run(const Configuration& config);
 
   private:
-    auto connect_redis();
-
     void put_model(const SparseLRModel& model);
     void publish_model(const SparseLRModel& model);
 
-    void update_gradient_version(
-        auto& gradient, int worker, SparseLRModel& model, Configuration config);
-
-    void get_gradient(auto r, auto& gradient, auto gradient_id);
-
     void thread_fn();
 
-    void update_publish(auto&);
     void publish_model_pubsub();
     void publish_model_redis();
-    void update_publish_gradient(auto&);
 
     /**
       * Attributes
@@ -175,7 +161,6 @@ class ErrorSparseTask : public MLTask {
           LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, worker_id)
-      //mp(redis_ip, redis_port)
   {}
     void run(const Configuration& config);
 

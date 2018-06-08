@@ -226,7 +226,6 @@ FEATURE_TYPE MFModel::predict(uint32_t userId, uint32_t itemId) const {
 #else
   FEATURE_TYPE res = global_bias_ + user_bias_[userId] + item_bias_[itemId];
 #endif
-
   for (uint32_t i = 0; i < nfactors_; ++i) {
     res += get_user_weights(userId, i) * get_item_weights(itemId, i);
 #ifdef DEBUG
@@ -258,8 +257,6 @@ FEATURE_TYPE& MFModel::get_item_weights(uint64_t itemId, uint64_t factor) {
   if (itemId >= nitems_) {
     std::cout << "itemId: " << itemId << " nitems_: " << nitems_ << std::endl;
   }
-  //assert(factor < NUM_FACTORS);
-  //assert(itemId < nitems_);
   return item_weights_.at(itemId * nfactors_ + factor);
 }
 

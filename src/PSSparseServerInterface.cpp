@@ -218,8 +218,6 @@ SparseMFModel PSSparseServerInterface::get_sparse_mf_model(
   store_value<uint32_t>(msg, user_base);
   store_value<uint32_t>(msg, minibatch_size);
   store_value<uint32_t>(msg, MAGIC_NUMBER); // magic value
-
-
   bool seen[17770] = {false};
   for (const auto& sample : ds.data_) {
     for (const auto& w : sample) {
@@ -234,10 +232,9 @@ SparseMFModel PSSparseServerInterface::get_sparse_mf_model(
       item_ids_count++;
     }
   }
-
   msg = msg_begin;
   store_value<uint32_t>(msg, item_ids_count); // store correct value here
-  
+
   // 1. Send operation
   uint32_t operation = GET_MF_SPARSE_MODEL;
   send_all(sock, &operation, sizeof(uint32_t));

@@ -4,6 +4,7 @@
 #include <utility>
 #include <memory>
 #include <vector>
+#include <map>
 #include <ModelGradient.h>
 #include <Dataset.h>
 #include <SparseDataset.h>

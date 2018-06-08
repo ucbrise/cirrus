@@ -454,7 +454,7 @@ void PSSparseServerTask::main_poll_thread_fn(int id) {
 
         server_sock_ = socket(AF_INET, SOCK_STREAM, 0);
         if (server_sock_ < 0) {
-            throw cirrus::ConnectionException("Server error creating socket");
+            throw std::string("Server error creating socket");
         }
 
         int opt = 1;
@@ -520,7 +520,7 @@ void PSSparseServerTask::loop(int id) {
                 posit = 1;
             fdses[id][posit].revents = 0; // Reset the event flags
             char a[1];
-            read(pipefds[id][0], a, 1);
+            assert(read(pipefds[id][0], a, 1) >= 0);
             // ignore
         } else if (poll_status == 0) {
         } else {

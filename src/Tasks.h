@@ -10,6 +10,7 @@
 #include "PSSparseServerInterface.h"
 #include "S3SparseIterator.h"
 
+
 #include <string>
 #include <vector>
 #include <map>
@@ -21,7 +22,7 @@
 #include <netinet/tcp.h>
 #include <unistd.h>
 
-
+namespace cirrus {
 class MLTask {
   public:
     MLTask(
@@ -209,10 +210,6 @@ class PerformanceLambdaTask : public MLTask {
     void run(const Configuration& config);
 
   private:
-    void unpack_minibatch(const FEATURE_TYPE* /*minibatch*/,
-        auto& samples, auto& labels);
-
-    redisContext* connect_redis();
 };
 
 class LoadingSparseTaskS3 : public MLTask {
@@ -337,7 +334,6 @@ class PSSparseServerTask : public MLTask {
     std::vector<char> buffer; // we use this buffer to hold data from workers
 
     volatile uint64_t gradientUpdatesCount = 0;
-    redisContext* redis_con;
     
     std::unique_ptr<SparseLRModel> lr_model; // last computed model
     std::unique_ptr<MFModel> mf_model; // last computed model
@@ -393,16 +389,14 @@ class MFNetflixTask : public MLTask {
 
   private:
     bool get_dataset_minibatch(
-        auto& dataset,
-        auto& s3_iter);
-    auto get_model(auto r, auto lmd);
+        std::unique_ptr<SparseDataset>& dataset,
+        S3SparseIterator& s3_iter);
     void push_gradient(MFSparseGradient&);
-    void unpack_minibatch(std::shared_ptr<FEATURE_TYPE> /*minibatch*/,
-        auto& samples, auto& labels);
 
     std::unique_ptr<MFModelGet> mf_model_get;
     std::unique_ptr<PSSparseServerInterface> psint;
 };
 
 }
+
 #endif  // _TASKS_H_

@@ -29,3 +29,10 @@ __pycache__/
 third_party/eigen_source/*
 .m4
 lib-link.m4
+src/csv_to_libsvm
+src/parameter_server
+src/ps_test
+third_party/kerberos/
+third_party/keyutils-1.5.10.tar.bz2
+third_party/keyutils/
+third_party/krb5-1.15.2.tar.gz

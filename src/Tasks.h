@@ -271,7 +271,7 @@ class PSSparseServerTask : public MLTask {
     void start_server();
     void main_poll_thread_fn(int id);
 
-    bool testRemove(struct pollfd x);
+    bool testRemove(struct pollfd x, int id);
     void loop(int id);
     bool process(struct pollfd&, int id);
 

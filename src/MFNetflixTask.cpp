@@ -82,30 +82,51 @@ void MFNetflixTask::run(const Configuration& config, int worker) {
   wait_for_start(WORKER_SPARSE_TASK_RANK + worker, nworkers);
 
   // Create iterator that goes from 0 to num_s3_batches
-  auto train_range = config.get_train_range();
+  std::pair<int, int> train_range = config.get_train_range();
 
   /** We sequentially iterate over data
     * This is necessary because we need to know the index of each row
     * in the dataset matrix because that tells us which user it belongs to
     * (same doesn't happen with Logistic Regression)
     */
+
+  int l = train_range.first;
+  int r = train_range.second;
+  uint64_t sample_low = 0;
+  uint64_t sample_index = 0;
+  uint64_t sample_high = config.get_s3_size() * (config.get_train_range().second + 1);
+
+  if (config.get_netflix_workers()) {
+    int range_length = (train_range.second - train_range.first) / config.get_netflix_workers();
+    range_length += 1;
+
+    l = worker * range_length;
+    r = std::min(l + range_length, r);
+
+    sample_low = l * config.get_s3_size();
+    sample_high = std::min(sample_high, (r + 1) * config.get_s3_size());
+
+    sample_index = sample_low;
+
+  }
+
   S3SparseIterator s3_iter(
-      train_range.first, train_range.second,
-      config, config.get_s3_size(), config.get_minibatch_size(),
+      l, r + 1, config, config.get_s3_size(), config.get_minibatch_size(),
       false, worker, false);
 
   std::cout << "[WORKER] starting loop" << std::endl;
 
-  uint64_t sample_index = 0;
   while (1) {
     // get data, labels and model
 #ifdef DEBUG
     std::cout << "[WORKER] running phase 1" << std::endl;
 #endif
+    auto t0 = get_time_us();
     std::unique_ptr<SparseDataset> dataset;
     if (!get_dataset_minibatch(dataset, s3_iter)) {
       continue;
     }
+    auto t1 = get_time_us();
     std::cout << "DS size: " << dataset->num_samples() << std::endl;
 #ifdef DEBUG
     std::cout << "[WORKER] phase 1 done" << std::endl;
@@ -137,12 +158,15 @@ void MFNetflixTask::run(const Configuration& config, int worker) {
 #endif
       MFSparseGradient* grad_ptr =
         dynamic_cast<MFSparseGradient*>(gradient.get());
+      auto t5 = get_time_us();
       push_gradient(*grad_ptr);
+      auto t6 = get_time_us();
       sample_index += config.get_minibatch_size();
 
-      if (sample_index + config.get_minibatch_size()
-                   > config.get_s3_size() * config.get_train_range().second) {
-          sample_index = 0;
+      std::cout << "getd, getm, calc, push: " << t1 - t0 << " " << t3 - t2 << " " << t5 - t4 << " " << t6 - t5 << std::endl;
+
+      if (sample_index + config.get_minibatch_size() > sample_high) {
+          sample_index = sample_low;
       }
     } catch(...) {
       std::cout << "There was an error computing the gradient" << std::endl;

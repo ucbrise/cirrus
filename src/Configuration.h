@@ -120,6 +120,8 @@ class Configuration {
 
     uint64_t get_model_bits() const;
 
+    bool get_use_adagrad() const;
+
     /**
       * Netflix specific
       */
@@ -127,6 +129,7 @@ class Configuration {
     int get_items() const;
 
     bool get_use_adagrad() const;
+    uint64_t get_netflix_workers() const;
 
  public:
     /**
@@ -179,8 +182,9 @@ class Configuration {
     bool use_adagrad = true;
 
     uint64_t model_bits = 20;
-};
 
-} // namespace cirrus
+    uint64_t netflix_workers = 0;
+};
+}
 
 #endif  // _CONFIGURATION_H_

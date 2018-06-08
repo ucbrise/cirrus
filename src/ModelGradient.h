@@ -173,8 +173,8 @@ class MFSparseGradient : public ModelGradient {
     }
 
     // [D * K]
-    std::unordered_map<int, FEATURE_TYPE> users_bias_grad;
-    std::unordered_map<int, FEATURE_TYPE> items_bias_grad;
+    std::map<int, FEATURE_TYPE> users_bias_grad;
+    std::map<int, FEATURE_TYPE> items_bias_grad;
     //std::vector<FEATURE_TYPE> items_bias_grad;
 
     // user id and then weights

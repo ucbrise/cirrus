@@ -135,10 +135,10 @@ class SparseMFModel : public CirrusModel {
       */
     //uint64_t size() const;
 
-    std::vector<char> serializeFromDense(
+    void serializeFromDense(
         MFModel& model,
         uint32_t base_user, uint32_t minibatch_size, uint32_t k_items,
-        const char* item_data_ptr) const;
+        const char* item_data_ptr, char* holder) const;
 
  public:
 
@@ -154,9 +154,12 @@ class SparseMFModel : public CirrusModel {
     // 1. item id
     // 2. item_bias
     // 3. item weights
+    /* XXX: Getting rid of this - Andy
     std::unordered_map<int,
       std::pair<FEATURE_TYPE,
         std::vector<FEATURE_TYPE>>> item_models;
+    */
+    std::pair<FEATURE_TYPE, std::vector<FEATURE_TYPE>> item_models[17770];
 
     FEATURE_TYPE& get_user_weights(uint64_t userId, uint64_t factor);
     FEATURE_TYPE& get_item_weights(uint64_t itemId, uint64_t factor);

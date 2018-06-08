@@ -21,7 +21,6 @@
 #include <netinet/tcp.h>
 #include <unistd.h>
 
-namespace cirrus {
 
 class MLTask {
   public:
@@ -48,6 +47,7 @@ class MLTask {
     void run(const Configuration& config, int worker);
 
     void wait_for_start(int index, int nworkers);
+    bool get_worker_status(auto r, int worker_id);
 
   protected:
     uint64_t MODEL_GRAD_SIZE;
@@ -76,7 +76,7 @@ class LogisticSparseTaskS3 : public MLTask {
       MLTask(MODEL_GRAD_SIZE, MODEL_BASE,
           LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
           batch_size, samples_per_batch, features_per_sample,
-          nworkers, worker_id), psint(nullptr)
+          nworkers, worker_id)
   {}
 
     /**
@@ -108,7 +108,10 @@ class LogisticSparseTaskS3 : public MLTask {
     bool get_dataset_minibatch(
         std::unique_ptr<SparseDataset>& dataset,
         S3SparseIterator& s3_iter);
+    auto get_model(auto r, auto lmd);
     void push_gradient(LRSparseGradient*);
+    void unpack_minibatch(std::shared_ptr<FEATURE_TYPE> /*minibatch*/,
+        auto& samples, auto& labels);
 
     std::mutex redis_lock;
   
@@ -129,13 +132,22 @@ class PSSparseTask : public MLTask {
     void run(const Configuration& config);
 
   private:
+    auto connect_redis();
+
     void put_model(const SparseLRModel& model);
     void publish_model(const SparseLRModel& model);
 
+    void update_gradient_version(
+        auto& gradient, int worker, SparseLRModel& model, Configuration config);
+
+    void get_gradient(auto r, auto& gradient, auto gradient_id);
+
     void thread_fn();
 
+    void update_publish(auto&);
     void publish_model_pubsub();
     void publish_model_redis();
+    void update_publish_gradient(auto&);
 
     /**
       * Attributes
@@ -162,8 +174,18 @@ class ErrorSparseTask : public MLTask {
           LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, worker_id)
+      //mp(redis_ip, redis_port)
   {}
     void run(const Configuration& config);
+
+  private:
+    void get_samples_labels_redis(
+        auto r, auto i, auto& samples, auto& labels,
+        auto cad_samples, auto cad_labels);
+    void parse_raw_minibatch(const FEATURE_TYPE* minibatch,
+        auto& samples, auto& labels);
+
+    //ProgressMonitor mp;
 };
 
 class PerformanceLambdaTask : public MLTask {
@@ -187,6 +209,10 @@ class PerformanceLambdaTask : public MLTask {
     void run(const Configuration& config);
 
   private:
+    void unpack_minibatch(const FEATURE_TYPE* /*minibatch*/,
+        auto& samples, auto& labels);
+
+    redisContext* connect_redis();
 };
 
 class LoadingSparseTaskS3 : public MLTask {
@@ -246,11 +272,12 @@ class PSSparseServerTask : public MLTask {
 
     struct Request {
       public:
-        Request(int req_id, int sock, uint32_t incoming_size, struct pollfd& poll_fd) :
-          req_id(req_id), sock(sock), incoming_size(incoming_size), poll_fd(poll_fd){}
+        Request(int req_id, int sock, int id, uint32_t incoming_size, struct pollfd& poll_fd) :
+          req_id(req_id), sock(sock), id(id), incoming_size(incoming_size), poll_fd(poll_fd){}
 
         int req_id;
         int sock;
+        int id;
         uint32_t incoming_size;
         struct pollfd& poll_fd;
     };
@@ -260,10 +287,11 @@ class PSSparseServerTask : public MLTask {
 
     // network related methods
     void start_server();
-    void poll_thread_fn();
+    void main_poll_thread_fn(int id);
+
     bool testRemove(struct pollfd x);
-    void loop();
-    bool process(struct pollfd&);
+    void loop(int id);
+    bool process(struct pollfd&, int id);
 
     // Model/ML related methods
     void checkpoint_model() const;
@@ -273,7 +301,7 @@ class PSSparseServerTask : public MLTask {
     // message handling
     bool process_get_lr_sparse_model(const Request& req, std::vector<char>&);
     bool process_send_lr_gradient(const Request& req, std::vector<char>&);
-    bool process_get_mf_sparse_model(const Request& req, std::vector<char>&);
+    bool process_get_mf_sparse_model(const Request& req, std::vector<char>&, int tn);
     bool process_get_lr_full_model(const Request& req, std::vector<char>& thread_buffer);
     bool process_send_mf_gradient(const Request& req, std::vector<char>& thread_buffer);
     bool process_get_mf_full_model(const Request& req, std::vector<char>& thread_buffer);
@@ -281,12 +309,14 @@ class PSSparseServerTask : public MLTask {
     /**
       * Attributes
       */
-    uint64_t curr_index = 0; // index (exclusive) to last sockets in fds
+
+    std::vector<uint64_t> curr_indexes = std::vector<uint64_t>(NUM_POLL_THREADS);
 #if 0
     uint64_t server_clock = 0;  // minimum of all worker clocks
 #endif
     std::unique_ptr<std::thread> thread; // worker threads
-    std::unique_ptr<std::thread> server_thread;
+    std::vector<std::unique_ptr<std::thread>> server_threads;
+    std::unique_ptr<std::thread> server_thread2;
     std::vector<std::unique_ptr<std::thread>> gradient_thread;
     pthread_t poll_thread;
     pthread_t main_thread;
@@ -296,17 +326,18 @@ class PSSparseServerTask : public MLTask {
     const uint64_t n_threads = 4;
     std::mutex model_lock; // used to coordinate access to the last computed model
 
-    int pipefd[2] = {0};
+    int pipefds[NUM_POLL_THREADS][2] = {0};
 
     int port_ = 1337;
     int server_sock_ = 0;
     const uint64_t max_fds = 1000;
     int timeout = 1; // 1 ms
-    std::vector<struct pollfd> fds = std::vector<struct pollfd>(max_fds);
+    std::vector<std::vector<struct pollfd>> fdses = std::vector<std::vector<struct pollfd>>(NUM_POLL_THREADS);
 
     std::vector<char> buffer; // we use this buffer to hold data from workers
 
     volatile uint64_t gradientUpdatesCount = 0;
+    redisContext* redis_con;
     
     std::unique_ptr<SparseLRModel> lr_model; // last computed model
     std::unique_ptr<MFModel> mf_model; // last computed model
@@ -315,6 +346,10 @@ class PSSparseServerTask : public MLTask {
 
     std::map<int, bool> task_to_status;
     std::map<int, std::string> operation_to_name;
+
+    char* holder[4];
+    int tc = 0;
+
 };
 
 class MFNetflixTask : public MLTask {
@@ -358,14 +393,16 @@ class MFNetflixTask : public MLTask {
 
   private:
     bool get_dataset_minibatch(
-        std::unique_ptr<SparseDataset>& dataset,
-        S3SparseIterator& s3_iter);
+        auto& dataset,
+        auto& s3_iter);
+    auto get_model(auto r, auto lmd);
     void push_gradient(MFSparseGradient&);
+    void unpack_minibatch(std::shared_ptr<FEATURE_TYPE> /*minibatch*/,
+        auto& samples, auto& labels);
 
     std::unique_ptr<MFModelGet> mf_model_get;
     std::unique_ptr<PSSparseServerInterface> psint;
 };
 
 }
-
 #endif  // _TASKS_H_

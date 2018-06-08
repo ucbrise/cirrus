@@ -24,6 +24,7 @@ void MFModel::initialize_data(uint64_t users, uint64_t items, uint64_t nfactors)
   //    new FEATURE_TYPE[items * nfactors], std::default_delete<FEATURE_TYPE[]>());
   user_weights_.resize(users * nfactors);
   item_weights_.resize(items * nfactors);
+  global_bias_ = 3.604;
 
   user_bias_.resize(users);
   item_bias_.resize(items);
@@ -122,7 +123,7 @@ void MFModel::loadSerialized(const void* data) {
   nusers_ = load_value<uint64_t>(data);
   nitems_ = load_value<uint64_t>(data);
   nfactors_ = load_value<uint64_t>(data);
-  
+
 #ifdef DEBUG
   std::cout << "loadSerialized"
     << " nusers: " << nusers_
@@ -130,10 +131,8 @@ void MFModel::loadSerialized(const void* data) {
     << " nfactors_: " << nfactors_
     << std::endl;
 #endif
-  
-  item_fact_reg_ = user_fact_reg_ = 0.01;
-  user_bias_reg_ = item_bias_reg_ = 0.01;
 
+  global_bias_ = 3.604;
   user_weights_.resize(nusers_ * nfactors_);
   item_weights_.resize(nitems_ * nfactors_);
   user_bias_.resize(nusers_);
@@ -197,18 +196,18 @@ void MFModel::sgd_update(double learning_rate,
   // apply grad to users_bias_grad
   for (const auto& v : grad_ptr->users_bias_grad) {
     //std::cout << "ub: " << v.second << "\n";
-      user_bias_[v.first] += learning_rate * v.second;
+      user_bias_[v.first] += v.second;
   }
   for (const auto& v : grad_ptr->items_bias_grad) {
     //std::cout << "ib: " << v.second << "\n";
-      item_bias_[v.first] += learning_rate * v.second;
+      item_bias_[v.first] += v.second;
   }
   for (const auto& v : grad_ptr->users_weights_grad) {
     int user_id = v.first;
     assert(v.second.size() == NUM_FACTORS);
     for (uint32_t i = 0; i < v.second.size(); ++i) {
       //std::cout << "uw: " << v.second[i] << "\n";
-      get_user_weights(user_id, i) += learning_rate * v.second[i];
+      get_user_weights(user_id, i) += v.second[i];
     }
   }
   for (const auto& v : grad_ptr->items_weights_grad) {
@@ -216,24 +215,23 @@ void MFModel::sgd_update(double learning_rate,
     assert(v.second.size() == NUM_FACTORS);
     for (uint32_t i = 0; i < v.second.size(); ++i) {
       //std::cout << "iw: " << v.second[i] << "\n";
-      get_item_weights(item_id, i) += learning_rate * v.second[i];
+      get_item_weights(item_id, i) += v.second[i];
     }
   }
 }
 
 FEATURE_TYPE MFModel::predict(uint32_t userId, uint32_t itemId) const {
 #ifdef DEBUG
-  //std::cout << "userId: " << userId << " itemId: " << itemId << std::endl;
   FEATURE_TYPE res = global_bias_ + user_bias_.at(userId) + item_bias_.at(itemId);
 #else
   FEATURE_TYPE res = global_bias_ + user_bias_[userId] + item_bias_[itemId];
 #endif
-  
+
   for (uint32_t i = 0; i < nfactors_; ++i) {
     res += get_user_weights(userId, i) * get_item_weights(itemId, i);
 #ifdef DEBUG
     if (std::isnan(res) || std::isinf(res)) {
-      std::cout << "userId: " << userId << " itemId: " << itemId 
+      std::cout << "userId: " << userId << " itemId: " << itemId
         << " get_user_weights(userId, i): " << get_user_weights(userId, i)
         << " get_item_weights(itemId, i): " << get_item_weights(itemId, i)
         << std::endl;
@@ -253,8 +251,6 @@ std::unique_ptr<ModelGradient> MFModel::minibatch_grad(
 }
 
 FEATURE_TYPE& MFModel::get_user_weights(uint64_t userId, uint64_t factor) {
-  assert(factor < NUM_FACTORS);
-  assert(userId < nusers_);
   return user_weights_.at(userId * nfactors_ + factor);
 }
 
@@ -262,20 +258,16 @@ FEATURE_TYPE& MFModel::get_item_weights(uint64_t itemId, uint64_t factor) {
   if (itemId >= nitems_) {
     std::cout << "itemId: " << itemId << " nitems_: " << nitems_ << std::endl;
   }
-  assert(factor < NUM_FACTORS);
-  assert(itemId < nitems_);
+  //assert(factor < NUM_FACTORS);
+  //assert(itemId < nitems_);
   return item_weights_.at(itemId * nfactors_ + factor);
 }
 
 const FEATURE_TYPE& MFModel::get_user_weights(uint64_t userId, uint64_t factor) const {
-  assert(factor < NUM_FACTORS);
-  assert(userId < nusers_);
   return user_weights_.at(userId * nfactors_ + factor);
 }
 
 const FEATURE_TYPE& MFModel::get_item_weights(uint64_t itemId, uint64_t factor) const {
-  assert(factor < NUM_FACTORS);
-  assert(itemId < nitems_);
   return item_weights_.at(itemId * nfactors_ + factor);
 }
 
@@ -295,7 +287,7 @@ void MFModel::sgd_update(
       FEATURE_TYPE error = rating - pred;
 
 #ifdef DEBUG
-      std::cout 
+      std::cout
         << "user: " << user
         << "itemId: " << itemId
         << "rating: " << rating
@@ -324,7 +316,7 @@ void MFModel::sgd_update(
 
       // update user latent factors
       for (uint64_t k = 0; k < nfactors_; ++k) {
-        FEATURE_TYPE delta_user_w = 
+        FEATURE_TYPE delta_user_w =
           learning_rate * (error * get_item_weights(itemId, k) - user_fact_reg_ * get_user_weights(user, k));
         //std::cout << "delta_user_w: " << delta_user_w << std::endl;
         get_user_weights(user, k) += delta_user_w;
@@ -462,5 +454,3 @@ FEATURE_TYPE& MFModel::get_item_bias(uint64_t itemId) {
   }
   return item_bias_.at(itemId);
 }
-
-} // namespace cirrus

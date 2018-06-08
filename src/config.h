@@ -33,3 +33,6 @@ using FEATURE_TYPE = float;
 
 // number of factors for neflix workload
 #define NUM_FACTORS 10
+
+// define the number of poll threads
+#define NUM_POLL_THREADS 2

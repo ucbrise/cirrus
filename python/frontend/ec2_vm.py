@@ -29,7 +29,7 @@ class Ec2VMManager:
          ImageId='ami-db710fa3',
          MinCount=1,
          MaxCount=1,
-         InstanceType='m5.large',
+         InstanceType='t2.micro',
          TagSpecifications=tag_specification
       )
       self.instances.append(instance)
@@ -39,18 +39,18 @@ class Ec2VMManager:
 
     def stop_all_vms(self):
       print "stopping all vms"
-      return # don't stop any vms until we
+      #return # don't stop any vms until we
       #  understand whats going on
       for instance_id in self.instances:
-        instance = self.ec2_client.Instance(instance[0])
-        response = instance.terminate()
+        instance = self.ec2_resource.instances.filter(InstanceIds=[instance_id[0].instance_id]).stop()
+        response = self.ec2_resource.instances.filter(InstanceIds=[instance_id[0].instance_id]).terminate()
         print response
 
     def setup_vm(self):
       print "setup vm"
 
     def get_tags(self, fid):
-      # When given an instance ID as str e.g. 'i-1234567', 
+      # When given an instance ID as str e.g. 'i-1234567',
       ec2instance = self.ec2_resource.Instance(fid)
       return ec2instance.tags
 
@@ -73,5 +73,3 @@ class Ec2VMManager:
             if instance.state['Name'] == 'running':
               return
         time.sleep(1)
-
-

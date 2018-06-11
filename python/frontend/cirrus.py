@@ -17,14 +17,49 @@ class LogisticRegressionTask:
     def run(self):
         # launch instances
         vm_manager = ec2_vm.Ec2VMManager("ec2 manager")
-        ec2_vm.wait_until_running()
         vm_instance = vm_manager.start_vm(1) # start 1 vm
-        # copy driver and binary to instance
+        vm_instance.wait_until_running() # wait for instance to run
 
-        ip = ec2_vm.get_instance_ip(vm_instance)
-        copy_driver_to_vm(ip)
+        # copy driver and binary to instance
+        # Using ssh for now
+
+        vm_instance.wait_until_running() # Wait for vm to run
+        vm_instance.load() # wait for settings to update
+        ip = vm_instance.public_dns_name # grab the public ip of the vm
+        print "Got vm with ip %s" % ip
+
+        key = paramiko.RSAKey.from_private_key_file("/home/camus/Downloads/mykey.pem")
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+        # Download driver to vm
+        try:
+            print "Waiting for ssh startup"
+            time.sleep(10)
+            print "Done waiting..."
+            client.connect(hostname=ip, username='ubuntu', pkey=key)
+            # Set up ssm (if we choose to use that, and get the binary) XXX: replace a.pdf with the actual binary
+            stdin, stdout, stderr = client.exec_command("wget https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb && sudo dpkg -i amazon-ssm-agent.deb")
+            stdin, stdout, stderr = client.exec_command("aws s3 cp s3://andrewmzhang-bucket/a.pdf")
+            print stdout.read()
+            client.close()
+        except Exception, e:
+            print e
+
+
+        client_ssm = boto3.client('ssm')
+        commands = ['echo "hello world"']  # XXX: replace this with the execute binary command
+        instance_ids = [vm_instance.instance_id]
+
+        # XXX: figure out what to do with this thing
+        resp  = client_ssm.send_command(
+            DocumentName='AWS-RunShellScript',
+            Parameters={'commands': commands},
+            InstanceIds = instance_ids
+        )
+
         # launch driver in vm
-        launch_driver(ip)
+        #launch_driver(ip)
 
     def wait(self):
         print "waiting"
@@ -65,4 +100,3 @@ def CollaborativeFiltering():
 
 def LDA():
     print "Not implemented"
-

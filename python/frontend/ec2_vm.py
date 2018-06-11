@@ -2,13 +2,14 @@
 
 import boto3
 import time
+import paramiko
 
 class Ec2VMManager:
     def __init__(self, description, access_key, secret_key):
       print "Starting VM Manager"
       self.description = description
-      self.ec2_client = boto3.client('ec2')
-      self.ec2_resource = boto3.resource('ec2')
+      self.ec2_client = boto3.client('ec2', region_name='us-west-2')
+      self.ec2_resource = boto3.resource('ec2', region_name='us-west-2')
       self.access_key = access_key
       self.secret_key = secret_key
       self.instances = [] # vm instances managed by the manager
@@ -30,7 +31,11 @@ class Ec2VMManager:
          MinCount=1,
          MaxCount=1,
          InstanceType='t2.micro',
-         TagSpecifications=tag_specification
+         KeyName='mykey',
+         TagSpecifications=tag_specification,
+         IamInstanceProfile={
+            'Arn': 'arn:aws:iam::907431714164:instance-profile/ssm_role'
+         }
       )
       self.instances.append(instance)
 

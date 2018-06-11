@@ -32,15 +32,47 @@ class Ec2VMManager:
          MaxCount=1,
          InstanceType='t2.micro',
          KeyName='mykey',
-         TagSpecifications=tag_specification,
-         IamInstanceProfile={
-            'Arn': 'arn:aws:iam::907431714164:instance-profile/ssm_role'
-         }
+         TagSpecifications=tag_specification
       )
-      self.instances.append(instance)
+      self.instances.append(instance[0])
 
-      print "instance started:", instance[0]
       return instance[0] # return instance object
+
+    def start_vm_spot(self, number_vms, price="0.01"):
+        assert(number_vms == 1)
+        print "Starting Spot Instance Request for %d VMs at price %s" % (number_vms, price)
+        client = self.ec2_client
+        rc = client.request_spot_instances(
+                        DryRun=False,
+                        SpotPrice="0.01",
+                        Type='one-time',
+                        InstanceCount=1,
+                        LaunchSpecification={'ImageId': 'ami-db710fa3',
+                                             'InstanceType': 'm1.small',
+                                             'KeyName': 'mykey'})
+        state = 'open'
+        request_id = rc[u'SpotInstanceRequests'][0][u'SpotInstanceRequestId']
+        instance_id = None
+        print "Created Spot Request w/ ID: %s" % request_id
+
+        while state == 'open':
+            print "Waiting on request..."
+            time.sleep(10)
+            spot = client.describe_spot_instance_requests(DryRun = False, SpotInstanceRequestIds=[request_id])
+            state = spot[u'SpotInstanceRequests'][0][u'State']
+            print "Current state is: %s" % state
+        instance_id = spot[u'SpotInstanceRequests'][0][u'InstanceId']
+        print "Spot request granded with ID: %s" % instance_id
+
+        print "Spot instance created! Instance id is: %s" % instance_id
+        tags = [{'Key':'runtime','Value': 'Cirrus 0.1'}, {'Key':'owner', 'Value': 'Cirrus'}]
+        for instance in self.ec2_resource.instances.all():
+            if instance.instance_id == instance_id:
+                client.create_tags(Resources=[instance_id], Tags=tags)
+                self.instances.append(instance)
+                return instance
+        print "Unexpected error in finding instance..."
+
 
     def stop_all_vms(self):
       print "stopping all vms"
@@ -53,6 +85,12 @@ class Ec2VMManager:
 
     def setup_vm(self):
       print "setup vm"
+      vm_instance = self.instances[0]
+      vm_instance.wait_until_running() # Wait for vm to run
+      vm_instance.load() # wait for settings to update
+      ip = vm_instance.public_dns_name # grab the public ip of the vm
+      return ip
+
 
     def get_tags(self, fid):
       # When given an instance ID as str e.g. 'i-1234567',
@@ -67,6 +105,7 @@ class Ec2VMManager:
       for instance in self.ec2_resource.instances.all():
         tags = self.get_tags(instance.id)
         print instance.id, ":", tags
+
 
     def wait_until_running(self, vm_instance):
       instance_id = vm_instance[0]

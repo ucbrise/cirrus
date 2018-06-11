@@ -2,61 +2,68 @@
 
 import threading
 import ec2_vm
+import paramiko
+import time
 
 class LogisticRegressionTask:
     def __init__(self):
         print "Starting LogisticRegressionTask"
         self.thread = threading.Thread(target=self.run)
 
+    def __del__(self):
+        print "Logistic Regression Task Lost. Closing ssh connection"
+        self.client.close();
+
     def copy_driver_to_vm(self, ip):
         print "Copying driver to vm"
-
-    def launch_driver(self, ip):
-        print "Launching driver"
-
-    def run(self):
-        # launch instances
-        vm_manager = ec2_vm.Ec2VMManager("ec2 manager")
-        vm_instance = vm_manager.start_vm(1) # start 1 vm
-        vm_instance.wait_until_running() # wait for instance to run
-
-        # copy driver and binary to instance
-        # Using ssh for now
-
-        vm_instance.wait_until_running() # Wait for vm to run
-        vm_instance.load() # wait for settings to update
-        ip = vm_instance.public_dns_name # grab the public ip of the vm
-        print "Got vm with ip %s" % ip
-
+        # Setup via ssh
         key = paramiko.RSAKey.from_private_key_file("/home/camus/Downloads/mykey.pem")
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
         # Download driver to vm
         try:
-            print "Waiting for ssh startup"
-            time.sleep(10)
-            print "Done waiting..."
-            client.connect(hostname=ip, username='ubuntu', pkey=key)
-            # Set up ssm (if we choose to use that, and get the binary) XXX: replace a.pdf with the actual binary
-            stdin, stdout, stderr = client.exec_command("wget https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb && sudo dpkg -i amazon-ssm-agent.deb")
-            stdin, stdout, stderr = client.exec_command("aws s3 cp s3://andrewmzhang-bucket/a.pdf")
-            print stdout.read()
-            client.close()
+          print "Waiting for ssh startup"
+          time.sleep(30)
+          print "Done waiting..."
+          client.connect(hostname=ip, username='ubuntu', pkey=key)
+          # Set up ssm (if we choose to use that, and get the binary) XXX: replace a.pdf with the actual binary
+          stdin, stdout, stderr = client.exec_command("wget https://s3-us-west-2.amazonaws.com/andrewmzhang-bucket/parameter_server")
+          stdin, stdout, stderr = client.exec_command("chmod +x parameter_server")
+          client.close()
         except Exception, e:
-            print e
+          print e
 
 
-        client_ssm = boto3.client('ssm')
-        commands = ['echo "hello world"']  # XXX: replace this with the execute binary command
-        instance_ids = [vm_instance.instance_id]
+    def launch_driver(self, ip):
+        print "Launching driver"
+        key = paramiko.RSAKey.from_private_key_file("/home/camus/Downloads/mykey.pem")
 
-        # XXX: figure out what to do with this thing
-        resp  = client_ssm.send_command(
-            DocumentName='AWS-RunShellScript',
-            Parameters={'commands': commands},
-            InstanceIds = instance_ids
-        )
+        self.client = paramiko.SSHClient()
+        self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        time.sleep(10)
+
+        self.client.connect(hostname=ip, username='ubuntu', pkey=key)
+        # Set up ssm (if we choose to use that, and get the binary) XXX: replace a.pdf with the actual binary
+        stdin, stdout, stderr = self.client.exec_command("./parameter_server")
+        print stdout.read()
+        self.client.close()
+
+    def issue_ssh_command(self, command, ip):
+        print "Issuing command: %s on %s" % (command, ip)
+
+
+    def run(self):
+        # launch instances
+        vm_manager = ec2_vm.Ec2VMManager("ec2 manager", "", "")
+        vm_instance = vm_manager.start_vm_spot(1) # start 1 vm
+        ip_addr = vm_manager.setup_vm()
+
+        print "Got machine with ip %s", ip_addr
+        # copy driver and binary to instance
+        # Using ssh for now
+
+        self.copy_driver_to_vm(ip_addr)
+        self.launch_driver(ip_addr)
 
         # launch driver in vm
         #launch_driver(ip)
@@ -64,6 +71,29 @@ class LogisticRegressionTask:
     def wait(self):
         print "waiting"
         return 1,2
+
+    def define_config(self):
+        config = "input_path: /mnt/efs/criteo_kaggle/train.csv \n" + \
+                 "input_type: csv\n" + \
+                 "num_classes: 2 \n" + \
+                 "num_features: 13 \n" + \
+                 "limit_cols: 14 \n" + \
+                 "normalize: 1 \n" + \
+                 "limit_samples: 50000000 \n" + \
+                 "s3_size: 50000 \n" + \
+                 "use_bias: 1 \n" + \
+                 "model_type: LogisticRegression \n" + \
+                 "minibatch_size: 20 \n" + \
+                 "learning_rate: 0.01 \n" + \
+                 "epsilon: 0.0001 \n" + \
+                 "model_bits: 19 \n" + \
+                 "s3_bucket: cirrus-criteo-kaggle-19b-random \n" + \
+                 "use_grad_threshold: 1 \n" + \
+                 "grad_threshold: 0.001 \n" + \
+                 "train_set: 0-824 \n" + \
+                 "test_set: 825-840 \n"
+
+
 
 def dataset_handle(path, format):
     print "path: ", path, " format: ", format
@@ -86,7 +116,9 @@ def LogisticRegression(n_workers, n_ps,
            )
 
 def create_random_lr_model(n):
+    #print "Creating generic model not yet implemented, creating criteo kaggle model"
     print "Creating random LR model with size: ", n
+
     return 0
 
 # Collaborative Filtering

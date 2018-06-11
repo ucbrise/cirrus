@@ -20,10 +20,11 @@ data = cirrus.dataset_handle(path = "s3://s3_path", \
 # get cirrus executor
 # which parameters should we have here?
 
-model = cirrus.create_random_lr_model(10)
+#model = cirrus.create_random_lr_model(10)
 
+'''
 lr_task = cirrus.LogisticRegression(\
-             n_workers = 3, n_ps = 2, 
+             n_workers = 3, n_ps = 2,
              dataset = data,
              aws_access_key=ACCESS_KEY,
              aws_secret_access_key=SECRET_KEY
@@ -32,6 +33,10 @@ lr_task = cirrus.LogisticRegression(\
              timeout = 100,
              threshold_loss=0.48,
              resume_model = model)
+'''
 
-model, loss = lr_task.wait()
 
+lr_task = cirrus.LogisticRegressionTask()
+lr_task.run()
+
+#model, loss = lr_task.wait()

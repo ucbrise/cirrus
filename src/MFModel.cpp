@@ -451,4 +451,5 @@ FEATURE_TYPE& MFModel::get_item_bias(uint64_t itemId) {
   }
   return item_bias_.at(itemId);
 }
-}
+
+}  // namespace cirrus

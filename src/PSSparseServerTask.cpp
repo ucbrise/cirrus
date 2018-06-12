@@ -9,6 +9,7 @@
 #undef DEBUG
 
 #define MAX_CONNECTIONS (nworkers * 2 + 1) // (2 x # workers + 1)
+#define THREAD_MSG_BUFFER_SIZE 5000000
 
 namespace cirrus {
 
@@ -25,6 +26,8 @@ PSSparseServerTask::PSSparseServerTask(
       nworkers, worker_id) {
     std::cout << "PSSparseServerTask is built" << std::endl;
 
+    std::atomic_init(&thread_count, 0);
+
     operation_to_name[0] = "SEND_LR_GRADIENT";
     operation_to_name[1] = "SEND_MF_GRADIENT";
     operation_to_name[2] = "GET_LR_FULL_MODEL";
@@ -33,8 +36,10 @@ PSSparseServerTask::PSSparseServerTask(
     operation_to_name[5] = "GET_MF_SPARSE_MODEL";
     operation_to_name[6] = "SET_TASK_STATUS";
     operation_to_name[7] = "GET_TASK_STATUS";
-    for (int i = 0; i < 4; i++)
-      holder[i] = new char[5000000];
+
+    for (int i = 0; i < NUM_PS_WORK_THREADS; i++)
+      thread_msg_buffer[i] =
+          new char[THREAD_MSG_BUFFER_SIZE]; // per-thread buffer
   }
 
 std::shared_ptr<char> PSSparseServerTask::serialize_lr_model(
@@ -46,11 +51,11 @@ std::shared_ptr<char> PSSparseServerTask::serialize_lr_model(
   return d;
 }
 
-bool PSSparseServerTask::testRemove(struct pollfd x, int id) {
+bool PSSparseServerTask::testRemove(struct pollfd x, int poll_id) {
   // If this pollfd will be removed, the index of the next location to insert
   // should be reduced by one correspondingly.
   if (x.fd == -1) {
-    curr_indexes[id] -= 1;
+    curr_indexes[poll_id] -= 1;
   }
   return x.fd == -1;
 }
@@ -124,26 +129,26 @@ bool PSSparseServerTask::process_send_lr_gradient(const Request& req, std::vecto
 // move this to SparseMFModel
 
 bool PSSparseServerTask::process_get_mf_sparse_model(
-    const Request& req, std::vector<char>& thread_buffer, int tn) {
+    const Request& req, std::vector<char>& thread_buffer, int thread_number) {
   uint32_t k_items = 0;
   uint32_t base_user_id = 0;
   uint32_t minibatch_size = 0;
   uint32_t magic_value = 0;
 
-  read_all(req.sock, &k_items, sizeof (uint32_t));
-  read_all(req.sock, &base_user_id, sizeof (uint32_t));
-  read_all(req.sock, &minibatch_size, sizeof (uint32_t));
-  read_all(req.sock, &magic_value, sizeof (uint32_t));
+  read_all(req.sock, &k_items, sizeof(uint32_t));
+  read_all(req.sock, &base_user_id, sizeof(uint32_t));
+  read_all(req.sock, &minibatch_size, sizeof(uint32_t));
+  read_all(req.sock, &magic_value, sizeof(uint32_t));
 
   assert(k_items > 0);
   assert(minibatch_size > 0);
   if (magic_value != MAGIC_NUMBER) {
     throw std::runtime_error("Wrong message");
   }
-  read_all(req.sock, thread_buffer.data(), k_items * sizeof (uint32_t));
+  read_all(req.sock, thread_buffer.data(), k_items * sizeof(uint32_t));
   uint32_t to_send_size =
-    minibatch_size * (sizeof (uint32_t) + (NUM_FACTORS + 1) * sizeof (FEATURE_TYPE)) +
-    k_items * (sizeof (uint32_t) + (NUM_FACTORS + 1) * sizeof (FEATURE_TYPE));
+    minibatch_size * (sizeof(uint32_t) + (NUM_FACTORS + 1) * sizeof(FEATURE_TYPE)) +
+    k_items * (sizeof(uint32_t) + (NUM_FACTORS + 1) * sizeof(FEATURE_TYPE));
 #ifdef DEBUG
   std::cout << "k_items: " << k_items << std::endl;
   std::cout << "base_user_id: " << base_user_id << std::endl;
@@ -152,13 +157,14 @@ bool PSSparseServerTask::process_get_mf_sparse_model(
 
   SparseMFModel sparse_mf_model((uint64_t) 0, 0, 0);
   sparse_mf_model.serializeFromDense(
-      *mf_model, base_user_id, minibatch_size, k_items, thread_buffer.data(), holder[tn]);
+      *mf_model, base_user_id, minibatch_size,
+      k_items, thread_buffer.data(), thread_msg_buffer[thread_number]);
 
   //uint32_t to_send_size = data_to_send.size();
-  if (send_all(req.sock, &to_send_size, sizeof (uint32_t)) == -1) {
+  if (send_all(req.sock, &to_send_size, sizeof(uint32_t)) == -1) {
     return false;
   }
-  if (send_all(req.sock, holder[tn], to_send_size) == -1) {
+  if (send_all(req.sock, thread_msg_buffer[thread_number], to_send_size) == -1) {
     return false;
   }
   return true;
@@ -186,7 +192,7 @@ bool PSSparseServerTask::process_get_lr_sparse_model(
   const char* data = thread_buffer.data();
   uint64_t num_entries = load_value<uint32_t>(data);
 
-  uint32_t to_send_size = num_entries * sizeof (FEATURE_TYPE);
+  uint32_t to_send_size = num_entries * sizeof(FEATURE_TYPE);
   assert(to_send_size < 1024 * 1024);
   char data_to_send[1024 * 1024]; // 1MB
   char* data_to_send_ptr = data_to_send;
@@ -226,7 +232,7 @@ bool PSSparseServerTask::process_get_mf_full_model(
     << " mode checksum: " << mf_model_copy.checksum()
     << " buffer checksum: " << crc32(thread_buffer.data(), model_size)
     << std::endl;
-  if (send_all(req.sock, &model_size, sizeof (uint32_t)) == -1) {
+  if (send_all(req.sock, &model_size, sizeof(uint32_t)) == -1) {
     return false;
   }
   if (send_all(req.sock, thread_buffer.data(), model_size) == -1) {
@@ -256,9 +262,9 @@ bool PSSparseServerTask::process_get_lr_full_model(
 
 void PSSparseServerTask::gradient_f() {
   std::vector<char> thread_buffer;
-  thread_buffer.resize(120 * 1024 * 1024); // 30 MB
+  thread_buffer.resize(120 * 1024 * 1024); // 120 MB
 
-  int tn = tc++;
+  int thread_number = thread_count++;
   while (1) {
     sem_wait(&sem_new_req);
     to_process_lock.lock();
@@ -270,7 +276,7 @@ void PSSparseServerTask::gradient_f() {
     int sock = req.poll_fd.fd;
 
     uint32_t operation = 0;
-    if (read_all(sock, &operation, sizeof (uint32_t)) == 0) {
+    if (read_all(sock, &operation, sizeof(uint32_t)) == 0) {
       if (close(req.poll_fd.fd) != 0) {
         std::cout << "Error closing socket. errno: " << errno << std::endl;
       }
@@ -279,13 +285,11 @@ void PSSparseServerTask::gradient_f() {
       req.poll_fd.fd = -1;
     }
 
-
-
     req.req_id = operation;
     if (operation == SEND_LR_GRADIENT || operation == SEND_MF_GRADIENT ||
         operation == GET_LR_SPARSE_MODEL || operation == GET_MF_SPARSE_MODEL) {
       uint32_t incoming_size = 0;
-      if (read_all(sock, &incoming_size, sizeof (uint32_t)) == 0) {
+      if (read_all(sock, &incoming_size, sizeof(uint32_t)) == 0) {
         if (close(req.poll_fd.fd) != 0) {
           std::cout << "Error closing socket. errno: " << errno << std::endl;
         }
@@ -322,7 +326,7 @@ void PSSparseServerTask::gradient_f() {
       std::cout << "GET_LR_SPARSE_MODEL Elapsed(us): " << elapsed << std::endl;
 #endif
     } else if (req.req_id == GET_MF_SPARSE_MODEL) {
-      if (!process_get_mf_sparse_model(req, thread_buffer, tn)) {
+      if (!process_get_mf_sparse_model(req, thread_buffer, thread_number)) {
         break;
       }
     } else if (req.req_id == GET_LR_FULL_MODEL) {
@@ -353,7 +357,7 @@ void PSSparseServerTask::gradient_f() {
  * incoming size (uint32_t)
  * buffer with previous size
  */
-bool PSSparseServerTask::process(struct pollfd& poll_fd, int id) {
+bool PSSparseServerTask::process(struct pollfd& poll_fd, int thread_id) {
   int sock = poll_fd.fd;
 #ifdef DEBUG
   std::cout << "Processing socket: " << sock << std::endl;
@@ -364,33 +368,30 @@ bool PSSparseServerTask::process(struct pollfd& poll_fd, int id) {
   //  return false;
   //}
 #ifdef DEBUG 
-  std::cout << "Operation: " << operation << " - " << operation_to_name[operation] << std::endl;
+  std::cout << "Operation: " << operation << " - "
+      << operation_to_name[operation] << std::endl;
 #endif
 
   if (true || operation == SEND_LR_GRADIENT || operation == SEND_MF_GRADIENT ||
       operation == GET_LR_SPARSE_MODEL || operation == GET_MF_SPARSE_MODEL) {
     uint32_t incoming_size = 0;
-    //if (read_all(sock, &incoming_size, sizeof(uint32_t)) == 0) {
-    //  return false;
-    //}
-    //data_ptr = buffer.data();
 #ifdef DEBUG 
     std::cout << "incoming size: " << incoming_size << std::endl;
 #endif
     to_process_lock.lock();
     poll_fd.events = 0; // explain this
-    to_process.push(Request(operation, sock, id, incoming_size, poll_fd));
+    to_process.push(Request(operation, sock, thread_id, incoming_size, poll_fd));
     to_process_lock.unlock();
     sem_post(&sem_new_req);
   } else if (operation == GET_LR_FULL_MODEL || operation == GET_MF_FULL_MODEL) {
     to_process_lock.lock();
     poll_fd.events = 0; // we disable events for this socket while we process this message
-    to_process.push(Request(operation, sock, id, 0, poll_fd));
+    to_process.push(Request(operation, sock, thread_id, 0, poll_fd));
     to_process_lock.unlock();
     sem_post(&sem_new_req);
   } else if (operation == GET_TASK_STATUS) {
     uint32_t task_id;
-    if (read_all(sock, &task_id, sizeof (uint32_t)) == 0) {
+    if (read_all(sock, &task_id, sizeof(uint32_t)) == 0) {
       return false;
     }
 #ifdef DEBUG
@@ -400,14 +401,14 @@ bool PSSparseServerTask::process(struct pollfd& poll_fd, int id) {
     if (task_to_status.find(task_id) == task_to_status.end() ||
         task_to_status[task_id] == false) {
       uint32_t status = 0;
-      send_all(sock, &status, sizeof (uint32_t));
+      send_all(sock, &status, sizeof(uint32_t));
     } else {
       uint32_t status = 1;
-      send_all(sock, &status, sizeof (uint32_t));
+      send_all(sock, &status, sizeof(uint32_t));
     }
   } else if (operation == SET_TASK_STATUS) {
     uint32_t data[2] = {0}; // id + status
-    if (read_all(sock, data, sizeof (uint32_t) * 2) == 0) {
+    if (read_all(sock, data, sizeof(uint32_t) * 2) == 0) {
       return false;
     }
 #ifdef DEBUG
@@ -435,17 +436,17 @@ void PSSparseServerTask::start_server() {
           std::bind(&PSSparseServerTask::main_poll_thread_fn, this, i)));
   }
 
-  for (uint32_t i = 0; i < n_threads; ++i) {
+  for (uint32_t i = 0; i < NUM_PS_WORK_THREADS; ++i) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
     gradient_thread.push_back(std::make_unique<std::thread>(
           std::bind(&PSSparseServerTask::gradient_f, this)));
   }
 }
 
-void PSSparseServerTask::main_poll_thread_fn(int id) {
-
-  if (id == 0) { // This indicates the poll thread responsible for handling new connections
-    std::cout << "Starting server2, poll id " << id << std::endl;
+void PSSparseServerTask::main_poll_thread_fn(int poll_id) {
+  // id=0 -> poll thread responsible for handling new connections
+  if (poll_id == 0) {
+    std::cout << "Starting server, poll id " << poll_id << std::endl;
 
     poll_thread = pthread_self();
 
@@ -455,14 +456,17 @@ void PSSparseServerTask::main_poll_thread_fn(int id) {
     }
 
     int opt = 1;
-    if (setsockopt(server_sock_, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof (opt))) {
+    if (setsockopt(server_sock_, IPPROTO_TCP,
+                TCP_NODELAY, &opt, sizeof(opt))) {
       throw std::runtime_error("Error setting socket options.");
     }
-    if (setsockopt(server_sock_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof (opt))) {
+    if (setsockopt(server_sock_, SOL_SOCKET,
+                SO_REUSEADDR, &opt, sizeof(opt))) {
       throw std::runtime_error("Error forcing port binding");
     }
 
-    if (setsockopt(server_sock_, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof (opt))) {
+    if (setsockopt(server_sock_, SOL_SOCKET,
+                SO_REUSEPORT, &opt, sizeof(opt))) {
       throw std::runtime_error("Error forcing port binding");
     }
 
@@ -470,9 +474,10 @@ void PSSparseServerTask::main_poll_thread_fn(int id) {
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
     serv_addr.sin_port = htons(port_);
-    std::memset(serv_addr.sin_zero, 0, sizeof (serv_addr.sin_zero));
+    std::memset(serv_addr.sin_zero, 0, sizeof(serv_addr.sin_zero));
 
-    int ret = bind(server_sock_, reinterpret_cast<sockaddr*> (&serv_addr), sizeof (serv_addr));
+    int ret = bind(server_sock_,
+            reinterpret_cast<sockaddr*> (&serv_addr), sizeof(serv_addr));
     if (ret < 0) {
       throw std::runtime_error("Error binding in port " + to_string(port_));
     }
@@ -482,48 +487,50 @@ void PSSparseServerTask::main_poll_thread_fn(int id) {
     }
     fdses[0].at(0).fd = server_sock_;
     fdses[0].at(0).events = POLLIN;
-    fdses[0].at(1).fd = pipefds[id][0];
+    fdses[0].at(1).fd = pipefds[poll_id][0];
     fdses[0].at(1).events = POLLIN;
-    curr_indexes[id] = 2;
+    curr_indexes[poll_id] = 2;
   } else {
-    std::cout << "Starting secondary poll thread: " << id << std::endl;
-    fdses[id].at(0).fd = pipefds[id][0];
-    fdses[id].at(0).events = POLLIN;
-    curr_indexes[id] = 1;
+    std::cout << "Starting secondary poll thread: " << poll_id << std::endl;
+    fdses[poll_id].at(0).fd = pipefds[poll_id][0];
+    fdses[poll_id].at(0).events = POLLIN;
+    curr_indexes[poll_id] = 1;
 
   }
-  loop(id);
+  loop(poll_id);
 }
 
-void PSSparseServerTask::loop(int id) {
+void PSSparseServerTask::loop(int poll_id) {
   struct sockaddr_in cli_addr;
-  socklen_t clilen = sizeof (cli_addr);
+  socklen_t clilen = sizeof(cli_addr);
 
   buffer.resize(10 * 1024 * 1024); // reserve 10MB upfront
 
-  std::cout << "Starting loop for id: " << id << std::endl;
+  std::cout << "Starting loop for id: " << poll_id << std::endl;
   while (1) {
-    int poll_status = poll(fdses[id].data(), curr_indexes[id], timeout);
+    int poll_status = poll(fdses[poll_id].data(), curr_indexes[poll_id], timeout);
     if (poll_status == -1) {
       if (errno != EINTR) {
         throw std::runtime_error("Server error calling poll.");
       } else {
         std::cout << "EINTR" << std::endl;
       }
-    } else if ((id == 0 && fdses[id][1].revents == POLLIN) || (id != 0 && fdses[id][0].revents == POLLIN)) {
+    } else if (
+            (poll_id == 0 && fdses[poll_id][1].revents == POLLIN)
+         || (poll_id != 0 && fdses[poll_id][0].revents == POLLIN)) {
       //std::cout << "Ignoring" << std::endl;
       int posit = 0;
-      if (id == 0)
+      if (poll_id == 0)
         posit = 1;
-      fdses[id][posit].revents = 0; // Reset the event flags
+      fdses[poll_id][posit].revents = 0; // Reset the event flags
       char a[1];
-      assert(read(pipefds[id][0], a, 1) >= 0);
+      assert(read(pipefds[poll_id][0], a, 1) >= 0);
       // ignore
     } else if (poll_status == 0) {
     } else {
       // there is at least one pending event, find it.
-      for (uint64_t i = 0; i < curr_indexes[id]; i++) {
-        struct pollfd& curr_fd = fdses[id][i];
+      for (uint64_t i = 0; i < curr_indexes[poll_id]; i++) {
+        struct pollfd& curr_fd = fdses[poll_id][i];
         // Ignore the fd if we've said we don't care about it
         if (curr_fd.fd == -1) {
           continue;
@@ -536,24 +543,24 @@ void PSSparseServerTask::loop(int id) {
             close(curr_fd.fd);
             curr_fd.fd = -1;
           }
-        } else if (id == 0 && curr_fd.fd == server_sock_) {
+        } else if (poll_id == 0 && curr_fd.fd == server_sock_) {
           std::cout << "PS new connection!" << std::endl;
           int newsock = accept(server_sock_,
               reinterpret_cast<struct sockaddr*> (&cli_addr),
               &clilen);
-          if (id == 0 && newsock < 0) {
+          if (poll_id == 0 && newsock < 0) {
             throw std::runtime_error("Error accepting socket");
           }
           // If at capacity, reject connection
-          if (id == 0 && num_connections > (MAX_CONNECTIONS - 1)) {
+          if (poll_id == 0 && num_connections > (MAX_CONNECTIONS - 1)) {
             std::cout << "Rejecting connection "
               << num_connections
               << std::endl;
             close(newsock);
-          } else if (id == 0 && curr_indexes[id] == max_fds) {
+          } else if (poll_id == 0 && curr_indexes[poll_id] == max_fds) {
             throw std::runtime_error("We reached capacity");
             close(newsock);
-          } else if (id == 0) {
+          } else if (poll_id == 0) {
             int r = rand() % NUM_POLL_THREADS;
             std::cout << "Random: " << r << std::endl;
             fdses[r][curr_indexes[r]].fd = newsock;
@@ -565,7 +572,7 @@ void PSSparseServerTask::loop(int id) {
 #ifdef DEBUG
           std::cout << "Calling process" << std::endl;
 #endif
-          if (!process(curr_fd, id)) {
+          if (!process(curr_fd, poll_id)) {
             if (close(curr_fd.fd) != 0) {
               std::cout << "Error closing socket. errno: " << errno << std::endl;
             }
@@ -578,11 +585,12 @@ void PSSparseServerTask::loop(int id) {
       }
     }
     // If at max capacity, try to make room
-    if (curr_indexes[id] == max_fds) {
+    if (curr_indexes[poll_id] == max_fds) {
       // Try to purge unused fds, those with fd == -1
       std::cout << "Purging" << std::endl;
-      std::remove_if(fdses[id].begin(), fdses[id].end(),
-          std::bind(&PSSparseServerTask::testRemove, this, std::placeholders::_1, id));
+      std::remove_if(fdses[poll_id].begin(), fdses[poll_id].end(),
+          std::bind(&PSSparseServerTask::testRemove,
+              this, std::placeholders::_1, poll_id));
     }
   }
 }

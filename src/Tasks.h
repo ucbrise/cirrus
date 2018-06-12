@@ -165,13 +165,6 @@ class ErrorSparseTask : public MLTask {
     void run(const Configuration& config);
 
   private:
-    void get_samples_labels_redis(
-        auto r, auto i, auto& samples, auto& labels,
-        auto cad_samples, auto cad_labels);
-    void parse_raw_minibatch(const FEATURE_TYPE* minibatch,
-        auto& samples, auto& labels);
-
-    //ProgressMonitor mp;
 };
 
 class PerformanceLambdaTask : public MLTask {
@@ -305,7 +298,6 @@ class PSSparseServerTask : public MLTask {
     std::mutex to_process_lock;
     sem_t sem_new_req;
     std::queue<Request> to_process;
-    const uint64_t n_threads = 4;
     std::mutex model_lock; // used to coordinate access to the last computed model
 
     int pipefds[NUM_POLL_THREADS][2] = {0};
@@ -314,7 +306,8 @@ class PSSparseServerTask : public MLTask {
     int server_sock_ = 0;
     const uint64_t max_fds = 1000;
     int timeout = 1; // 1 ms
-    std::vector<std::vector<struct pollfd>> fdses = std::vector<std::vector<struct pollfd>>(NUM_POLL_THREADS);
+    std::vector<std::vector<struct pollfd>> fdses =
+        std::vector<std::vector<struct pollfd>>(NUM_POLL_THREADS);
 
     std::vector<char> buffer; // we use this buffer to hold data from workers
 
@@ -328,9 +321,8 @@ class PSSparseServerTask : public MLTask {
     std::map<int, bool> task_to_status;
     std::map<int, std::string> operation_to_name;
 
-    char* holder[4];
-    int tc = 0;
-
+    char* thread_msg_buffer[NUM_PS_WORK_THREADS];  // per-thread buffer
+    std::atomic<int> thread_count;
 };
 
 class MFNetflixTask : public MLTask {

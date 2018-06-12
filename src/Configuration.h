@@ -184,6 +184,7 @@ class Configuration {
 
     uint64_t netflix_workers = 0;
 };
-}
+
+}  // namespace cirrus
 
 #endif  // _CONFIGURATION_H_

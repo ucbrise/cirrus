@@ -22,31 +22,36 @@ class LogisticRegressionTask:
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         # Download driver to vm
         try:
-          print "Waiting for ssh startup"
-          time.sleep(30)
-          print "Done waiting..."
-          client.connect(hostname=ip, username='ubuntu', pkey=key)
-          # Set up ssm (if we choose to use that, and get the binary) XXX: replace a.pdf with the actual binary
-          stdin, stdout, stderr = client.exec_command("wget https://s3-us-west-2.amazonaws.com/andrewmzhang-bucket/parameter_server")
-          stdin, stdout, stderr = client.exec_command("chmod +x parameter_server")
-          client.close()
+            print "Waiting for ssh startup"
+            time.sleep(60)  # SSH doesn't immediately work, it helps if you wait for a minute before trying
+            client.connect(hostname=ip, username='ubuntu', pkey=key)
+            # Set up ssm (if we choose to use that, and get the binary) XXX: replace a.pdf with the actual binary
+            print "Done waiting... Attempting to copy over binary"
+            stdin, stdout, stderr = client.exec_command("wget https://s3-us-west-2.amazonaws.com/andrewmzhang-bucket/parameter_server && chmod +x parameter_server")
+            stdout.readlines()
+            stdin, stdout, stderr = client.exec_command("ls")
+            for line in stdout.readlines():
+                print line
+            client.close()
         except Exception, e:
-          print e
+            print "Got an exception..."
+            print e
 
 
     def launch_driver(self, ip):
         print "Launching driver"
         key = paramiko.RSAKey.from_private_key_file("/home/camus/Downloads/mykey.pem")
 
-        self.client = paramiko.SSHClient()
-        self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         time.sleep(10)
 
-        self.client.connect(hostname=ip, username='ubuntu', pkey=key)
+        client.connect(hostname=ip, username='ubuntu', pkey=key)
         # Set up ssm (if we choose to use that, and get the binary) XXX: replace a.pdf with the actual binary
-        stdin, stdout, stderr = self.client.exec_command("./parameter_server")
+        print "Launching parameter server"
+        stdin, stdout, stderr = client.exec_command("./parameter_server config_lr.txt 100 1 &") # Not sure if there's a good way to do this....
         print stdout.read()
-        self.client.close()
+        client.close()
 
     def issue_ssh_command(self, command, ip):
         print "Issuing command: %s on %s" % (command, ip)
@@ -58,11 +63,12 @@ class LogisticRegressionTask:
         vm_instance = vm_manager.start_vm_spot(1) # start 1 vm
         ip_addr = vm_manager.setup_vm()
 
-        print "Got machine with ip %s", ip_addr
+        print "Got machine with ip %s" % ip_addr
         # copy driver and binary to instance
         # Using ssh for now
 
         self.copy_driver_to_vm(ip_addr)
+        self.define_config(ip_addr)
         self.launch_driver(ip_addr)
 
         # launch driver in vm
@@ -72,7 +78,7 @@ class LogisticRegressionTask:
         print "waiting"
         return 1,2
 
-    def define_config(self):
+    def define_config(self, ip):
         config = "input_path: /mnt/efs/criteo_kaggle/train.csv \n" + \
                  "input_type: csv\n" + \
                  "num_classes: 2 \n" + \
@@ -91,9 +97,18 @@ class LogisticRegressionTask:
                  "use_grad_threshold: 1 \n" + \
                  "grad_threshold: 0.001 \n" + \
                  "train_set: 0-824 \n" + \
-                 "test_set: 825-840 \n"
+                 "test_set: 825-840"
 
-
+        key = paramiko.RSAKey.from_private_key_file("/home/camus/Downloads/mykey.pem")
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(hostname=ip, username='ubuntu', pkey=key)
+        print "Defining configuration file"
+        stdin, stdout, stderr = client.exec_command('echo "%s" > config_lr.txt' % config)
+        print stdout.read()
+        stdin, stdout, stderr = client.exec_command('cat config_lr.txt')
+        print stdout.read()
+        client.close()
 
 def dataset_handle(path, format):
     print "path: ", path, " format: ", format

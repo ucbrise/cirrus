@@ -22,7 +22,6 @@ data = cirrus.dataset_handle(path = "s3://s3_path", \
 
 #model = cirrus.create_random_lr_model(10)
 
-'''
 lr_task = cirrus.LogisticRegression(\
              n_workers = 3, n_ps = 2,
              dataset = data,
@@ -33,7 +32,6 @@ lr_task = cirrus.LogisticRegression(\
              timeout = 100,
              threshold_loss=0.48,
              resume_model = model)
-'''
 
 
 lr_task = cirrus.LogisticRegressionTask()

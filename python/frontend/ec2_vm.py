@@ -79,8 +79,8 @@ class Ec2VMManager:
       #return # don't stop any vms until we
       #  understand whats going on
       for instance_id in self.instances:
-        instance = self.ec2_resource.instances.filter(InstanceIds=[instance_id[0].instance_id]).stop()
-        response = self.ec2_resource.instances.filter(InstanceIds=[instance_id[0].instance_id]).terminate()
+        instance = self.ec2_resource.instances.filter(InstanceIds=[instance_id.instance_id]).stop()
+        response = self.ec2_resource.instances.filter(InstanceIds=[instance_id.instance_id]).terminate()
         print response
 
     def setup_vm(self):

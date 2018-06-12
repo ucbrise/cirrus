@@ -6,7 +6,19 @@ import paramiko
 import time
 
 class LogisticRegressionTask:
-    def __init__(self):
+    def __init__(self,
+        n_workers=1,
+        n_ps=1,
+        dataset=None,
+        aws_access_key="",
+        aws_secret_access_key="",
+        learning_rate=0.0001,
+        epsilon=0.0001,
+        progress_callback=None,
+        timeout = 100,
+        threshold_loss=0.48,
+        resume_model=model):
+
         print "Starting LogisticRegressionTask"
         self.thread = threading.Thread(target=self.run)
 
@@ -43,6 +55,7 @@ class LogisticRegressionTask:
         key = paramiko.RSAKey.from_private_key_file("/home/camus/Downloads/mykey.pem")
 
         client = paramiko.SSHClient()
+        self.ssh_client = client
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         time.sleep(10)
 
@@ -51,11 +64,26 @@ class LogisticRegressionTask:
         print "Launching parameter server"
         #stdin, stdout, stderr = client.exec_command("./parameter_server config_lr.txt 100 1 &") # Not sure if there's a good way to do this....
         #client.close()
-        transport = client.get_transport()
-        channel = transport.open_session()
-        channel.exec_command("./parameter_server config_lr.txt 100 1 |& tee ps_log.txt &")
+        #transport = client.get_transport()
+        #channel = transport.open_session()
+        #channel.exec_command("nohup ./parameter_server config_lr.txt 100 1 |& tee ps_log.txt &")
 
-        client.close()
+        # I need a better way to do this
+        import os
+        os.system('ssh -o "StrictHostKeyChecking no" -i ~/mykey.pem ubuntu@%s "nohup ./parameter_server config_lr.txt 10 1 >ps_output 2>&1 &"' % ip)
+
+
+
+    def launch_lambda(self, num_task, num_workers):
+
+        # This code is untested, need to ask Joao how to do this
+        client = boto3.client('lambda', region_name='us-west-2')
+        response = client.invoke(
+            FunctionName="testfunc1",
+            LogType='Tail',
+            Payload={"num_task": str(num_task), "num_workers": str(num_workers)})
+
+
     def issue_ssh_command(self, command, ip):
         print "Issuing command: %s on %s" % (command, ip)
 

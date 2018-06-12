@@ -39,4 +39,7 @@ lr_task = cirrus.LogisticRegression(\
 lr_task = cirrus.LogisticRegressionTask()
 lr_task.run()
 
+
+
+
 #model, loss = lr_task.wait()

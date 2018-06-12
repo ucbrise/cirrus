@@ -49,10 +49,13 @@ class LogisticRegressionTask:
         client.connect(hostname=ip, username='ubuntu', pkey=key)
         # Set up ssm (if we choose to use that, and get the binary) XXX: replace a.pdf with the actual binary
         print "Launching parameter server"
-        stdin, stdout, stderr = client.exec_command("./parameter_server config_lr.txt 100 1 &") # Not sure if there's a good way to do this....
-        print stdout.read()
-        client.close()
+        #stdin, stdout, stderr = client.exec_command("./parameter_server config_lr.txt 100 1 &") # Not sure if there's a good way to do this....
+        #client.close()
+        transport = client.get_transport()
+        channel = transport.open_session()
+        channel.exec_command("./parameter_server config_lr.txt 100 1 |& tee ps_log.txt &")
 
+        client.close()
     def issue_ssh_command(self, command, ip):
         print "Issuing command: %s on %s" % (command, ip)
 

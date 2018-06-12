@@ -300,7 +300,7 @@ class PSSparseServerTask : public MLTask {
     std::queue<Request> to_process;
     std::mutex model_lock; // used to coordinate access to the last computed model
 
-    int pipefds[NUM_POLL_THREADS][2] = {0};
+    int pipefds[NUM_POLL_THREADS][2] = { {0} };
 
     int port_ = 1337;
     int server_sock_ = 0;

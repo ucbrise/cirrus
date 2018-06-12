@@ -335,6 +335,35 @@ void PSSparseServerTask::gradient_f() {
     } else if (req.req_id == GET_MF_FULL_MODEL) {
       if (!process_get_mf_full_model(req, thread_buffer))
         break;
+    } else if (req.req_id == GET_TASK_STATUS) {
+      uint32_t task_id;
+      if (read_all(sock, &task_id, sizeof (uint32_t)) == 0) {
+        break;
+      }
+#ifdef DEBUG
+      std::cout << "Get status task id: " << task_id << std::endl;
+#endif
+      assert(task_id < 10000);
+      if (task_to_status.find(task_id) == task_to_status.end() ||
+          task_to_status[task_id] == false) {
+        uint32_t status = 0;
+        send_all(sock, &status, sizeof (uint32_t));
+      } else {
+        uint32_t status = 1;
+        send_all(sock, &status, sizeof (uint32_t));
+      }
+    
+    } else if (operation == SET_TASK_STATUS) {
+    
+      uint32_t data[2] = {0}; // id + status
+      if (read_all(sock, data, sizeof (uint32_t) * 2) == 0) {
+        break;
+      }
+#ifdef DEBUG
+      std::cout << "Set status task id: " << data[0] << " status: " << data[1] << std::endl;
+#endif
+      task_to_status[data[0]] = data[1];
+    
     } else {
       throw std::runtime_error("gradient_f: Unknown operation");
     }
@@ -372,53 +401,15 @@ bool PSSparseServerTask::process(struct pollfd& poll_fd, int thread_id) {
       << operation_to_name[operation] << std::endl;
 #endif
 
-  if (true || operation == SEND_LR_GRADIENT || operation == SEND_MF_GRADIENT ||
-      operation == GET_LR_SPARSE_MODEL || operation == GET_MF_SPARSE_MODEL) {
-    uint32_t incoming_size = 0;
+  uint32_t incoming_size = 0;
 #ifdef DEBUG 
-    std::cout << "incoming size: " << incoming_size << std::endl;
+  std::cout << "incoming size: " << incoming_size << std::endl;
 #endif
-    to_process_lock.lock();
-    poll_fd.events = 0; // explain this
-    to_process.push(Request(operation, sock, thread_id, incoming_size, poll_fd));
-    to_process_lock.unlock();
-    sem_post(&sem_new_req);
-  } else if (operation == GET_LR_FULL_MODEL || operation == GET_MF_FULL_MODEL) {
-    to_process_lock.lock();
-    poll_fd.events = 0; // we disable events for this socket while we process this message
-    to_process.push(Request(operation, sock, thread_id, 0, poll_fd));
-    to_process_lock.unlock();
-    sem_post(&sem_new_req);
-  } else if (operation == GET_TASK_STATUS) {
-    uint32_t task_id;
-    if (read_all(sock, &task_id, sizeof(uint32_t)) == 0) {
-      return false;
-    }
-#ifdef DEBUG
-    std::cout << "Get status task id: " << task_id << std::endl;
-#endif
-    assert(task_id < 10000);
-    if (task_to_status.find(task_id) == task_to_status.end() ||
-        task_to_status[task_id] == false) {
-      uint32_t status = 0;
-      send_all(sock, &status, sizeof(uint32_t));
-    } else {
-      uint32_t status = 1;
-      send_all(sock, &status, sizeof(uint32_t));
-    }
-  } else if (operation == SET_TASK_STATUS) {
-    uint32_t data[2] = {0}; // id + status
-    if (read_all(sock, data, sizeof(uint32_t) * 2) == 0) {
-      return false;
-    }
-#ifdef DEBUG
-    std::cout << "Set status task id: " << data[0] << " status: " << data[1] << std::endl;
-#endif
-    task_to_status[data[0]] = data[1];
-  } else {
-    std::string error = "process: Uknown operation " + std::to_string(operation);
-    throw std::runtime_error(error);
-  }
+  to_process_lock.lock();
+  poll_fd.events = 0; // explain this
+  to_process.push(Request(operation, sock, thread_id, incoming_size, poll_fd));
+  to_process_lock.unlock();
+  sem_post(&sem_new_req);
   return true;
 }
 

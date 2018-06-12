@@ -83,7 +83,7 @@ class Ec2VMManager:
         response = self.ec2_resource.instances.filter(InstanceIds=[instance_id[0].instance_id]).terminate()
         print response
 
-    def setup_vm(self):
+    def setup_vm_and_wait(self):
       print "setup vm"
       vm_instance = self.instances[0]
       vm_instance.wait_until_running() # Wait for vm to run

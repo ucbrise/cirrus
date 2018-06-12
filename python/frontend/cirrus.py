@@ -14,20 +14,27 @@ class LogisticRegressionTask:
         print "Logistic Regression Task Lost. Closing ssh connection"
         self.client.close();
 
-    def copy_driver_to_vm(self, ip):
-        print "Copying driver to vm"
+    def copy_ps_to_vm(self, ip):
+        print "Copying ps to vm"
         # Setup via ssh
+        # XXX IMO this shouldn't be necessary if the user as done
+        # the aws config (that generates credentials in ~/.aws)
         key = paramiko.RSAKey.from_private_key_file("/home/camus/Downloads/mykey.pem")
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        # Download driver to vm
+        # Download ps to vm
         try:
             print "Waiting for ssh startup"
-            time.sleep(60)  # SSH doesn't immediately work, it helps if you wait for a minute before trying
+	    # need to wait until VM and ssh-server starts
+            time.sleep(60) 
             client.connect(hostname=ip, username='ubuntu', pkey=key)
-            # Set up ssm (if we choose to use that, and get the binary) XXX: replace a.pdf with the actual binary
+            # Set up ssm (if we choose to use that, and get the binary) 
+            # XXX: replace a.pdf with the actual binary
             print "Done waiting... Attempting to copy over binary"
-            stdin, stdout, stderr = client.exec_command("wget https://s3-us-west-2.amazonaws.com/andrewmzhang-bucket/parameter_server && chmod +x parameter_server")
+            stdin, stdout, stderr = client.exec_command(\
+                "wget https://s3-us-west-2.amazonaws.com/" \
+                + "andrewmzhang-bucket/parameter_server && "\
+                + "chmod +x parameter_server")
             stdout.readlines()
             stdin, stdout, stderr = client.exec_command("ls")
             for line in stdout.readlines():
@@ -38,8 +45,8 @@ class LogisticRegressionTask:
             print e
 
 
-    def launch_driver(self, ip):
-        print "Launching driver"
+    def launch_ps(self, ip):
+        print "Launching ps"
         key = paramiko.RSAKey.from_private_key_file("/home/camus/Downloads/mykey.pem")
 
         client = paramiko.SSHClient()
@@ -61,21 +68,20 @@ class LogisticRegressionTask:
 
 
     def run(self):
-        # launch instances
+        # create vm manager
         vm_manager = ec2_vm.Ec2VMManager("ec2 manager", "", "")
+        # launch a spot instance
+        print "Creating spot instance"
         vm_instance = vm_manager.start_vm_spot(1) # start 1 vm
-        ip_addr = vm_manager.setup_vm()
+        ip_addr = vm_manager.setup_vm_and_wait()
 
         print "Got machine with ip %s" % ip_addr
-        # copy driver and binary to instance
+        # copy parameter server and binary to instance
         # Using ssh for now
 
-        self.copy_driver_to_vm(ip_addr)
+        self.copy_ps_to_vm(ip_addr)
         self.define_config(ip_addr)
-        self.launch_driver(ip_addr)
-
-        # launch driver in vm
-        #launch_driver(ip)
+        self.launch_ps(ip_addr)
 
     def wait(self):
         print "waiting"

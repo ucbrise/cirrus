@@ -67,8 +67,8 @@ class LogisticRegressionTask:
         client.connect(hostname=ip, username='ec2-user', pkey=key)
         # Set up ssm (if we choose to use that, and get the binary) XXX: replace a.pdf with the actual binary
         print "Launching parameter server"
-        os.system('ssh -o "StrictHostKeyChecking no" -i ~/mykey.pem ubuntu@%s ' + \
-		  '"nohup ./parameter_server config_lr.txt 10 1 >ps_output 2>&1 &"' % ip)
+        os.system('ssh -o "StrictHostKeyChecking no" -i ~/mykey.pem ubuntu@%s ' % ip + \
+		  '"nohup ./parameter_server config_lr.txt 10 1 >ps_output 2>&1 &"')
 
 
 

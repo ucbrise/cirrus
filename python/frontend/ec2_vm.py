@@ -14,7 +14,7 @@ class Ec2VMManager:
       self.secret_key = secret_key
       self.instances = [] # vm instances managed by the manager
 
-    def start_vm(self, number_vms):
+    def start_vm(self, number_vms, key_name):
       assert(number_vms == 1) # for now we only support 1 vm
       print "Starting EC2 vm"
       tags = [
@@ -31,14 +31,14 @@ class Ec2VMManager:
          MinCount=1,
          MaxCount=1,
          InstanceType='t2.micro',
-         KeyName='mykey',
+         KeyName=key_name,
          TagSpecifications=tag_specification
       )
       self.instances.append(instance[0])
 
       return instance[0] # return instance object
 
-    def start_vm_spot(self, number_vms, price="0.01"):
+    def start_vm_spot(self, number_vms, key_name, price="0.01"):
         assert(number_vms == 1)
         print "Starting Spot Instance Request for %d VMs at price %s" % (number_vms, price)
         client = self.ec2_client
@@ -47,9 +47,10 @@ class Ec2VMManager:
                         SpotPrice="0.01",
                         Type='one-time',
                         InstanceCount=1,
-                        LaunchSpecification={'ImageId': 'ami-db710fa3',
+                        LaunchSpecification={'ImageId': 'ami-d26724aa',
                                              'InstanceType': 'm1.small',
-                                             'KeyName': 'mykey'})
+                                             'KeyName': key_name
+                                             })
         state = 'open'
         request_id = rc[u'SpotInstanceRequests'][0][u'SpotInstanceRequestId']
         instance_id = None
@@ -83,7 +84,7 @@ class Ec2VMManager:
         response = self.ec2_resource.instances.filter(InstanceIds=[instance_id.instance_id]).terminate()
         print response
 
-    def setup_vm(self):
+    def setup_vm_and_wait(self):
       print "setup vm"
       vm_instance = self.instances[0]
       vm_instance.wait_until_running() # Wait for vm to run

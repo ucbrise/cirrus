@@ -7,59 +7,62 @@ import time
 
 class LogisticRegressionTask:
     def __init__(self,
-        n_workers=1,
-        n_ps=1,
-        dataset=None,
-        aws_access_key="",
-        aws_secret_access_key="",
-        learning_rate=0.0001,
-        epsilon=0.0001,
-        progress_callback=None,
-        timeout = 100,
-        threshold_loss=0.48,
-        resume_model=model):
-
-        print "Starting LogisticRegressionTask"
+            key_name, key_path):
+        print("Starting LogisticRegressionTask")
         self.thread = threading.Thread(target=self.run)
+        self.key_name = key_name
+        self.key_path = key_path
 
     def __del__(self):
-        print "Logistic Regression Task Lost. Closing ssh connection"
+        print("Logistic Regression Task Lost. Closing ssh connection")
         self.client.close();
 
-    def copy_driver_to_vm(self, ip):
-        print "Copying driver to vm"
+    def copy_ps_to_vm(self, ip):
+        print("Copying ps to vm")
         # Setup via ssh
-        key = paramiko.RSAKey.from_private_key_file("/home/camus/Downloads/mykey.pem")
+        # XXX IMO this shouldn't be necessary if the user as done
+        # the aws config (that generates credentials in ~/.aws)
+        key = paramiko.RSAKey.from_private_key_file(self.key_path)
         client = paramiko.SSHClient()
+        #ssh.load_system_host_keys()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        # Download driver to vm
+        # Download ps to vm
         try:
-            print "Waiting for ssh startup"
-            time.sleep(60)  # SSH doesn't immediately work, it helps if you wait for a minute before trying
-            client.connect(hostname=ip, username='ubuntu', pkey=key)
-            # Set up ssm (if we choose to use that, and get the binary) XXX: replace a.pdf with the actual binary
-            print "Done waiting... Attempting to copy over binary"
-            stdin, stdout, stderr = client.exec_command("wget https://s3-us-west-2.amazonaws.com/andrewmzhang-bucket/parameter_server && chmod +x parameter_server")
+            print("Waiting for VM start")
+	    # need to wait until VM and ssh-server starts
+            time.sleep(60)
+            client.connect(hostname=ip, username='ec2-user', pkey=key)
+            # Set up ssm (if we choose to use that, and get the binary)
+            # XXX: replace a.pdf with the actual binary
+            print("Done waiting... Attempting to copy over binary")
+            stdin, stdout, stderr = client.exec_command(\
+                "wget https://s3-us-west-2.amazonaws.com/" \
+                + "andrewmzhang-bucket/parameter_server && "\
+                + "chmod +x parameter_server")
+
+            print "LS"
             stdout.readlines()
             stdin, stdout, stderr = client.exec_command("ls")
             for line in stdout.readlines():
-                print line
+                print(line)
             client.close()
+            print "LS done"
         except Exception, e:
-            print "Got an exception..."
+            print "Got an exception in copy_ps_to_vm..."
             print e
+        print "Copied parameter server"
 
 
-    def launch_driver(self, ip):
-        print "Launching driver"
-        key = paramiko.RSAKey.from_private_key_file("/home/camus/Downloads/mykey.pem")
+    def launch_ps(self, ip):
+        print "Launching ps"
+        key = paramiko.RSAKey.from_private_key_file(self.key_path)
 
         client = paramiko.SSHClient()
         self.ssh_client = client
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         time.sleep(10)
 
-        client.connect(hostname=ip, username='ubuntu', pkey=key)
+        client.connect(hostname=ip, username='ec2-user', pkey=key)
         # Set up ssm (if we choose to use that, and get the binary) XXX: replace a.pdf with the actual binary
         print "Launching parameter server"
         #stdin, stdout, stderr = client.exec_command("./parameter_server config_lr.txt 100 1 &") # Not sure if there's a good way to do this....
@@ -89,21 +92,20 @@ class LogisticRegressionTask:
 
 
     def run(self):
-        # launch instances
+        # create vm manager
         vm_manager = ec2_vm.Ec2VMManager("ec2 manager", "", "")
-        vm_instance = vm_manager.start_vm_spot(1) # start 1 vm
-        ip_addr = vm_manager.setup_vm()
+        # launch a spot instance
+        print "Creating spot instance"
+        vm_instance = vm_manager.start_vm_spot(1, self.key_name) # start 1 vm
+        ip_addr = vm_manager.setup_vm_and_wait()
 
         print "Got machine with ip %s" % ip_addr
-        # copy driver and binary to instance
+        # copy parameter server and binary to instance
         # Using ssh for now
 
-        self.copy_driver_to_vm(ip_addr)
+        self.copy_ps_to_vm(ip_addr)
         self.define_config(ip_addr)
-        self.launch_driver(ip_addr)
-
-        # launch driver in vm
-        #launch_driver(ip)
+        self.launch_ps(ip_addr)
 
     def wait(self):
         print "waiting"
@@ -130,10 +132,10 @@ class LogisticRegressionTask:
                  "train_set: 0-824 \n" + \
                  "test_set: 825-840"
 
-        key = paramiko.RSAKey.from_private_key_file("/home/camus/Downloads/mykey.pem")
+        key = paramiko.RSAKey.from_private_key_file(self.key_path)
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(hostname=ip, username='ubuntu', pkey=key)
+        client.connect(hostname=ip, username='ec2-user', pkey=key)
         print "Defining configuration file"
         stdin, stdout, stderr = client.exec_command('echo "%s" > config_lr.txt' % config)
         print stdout.read()
@@ -148,17 +150,17 @@ def dataset_handle(path, format):
 
 def LogisticRegression(n_workers, n_ps,
             dataset,
-            access_key,
-            secret_key,
             learning_rate, epsilon,
             progress_callback,
             timeout,
             threshold_loss,
-            resume_model):
+            resume_model,
+            key_name,
+            key_path):
     print "Running Logistic Regression workload"
     return LogisticRegressionTask(
-                access_key=access_key,
-                secret_key=secret_key
+                key_name=key_name,
+                key_path=key_path
            )
 
 def create_random_lr_model(n):

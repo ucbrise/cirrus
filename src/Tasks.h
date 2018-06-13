@@ -22,7 +22,6 @@
 #include <unistd.h>
 
 namespace cirrus {
-
 class MLTask {
   public:
     MLTask(
@@ -164,6 +163,8 @@ class ErrorSparseTask : public MLTask {
           nworkers, worker_id)
   {}
     void run(const Configuration& config);
+
+  private:
 };
 
 class PerformanceLambdaTask : public MLTask {
@@ -246,11 +247,12 @@ class PSSparseServerTask : public MLTask {
 
     struct Request {
       public:
-        Request(int req_id, int sock, uint32_t incoming_size, struct pollfd& poll_fd) :
-          req_id(req_id), sock(sock), incoming_size(incoming_size), poll_fd(poll_fd){}
+        Request(int req_id, int sock, int id, uint32_t incoming_size, struct pollfd& poll_fd) :
+          req_id(req_id), sock(sock), id(id), incoming_size(incoming_size), poll_fd(poll_fd){}
 
         int req_id;
         int sock;
+        int id;
         uint32_t incoming_size;
         struct pollfd& poll_fd;
     };
@@ -260,10 +262,11 @@ class PSSparseServerTask : public MLTask {
 
     // network related methods
     void start_server();
-    void poll_thread_fn();
-    bool testRemove(struct pollfd x);
-    void loop();
-    bool process(struct pollfd&);
+    void main_poll_thread_fn(int id);
+
+    bool testRemove(struct pollfd x, int id);
+    void loop(int id);
+    bool process(struct pollfd&, int id);
 
     // Model/ML related methods
     void checkpoint_model() const;
@@ -273,7 +276,7 @@ class PSSparseServerTask : public MLTask {
     // message handling
     bool process_get_lr_sparse_model(const Request& req, std::vector<char>&);
     bool process_send_lr_gradient(const Request& req, std::vector<char>&);
-    bool process_get_mf_sparse_model(const Request& req, std::vector<char>&);
+    bool process_get_mf_sparse_model(const Request& req, std::vector<char>&, int tn);
     bool process_get_lr_full_model(const Request& req, std::vector<char>& thread_buffer);
     bool process_send_mf_gradient(const Request& req, std::vector<char>& thread_buffer);
     bool process_get_mf_full_model(const Request& req, std::vector<char>& thread_buffer);
@@ -281,28 +284,30 @@ class PSSparseServerTask : public MLTask {
     /**
       * Attributes
       */
-    uint64_t curr_index = 0; // index (exclusive) to last sockets in fds
+
+    std::vector<uint64_t> curr_indexes = std::vector<uint64_t>(NUM_POLL_THREADS);
 #if 0
     uint64_t server_clock = 0;  // minimum of all worker clocks
 #endif
     std::unique_ptr<std::thread> thread; // worker threads
-    std::unique_ptr<std::thread> server_thread;
+    std::vector<std::unique_ptr<std::thread>> server_threads;
+    std::unique_ptr<std::thread> server_thread2;
     std::vector<std::unique_ptr<std::thread>> gradient_thread;
     pthread_t poll_thread;
     pthread_t main_thread;
     std::mutex to_process_lock;
     sem_t sem_new_req;
     std::queue<Request> to_process;
-    const uint64_t n_threads = 4;
     std::mutex model_lock; // used to coordinate access to the last computed model
 
-    int pipefd[2] = {0};
+    int pipefds[NUM_POLL_THREADS][2] = { {0} };
 
     int port_ = 1337;
     int server_sock_ = 0;
     const uint64_t max_fds = 1000;
     int timeout = 1; // 1 ms
-    std::vector<struct pollfd> fds = std::vector<struct pollfd>(max_fds);
+    std::vector<std::vector<struct pollfd>> fdses =
+        std::vector<std::vector<struct pollfd>>(NUM_POLL_THREADS);
 
     std::vector<char> buffer; // we use this buffer to hold data from workers
 
@@ -315,6 +320,9 @@ class PSSparseServerTask : public MLTask {
 
     std::map<int, bool> task_to_status;
     std::map<int, std::string> operation_to_name;
+
+    char* thread_msg_buffer[NUM_PS_WORK_THREADS];  // per-thread buffer
+    std::atomic<int> thread_count;
 };
 
 class MFNetflixTask : public MLTask {

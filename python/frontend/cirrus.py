@@ -5,6 +5,7 @@ import ec2_vm
 import paramiko
 import time
 import os
+import boto3
 
 
 class LogisticRegressionTask:
@@ -75,14 +76,17 @@ class LogisticRegressionTask:
 		  '"nohup ./parameter_server config_lr.txt 10 1 >ps_output 2>&1 &"'
         print("cmd:", cmd)
         os.system(cmd)
+        time.sleep(10)
 
     def launch_lambda(self, num_task, num_workers):
-        # This code is untested, need to ask Joao how to do this
+        print "Launching lambdas"
         client = boto3.client('lambda', region_name='us-west-2')
         response = client.invoke(
-            FunctionName="testfunc1",
+            FunctionName="myfunc",
+            InvocationType='Event',
             LogType='Tail',
-            Payload={"num_task": str(num_task), "num_workers": str(num_workers)})
+            Payload='{"num_task": %d, "num_workers": %d}' % (num_task, num_workers))
+        print response
 
     def issue_ssh_command(self, command, ip):
         print "Issuing command: %s on %s" % (command, ip)
@@ -110,6 +114,8 @@ class LogisticRegressionTask:
         self.copy_ps_to_vm(self.ps_ip)
         self.define_config(self.ps_ip)
         self.launch_ps(self.ps_ip)
+
+        self.launch_lambda(3, 1)
 
     def wait(self):
         print "waiting"

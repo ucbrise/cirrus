@@ -16,7 +16,9 @@ lr_task = cirrus.LogisticRegression(
              threshold_loss=0.48,
              resume_model = model,
              key_name='mykey',
-             key_path='/home/joao/Downloads/mykey.pem'
+             key_path='/home/joao/Downloads/mykey.pem',
+             ps_ip='ec2-34-214-232-215.us-west-2.compute.amazonaws.com',
+             ps_username='ubuntu'
              )
 
 lr_task.run()

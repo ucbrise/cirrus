@@ -9,11 +9,19 @@ import os
 
 class LogisticRegressionTask:
     def __init__(self,
-            key_name, key_path):
+            learning_rate,
+            epsilon
+            key_name, key_path,
+            ps_ip,
+            ps_username):
         print("Starting LogisticRegressionTask")
         self.thread = threading.Thread(target=self.run)
         self.key_name = key_name
         self.key_path = key_path
+        self.ps_ip = ps_ip
+        self.ps_username = ps_username
+        self.learning_rate = learning_rate
+        self.epsilon = epsilon
 
     def __del__(self):
         print("Logistic Regression Task Lost. Closing ssh connection")
@@ -30,10 +38,7 @@ class LogisticRegressionTask:
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         # Download ps to vm
         try:
-            print("Waiting for VM start")
-	    # need to wait until VM and ssh-server starts
-            time.sleep(60)
-            client.connect(hostname=ip, username='ec2-user', pkey=key)
+            client.connect(hostname=ip, username=self.ps_username, pkey=key)
             # Set up ssm (if we choose to use that, and get the binary)
             # XXX: replace a.pdf with the actual binary
             print("Done waiting... Attempting to copy over binary")
@@ -62,18 +67,17 @@ class LogisticRegressionTask:
         client = paramiko.SSHClient()
         self.ssh_client = client
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        time.sleep(10)
-
-        client.connect(hostname=ip, username='ec2-user', pkey=key)
+        client.connect(hostname=ip, username=self.ps_username, pkey=key)
         # Set up ssm (if we choose to use that, and get the binary) XXX: replace a.pdf with the actual binary
         print "Launching parameter server"
-        os.system('ssh -o "StrictHostKeyChecking no" -i ~/mykey.pem ubuntu@%s ' % ip + \
-		  '"nohup ./parameter_server config_lr.txt 10 1 >ps_output 2>&1 &"')
 
+        cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' % (self.key_path, self.ps_username, self.ps_ip) + \
+		  '"nohup ./parameter_server config_lr.txt 10 1 >ps_output 2>&1 &"'
+        print("cmd:", cmd)
+        os.system(cmd)
 
 
     def launch_lambda(self, num_task, num_workers):
-
         # This code is untested, need to ask Joao how to do this
         client = boto3.client('lambda', region_name='us-west-2')
         response = client.invoke(
@@ -87,20 +91,28 @@ class LogisticRegressionTask:
 
 
     def run(self):
-        # create vm manager
-        vm_manager = ec2_vm.Ec2VMManager("ec2 manager", "", "")
-        # launch a spot instance
-        print "Creating spot instance"
-        vm_instance = vm_manager.start_vm_spot(1, self.key_name) # start 1 vm
-        ip_addr = vm_manager.setup_vm_and_wait()
 
-        print "Got machine with ip %s" % ip_addr
-        # copy parameter server and binary to instance
-        # Using ssh for now
+        if self.ps_ip == "":
+            print "Creating a spot VM"
+            # create vm manager
+            vm_manager = ec2_vm.Ec2VMManager("ec2 manager", "", "")
+            # launch a spot instance
+            print "Creating spot instance"
+            vm_instance = vm_manager.start_vm_spot(1, self.key_name) # start 1 vm
+            self.ps_ip = vm_manager.setup_vm_and_wait()
 
-        self.copy_ps_to_vm(ip_addr)
-        self.define_config(ip_addr)
-        self.launch_ps(ip_addr)
+            print "Got machine with ip %s" % ip_addr
+            # copy parameter server and binary to instance
+            # Using ssh for now
+            print("Waiting for VM start")
+	    # need to wait until VM and ssh-server starts
+            time.sleep(60)
+        else:
+            print "User's specific ip:", self.ps_ip
+
+        self.copy_ps_to_vm(self.ps_ip)
+        self.define_config(self.ps_ip)
+        self.launch_ps(self.ps_ip)
 
     def wait(self):
         print "waiting"
@@ -118,8 +130,8 @@ class LogisticRegressionTask:
                  "use_bias: 1 \n" + \
                  "model_type: LogisticRegression \n" + \
                  "minibatch_size: 20 \n" + \
-                 "learning_rate: 0.01 \n" + \
-                 "epsilon: 0.0001 \n" + \
+                 "learning_rate: %s \n" % self.learning_rate + \
+                 "epsilon: %s \n" % self.epsilon + \
                  "model_bits: 19 \n" + \
                  "s3_bucket: cirrus-criteo-kaggle-19b-random \n" + \
                  "use_grad_threshold: 1 \n" + \
@@ -130,7 +142,7 @@ class LogisticRegressionTask:
         key = paramiko.RSAKey.from_private_key_file(self.key_path)
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(hostname=ip, username='ec2-user', pkey=key)
+        client.connect(hostname=ip, username=self.ps_username, pkey=key)
         print "Defining configuration file"
         stdin, stdout, stderr = client.exec_command('echo "%s" > config_lr.txt' % config)
         print stdout.read()
@@ -143,7 +155,8 @@ def dataset_handle(path, format):
     return 0
 
 
-def LogisticRegression(n_workers, n_ps,
+def LogisticRegression(
+            n_workers, n_ps,
             dataset,
             learning_rate, epsilon,
             progress_callback,
@@ -151,11 +164,16 @@ def LogisticRegression(n_workers, n_ps,
             threshold_loss,
             resume_model,
             key_name,
-            key_path):
+            key_path,
+            ps_ip="", ps_username="ec2-user"):
     print "Running Logistic Regression workload"
     return LogisticRegressionTask(
+                learning_rate=learning_rate,
+                epsilon=epsilon,
                 key_name=key_name,
-                key_path=key_path
+                key_path=key_path,
+                ps_ip=ps_ip,
+                ps_username=ps_username
            )
 
 def create_random_lr_model(n):

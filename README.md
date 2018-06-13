@@ -40,6 +40,11 @@ tar czvf cirrus_cov.tgz cov-int
 
 Upload file to coverity website
 
+Cirrus' Architecture
+=============
+
+To be done
+
 How to Run Cirrus
 =============
 

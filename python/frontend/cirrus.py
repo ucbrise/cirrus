@@ -4,6 +4,8 @@ import threading
 import ec2_vm
 import paramiko
 import time
+import os
+
 
 class LogisticRegressionTask:
     def __init__(self,
@@ -65,15 +67,8 @@ class LogisticRegressionTask:
         client.connect(hostname=ip, username='ec2-user', pkey=key)
         # Set up ssm (if we choose to use that, and get the binary) XXX: replace a.pdf with the actual binary
         print "Launching parameter server"
-        #stdin, stdout, stderr = client.exec_command("./parameter_server config_lr.txt 100 1 &") # Not sure if there's a good way to do this....
-        #client.close()
-        #transport = client.get_transport()
-        #channel = transport.open_session()
-        #channel.exec_command("nohup ./parameter_server config_lr.txt 100 1 |& tee ps_log.txt &")
-
-        # I need a better way to do this
-        import os
-        os.system('ssh -o "StrictHostKeyChecking no" -i ~/mykey.pem ubuntu@%s "nohup ./parameter_server config_lr.txt 10 1 >ps_output 2>&1 &"' % ip)
+        os.system('ssh -o "StrictHostKeyChecking no" -i ~/mykey.pem ubuntu@%s ' + \
+		  '"nohup ./parameter_server config_lr.txt 10 1 >ps_output 2>&1 &"' % ip)
 
 
 

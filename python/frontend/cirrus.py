@@ -10,7 +10,7 @@ import os
 class LogisticRegressionTask:
     def __init__(self,
             learning_rate,
-            epsilon
+            epsilon,
             key_name, key_path,
             ps_ip,
             ps_username):
@@ -76,7 +76,6 @@ class LogisticRegressionTask:
         print("cmd:", cmd)
         os.system(cmd)
 
-
     def launch_lambda(self, num_task, num_workers):
         # This code is untested, need to ask Joao how to do this
         client = boto3.client('lambda', region_name='us-west-2')
@@ -85,10 +84,8 @@ class LogisticRegressionTask:
             LogType='Tail',
             Payload={"num_task": str(num_task), "num_workers": str(num_workers)})
 
-
     def issue_ssh_command(self, command, ip):
         print "Issuing command: %s on %s" % (command, ip)
-
 
     def run(self):
 
@@ -154,7 +151,6 @@ def dataset_handle(path, format):
     print "path: ", path, " format: ", format
     return 0
 
-
 def LogisticRegression(
             n_workers, n_ps,
             dataset,
@@ -183,13 +179,10 @@ def create_random_lr_model(n):
     return 0
 
 # Collaborative Filtering
-
 def CollaborativeFiltering():
     print "not implemented"
 
 
 # LDA algorithm
-
-
 def LDA():
     print "Not implemented"

@@ -53,10 +53,18 @@ cd ../glog
 cmake ../glog
 make -j 10
 
-cd ../curl
+#untar and compile curl
+cd ..
+mkdir curl; cd curl
+CURL_TAR=curl-7.60.0.tar.gz
+wget https://curl.askapache.com/$CURL_TAR
+tar -xvzf $CURL_TAR
+mv curl-7.60.0 curl
+cd curl
 ./buildconf
 ./configure --disable-shared --enable-static  --disable-ldap --disable-sspi --without-librtmp --disable-ftp --disable-file --disable-dict --disable-telnet --disable-tftp --disable-rtsp --disable-pop3 --disable-imap --disable-smtp --disable-gopher --disable-smb --without-libidn
 make -j 10
+cd ../
 
 #compile aws-sdk-cpp
 cd ../aws-sdk-cpp

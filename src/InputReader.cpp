@@ -17,6 +17,7 @@
 #include <atomic>
 #include <map>
 #include <iomanip>
+#include <functional>
  
 #define DEBUG
 

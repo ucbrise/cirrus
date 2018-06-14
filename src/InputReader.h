@@ -1,6 +1,7 @@
 #ifndef _INPUT_H_
 #define _INPUT_H_
 
+#include <functional>
 #include <Dataset.h>
 #include <SparseDataset.h>
 #include <Configuration.h>
@@ -8,6 +9,7 @@
 #include <vector>
 #include <queue>
 #include <mutex>
+#include <functional>
 #include <map>
 #include <config.h>
 #include <MurmurHash3.h>

@@ -22,21 +22,14 @@
 #include <unistd.h>
 
 namespace cirrus {
-
 class MLTask {
   public:
     MLTask(
-        uint64_t MODEL_GRAD_SIZE, //XXX this doesn't generalize to all types of gradients
-        uint64_t MODEL_BASE,
-        uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-        uint64_t SAMPLE_BASE, uint64_t START_BASE,
+        uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
         uint64_t worker_id) :
-      MODEL_GRAD_SIZE(MODEL_GRAD_SIZE),
-      MODEL_BASE(MODEL_BASE), LABEL_BASE(LABEL_BASE),
-      GRADIENT_BASE(GRADIENT_BASE), SAMPLE_BASE(SAMPLE_BASE),
-      START_BASE(START_BASE),
+      model_size(model_size),
       batch_size(batch_size), samples_per_batch(samples_per_batch),
       features_per_sample(features_per_sample),
       nworkers(nworkers), worker_id(worker_id)
@@ -50,12 +43,7 @@ class MLTask {
     void wait_for_start(int index, int nworkers);
 
   protected:
-    uint64_t MODEL_GRAD_SIZE;
-    uint64_t MODEL_BASE;
-    uint64_t LABEL_BASE;
-    uint64_t GRADIENT_BASE;
-    uint64_t SAMPLE_BASE;
-    uint64_t START_BASE;
+    uint64_t model_size;
     uint64_t batch_size;
     uint64_t samples_per_batch;
     uint64_t features_per_sample;
@@ -67,14 +55,11 @@ class MLTask {
 class LogisticSparseTaskS3 : public MLTask {
   public:
     LogisticSparseTaskS3(
-        uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-        uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-        uint64_t SAMPLE_BASE, uint64_t START_BASE,
+        uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
         uint64_t worker_id) :
-      MLTask(MODEL_GRAD_SIZE, MODEL_BASE,
-          LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+      MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, worker_id), psint(nullptr)
   {}
@@ -119,9 +104,7 @@ class LogisticSparseTaskS3 : public MLTask {
 class PSSparseTask : public MLTask {
   public:
     PSSparseTask(
-        uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-        uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-        uint64_t SAMPLE_BASE, uint64_t START_BASE,
+        uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
         uint64_t worker_id);
@@ -152,31 +135,27 @@ class PSSparseTask : public MLTask {
 class ErrorSparseTask : public MLTask {
   public:
     ErrorSparseTask(
-        uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-        uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-        uint64_t SAMPLE_BASE, uint64_t START_BASE,
+        uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
         uint64_t worker_id) :
-      MLTask(MODEL_GRAD_SIZE, MODEL_BASE,
-          LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+      MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, worker_id)
   {}
     void run(const Configuration& config);
+
+  private:
 };
 
 class PerformanceLambdaTask : public MLTask {
   public:
     PerformanceLambdaTask(
-        uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-        uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-        uint64_t SAMPLE_BASE, uint64_t START_BASE,
+        uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
         uint64_t worker_id) :
-      MLTask(MODEL_GRAD_SIZE, MODEL_BASE,
-          LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+      MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, worker_id)
   {}
@@ -192,14 +171,11 @@ class PerformanceLambdaTask : public MLTask {
 class LoadingSparseTaskS3 : public MLTask {
   public:
     LoadingSparseTaskS3(
-        uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-        uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-        uint64_t SAMPLE_BASE, uint64_t START_BASE,
+        uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
         uint64_t worker_id) :
-      MLTask(MODEL_GRAD_SIZE, MODEL_BASE,
-          LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+      MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, worker_id)
   {}
@@ -214,14 +190,11 @@ class LoadingSparseTaskS3 : public MLTask {
 class LoadingNetflixTask : public MLTask {
   public:
     LoadingNetflixTask(
-        uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-        uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-        uint64_t SAMPLE_BASE, uint64_t START_BASE,
+        uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
         uint64_t worker_id) :
-      MLTask(MODEL_GRAD_SIZE, MODEL_BASE,
-          LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+      MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, worker_id)
   {}
@@ -235,9 +208,7 @@ class LoadingNetflixTask : public MLTask {
 class PSSparseServerTask : public MLTask {
   public:
     PSSparseServerTask(
-        uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-        uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-        uint64_t SAMPLE_BASE, uint64_t START_BASE,
+        uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
         uint64_t worker_id);
@@ -246,11 +217,12 @@ class PSSparseServerTask : public MLTask {
 
     struct Request {
       public:
-        Request(int req_id, int sock, uint32_t incoming_size, struct pollfd& poll_fd) :
-          req_id(req_id), sock(sock), incoming_size(incoming_size), poll_fd(poll_fd){}
+        Request(int req_id, int sock, int id, uint32_t incoming_size, struct pollfd& poll_fd) :
+          req_id(req_id), sock(sock), id(id), incoming_size(incoming_size), poll_fd(poll_fd){}
 
         int req_id;
         int sock;
+        int id;
         uint32_t incoming_size;
         struct pollfd& poll_fd;
     };
@@ -260,10 +232,11 @@ class PSSparseServerTask : public MLTask {
 
     // network related methods
     void start_server();
-    void poll_thread_fn();
-    bool testRemove(struct pollfd x);
-    void loop();
-    bool process(struct pollfd&);
+    void main_poll_thread_fn(int id);
+
+    bool testRemove(struct pollfd x, int id);
+    void loop(int id);
+    bool process(struct pollfd&, int id);
 
     // Model/ML related methods
     void checkpoint_model() const;
@@ -273,7 +246,7 @@ class PSSparseServerTask : public MLTask {
     // message handling
     bool process_get_lr_sparse_model(const Request& req, std::vector<char>&);
     bool process_send_lr_gradient(const Request& req, std::vector<char>&);
-    bool process_get_mf_sparse_model(const Request& req, std::vector<char>&);
+    bool process_get_mf_sparse_model(const Request& req, std::vector<char>&, int tn);
     bool process_get_lr_full_model(const Request& req, std::vector<char>& thread_buffer);
     bool process_send_mf_gradient(const Request& req, std::vector<char>& thread_buffer);
     bool process_get_mf_full_model(const Request& req, std::vector<char>& thread_buffer);
@@ -281,28 +254,30 @@ class PSSparseServerTask : public MLTask {
     /**
       * Attributes
       */
-    uint64_t curr_index = 0; // index (exclusive) to last sockets in fds
+
+    std::vector<uint64_t> curr_indexes = std::vector<uint64_t>(NUM_POLL_THREADS);
 #if 0
     uint64_t server_clock = 0;  // minimum of all worker clocks
 #endif
     std::unique_ptr<std::thread> thread; // worker threads
-    std::unique_ptr<std::thread> server_thread;
+    std::vector<std::unique_ptr<std::thread>> server_threads;
+    std::unique_ptr<std::thread> server_thread2;
     std::vector<std::unique_ptr<std::thread>> gradient_thread;
     pthread_t poll_thread;
     pthread_t main_thread;
     std::mutex to_process_lock;
     sem_t sem_new_req;
     std::queue<Request> to_process;
-    const uint64_t n_threads = 4;
     std::mutex model_lock; // used to coordinate access to the last computed model
 
-    int pipefd[2] = {0};
+    int pipefds[NUM_POLL_THREADS][2] = { {0} };
 
     int port_ = 1337;
     int server_sock_ = 0;
     const uint64_t max_fds = 1000;
     int timeout = 1; // 1 ms
-    std::vector<struct pollfd> fds = std::vector<struct pollfd>(max_fds);
+    std::vector<std::vector<struct pollfd>> fdses =
+        std::vector<std::vector<struct pollfd>>(NUM_POLL_THREADS);
 
     std::vector<char> buffer; // we use this buffer to hold data from workers
 
@@ -315,19 +290,19 @@ class PSSparseServerTask : public MLTask {
 
     std::map<int, bool> task_to_status;
     std::map<int, std::string> operation_to_name;
+
+    char* thread_msg_buffer[NUM_PS_WORK_THREADS];  // per-thread buffer
+    std::atomic<int> thread_count;
 };
 
 class MFNetflixTask : public MLTask {
   public:
     MFNetflixTask(
-        uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-        uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-        uint64_t SAMPLE_BASE, uint64_t START_BASE,
+        uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
         uint64_t worker_id) :
-      MLTask(MODEL_GRAD_SIZE, MODEL_BASE,
-          LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+      MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, worker_id)
   {}

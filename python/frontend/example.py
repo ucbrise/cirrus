@@ -1,37 +1,53 @@
 import cirrus
 
-ACCESS_KEY="..."
-SECRET_KEY="..."
-
 def progress_callback(loss, cost, task):
-  print "Current training loss:", loss, \
-        "current cost ($): ", cost
-    #if time_elapsed > 5minutes:
-    #if cost > 500$:
-    #    model, loss = task.terminate()
+  print("Current training loss:", loss, \
+        "current cost ($): ", cost)
 
-# different dataset paths (1. S3, 2. Local file)
-data = cirrus.dataset_handle(path = "s3://s3_path", \
-                             format="libsvm")
+data_bucket = 'cirrus-criteo-kaggle-19b-random'
+model = 'model_v1'
 
-# preprocess data
-# using pywren (look into pywren and see if we can use to preprocess ML datasets)
-
-# get cirrus executor
-# which parameters should we have here?
-
-model = cirrus.create_random_lr_model(10)
-
-lr_task = cirrus.LogisticRegression(\
-             n_workers = 3, n_ps = 2, 
-             dataset = data,
-             aws_access_key=ACCESS_KEY,
-             aws_secret_access_key=SECRET_KEY
-             learning_rate=0.0001, epsilon=0.0001,
+lr_task = cirrus.LogisticRegression(
+             # number of workers and number of PSs
+             n_workers = 3, n_ps = 2,
+             # path to s3 bucket with input dataset
+             dataset = data_bucket,
+             # sgd update LR and epsilon
+             learning_rate=0.01, epsilon=0.0001,
+             # 
              progress_callback = progress_callback,
-             timeout = 100,
-             threshold_loss=0.48,
-             resume_model = model)
+             # stop workload after these many seconds
+             timeout = 0,
+             # stop workload once we reach this loss
+             threshold_loss=0,
+             # resume execution from model stored in this s3 bucket
+             resume_model = model,
+             # aws key name
+             key_name='mykey',
+             # path to aws key
+             key_path='/home/joao/Downloads/mykey.pem',
+             # ip where ps lives
+             ps_ip='ec2-34-214-232-215.us-west-2.compute.amazonaws.com',
+             # username of VM
+             ps_username='ubuntu',
+             # choose between adagrad, sgd, nesterov, momentum
+             opt_method = 'adagrad',
+             # checkpoint model every x secs
+             checkpoint_model = 60,
+             # 
+             minibatch_size=20,
+             # model size
+             model_bits=19,
+             # whether to filter gradient weights
+             use_grad_threshold=True,
+             # threshold value
+             grad_threshold=0.001,
+             # range of training minibatches
+             train_set=(0,824),
+             # range of testing minibatches
+             test_set=(825,840)
+             )
 
-model, loss = lr_task.wait()
+lr_task.run()
 
+#model, loss = lr_task.wait()

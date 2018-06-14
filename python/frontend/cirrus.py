@@ -10,21 +10,43 @@ from threading import Thread
 
 class LogisticRegressionTask:
     def __init__(self,
+            dataset,
             learning_rate,
             epsilon,
-            key_name, key_path,
-            ps_ip,
-            ps_username,
-            opt_method):
+            key_name, key_path, # aws key
+            ps_ip, # parameter server ip
+            ps_username, # parameter server VM username
+            opt_method, # adagrad, sgd, nesterov, momentum
+            checkpoint_model, # checkpoint model every x seconds
+            train_set,
+            test_set,
+            minibatch_size,
+            model_bits,
+            use_grad_threshold,
+            grad_threshold,
+            timeout,
+            threshold_loss,
+            ):
         print("Starting LogisticRegressionTask")
         self.thread = threading.Thread(target=self.run)
+       
+        self.dataset=dataset
+        self.learning_rate = learning_rate
+        self.epsilon = epsilon
         self.key_name = key_name
         self.key_path = key_path
         self.ps_ip = ps_ip
         self.ps_username = ps_username
-        self.learning_rate = learning_rate
-        self.epsilon = epsilon
         self.opt_method = opt_method
+        self.checkpoint_model = checkpoint_model
+        self.train_set=train_set
+        self.test_set=test_set
+        self.minibatch_size=minibatch_size
+        self.model_bits=model_bits
+        self.use_grad_threshold=use_grad_threshold
+        self.grad_threshold=grad_threshold
+        self.timeout=timeout
+        self.threshold_loss=threshold_loss
 
     def __del__(self):
         print("Logistic Regression Task Lost. Closing ssh connection")
@@ -151,6 +173,11 @@ class LogisticRegressionTask:
         return 1,2
 
     def define_config(self, ip):
+        if self.use_grad_threshold:
+            grad_t = 1
+        else:
+            grad_t = 0
+
         config = "input_path: /mnt/efs/criteo_kaggle/train.csv \n" + \
                  "input_type: csv\n" + \
                  "num_classes: 2 \n" + \
@@ -161,15 +188,15 @@ class LogisticRegressionTask:
                  "s3_size: 50000 \n" + \
                  "use_bias: 1 \n" + \
                  "model_type: LogisticRegression \n" + \
-                 "minibatch_size: 20 \n" + \
-                 "learning_rate: %s \n" % self.learning_rate + \
-                 "epsilon: %s \n" % self.epsilon + \
-                 "model_bits: 19 \n" + \
-                 "s3_bucket: cirrus-criteo-kaggle-19b-random \n" + \
-                 "use_grad_threshold: 1 \n" + \
-                 "grad_threshold: 0.001 \n" + \
-                 "train_set: 0-824 \n" + \
-                 "test_set: 825-840"
+                 "minibatch_size: %d \n" % self.minibatch_size + \
+                 "learning_rate: %f \n" % self.learning_rate + \
+                 "epsilon: %lf \n" % self.epsilon + \
+                 "model_bits: %d \n" % self.model_bits + \
+                 "s3_bucket: %s \n" % self.dataset + \
+                 "use_grad_threshold: %d \n" % grad_t + \
+                 "grad_threshold: %lf \n" % self.grad_threshold + \
+                 "train_set: %d-%d \n" % self.train_set + \
+                 "test_set: %d-%d" % self.test_set
 
         key = paramiko.RSAKey.from_private_key_file(self.key_path)
         client = paramiko.SSHClient()
@@ -191,22 +218,40 @@ def LogisticRegression(
             dataset,
             learning_rate, epsilon,
             progress_callback,
-            timeout,
-            threshold_loss,
             resume_model,
             key_name,
             key_path,
+            train_set,
+            test_set,
+            minibatch_size,
+            model_bits,
+            ps_ip="", ps_username="ec2-user",
             opt_method="sgd",
-            ps_ip="", ps_username="ec2-user"):
+            checkpoint_model=0,
+            use_grad_threshold=False,
+            grad_threshold=0.001,
+            timeout=0,
+            threshold_loss=0
+            ):
     print "Running Logistic Regression workload"
     return LogisticRegressionTask(
-                learning_rate=learning_rate,
-                epsilon=epsilon,
-                key_name=key_name,
-                key_path=key_path,
-                ps_ip=ps_ip,
-                ps_username=ps_username,
-                opt_method=opt_method
+            dataset=dataset,
+            learning_rate=learning_rate,
+            epsilon=epsilon,
+            key_name=key_name,
+            key_path=key_path,
+            ps_ip=ps_ip,
+            ps_username=ps_username,
+            opt_method=opt_method,
+            checkpoint_model=checkpoint_model,
+            train_set=train_set,
+            test_set=test_set,
+            minibatch_size=minibatch_size,
+            model_bits=model_bits,
+            use_grad_threshold=use_grad_threshold,
+            grad_threshold=grad_threshold,
+            timeout=timeout,
+            threshold_loss=threshold_loss
            )
 
 def create_random_lr_model(n):

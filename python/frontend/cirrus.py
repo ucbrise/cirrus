@@ -14,7 +14,8 @@ class LogisticRegressionTask:
             epsilon,
             key_name, key_path,
             ps_ip,
-            ps_username):
+            ps_username,
+            opt_method):
         print("Starting LogisticRegressionTask")
         self.thread = threading.Thread(target=self.run)
         self.key_name = key_name
@@ -23,6 +24,7 @@ class LogisticRegressionTask:
         self.ps_username = ps_username
         self.learning_rate = learning_rate
         self.epsilon = epsilon
+        self.opt_method = opt_method
 
     def __del__(self):
         print("Logistic Regression Task Lost. Closing ssh connection")
@@ -121,7 +123,6 @@ class LogisticRegressionTask:
         print "Issuing command: %s on %s" % (command, ip)
 
     def run(self):
-
         if self.ps_ip == "":
             print "Creating a spot VM"
             # create vm manager
@@ -195,6 +196,7 @@ def LogisticRegression(
             resume_model,
             key_name,
             key_path,
+            opt_method="sgd",
             ps_ip="", ps_username="ec2-user"):
     print "Running Logistic Regression workload"
     return LogisticRegressionTask(
@@ -203,7 +205,8 @@ def LogisticRegression(
                 key_name=key_name,
                 key_path=key_path,
                 ps_ip=ps_ip,
-                ps_username=ps_username
+                ps_username=ps_username,
+                opt_method=opt_method
            )
 
 def create_random_lr_model(n):

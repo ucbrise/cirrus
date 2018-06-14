@@ -6,7 +6,7 @@ import paramiko
 import time
 import os
 import boto3
-
+from threading import Thread
 
 class LogisticRegressionTask:
     def __init__(self,
@@ -44,7 +44,7 @@ class LogisticRegressionTask:
             # XXX: replace a.pdf with the actual binary
             print("Done waiting... Attempting to copy over binary")
             stdin, stdout, stderr = client.exec_command(\
-                "wget https://s3-us-west-2.amazonaws.com/" \
+                "wget -O https://s3-us-west-2.amazonaws.com/" \
                 + "andrewmzhang-bucket/parameter_server && "\
                 + "chmod +x parameter_server")
 
@@ -73,20 +73,49 @@ class LogisticRegressionTask:
         print "Launching parameter server"
 
         cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' % (self.key_path, self.ps_username, self.ps_ip) + \
-		  '"nohup ./parameter_server config_lr.txt 10 1 >ps_output 2>&1 &"'
+		  '"nohup ./parameter_server config_lr.txt 10000 1 &> ps_output &"'
         print("cmd:", cmd)
+        client.exec_command("killall parameter_server")
         os.system(cmd)
-        time.sleep(10)
+        time.sleep(2)
 
-    def launch_lambda(self, num_task, num_workers):
+    def launch_lambda(self, num_workers, timeout=180):
         print "Launching lambdas"
         client = boto3.client('lambda', region_name='us-west-2')
-        response = client.invoke(
-            FunctionName="myfunc",
-            InvocationType='Event',
-            LogType='Tail',
-            Payload='{"num_task": %d, "num_workers": %d}' % (num_task, num_workers))
-        print response
+
+        def launch(num_task):
+            i = 0
+            while i < num_task:
+                i += 1
+                if i == 1:
+                    print "launching lambda with id %d" % num_task
+                else:
+                    print "relaunching lambda with id %d %d" % (num_task, i)
+
+                response = client.invoke(
+                    FunctionName="myfunc",
+                    LogType='Tail',
+                    Payload='{"num_task": %d, "num_workers": %d}' % (num_task, num_workers))
+                time.sleep(2)
+
+        def error_task():
+            cmd = 'ssh -t -o "StrictHostKeyChecking no" -i %s %s@%s ' % (self.key_path, self.ps_username, self.ps_ip) + \
+    		  '"./parameter_server config_lr.txt 100 2" &> error.txt'
+
+        threads = []
+        for i in range(2, 3 + num_workers):
+            thread = Thread(target=launch, args=(i, ))
+            thread.start()
+            threads.append(thread)
+
+
+        print "Waiting for threads"
+        for thread in threads:
+            thread.join()
+
+        print "Lambdas have been launched"
+
+
 
     def issue_ssh_command(self, command, ip):
         print "Issuing command: %s on %s" % (command, ip)
@@ -114,8 +143,7 @@ class LogisticRegressionTask:
         self.copy_ps_to_vm(self.ps_ip)
         self.define_config(self.ps_ip)
         self.launch_ps(self.ps_ip)
-
-        self.launch_lambda(3, 1)
+        self.launch_lambda(10)
 
     def wait(self):
         print "waiting"

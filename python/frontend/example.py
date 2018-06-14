@@ -10,7 +10,7 @@ model = ''
 lr_task = cirrus.LogisticRegression(
              n_workers = 3, n_ps = 2,
              dataset = data,
-             learning_rate=0.0001, epsilon=0.0001,
+             learning_rate=0.01, epsilon=0.0001,
              progress_callback = progress_callback,
              timeout = 100,
              threshold_loss=0.48,

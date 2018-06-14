@@ -202,8 +202,7 @@ void Configuration::parse_line(const std::string& line) {
         throw std::runtime_error("Error parsing configuration file");
     }
 
-    if ((opt_method.compare("adagrad") != 0) and (opt_method.compare("nesterov") != 0) and (opt_method.compare("momentum") != 0) and (opt_method.compare("sgd") != 0)) {
-        std::cout << opt_method << std::endl;
+    if ((opt_method.compare("adagrad") != 0) and (opt_method.compare("nesterov") != 0) and (opt_method.compare("momentum") != 0) and (opt_method.compare("sgd") != 0) and (opt_method.compare("") != 0)) {
         throw std::runtime_error("Choose a valid update rule: adagrad, nesterov, momentum, or sgd");
     }
 }

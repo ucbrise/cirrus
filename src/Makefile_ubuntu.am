@@ -8,7 +8,7 @@ bin_PROGRAMS = parameter_server ps_test csv_to_libsvm
 
 LIBS         =  -laws-cpp-sdk-s3 -laws-cpp-sdk-core \
 		-lcurl -lssl -lcrypto -lz -ldl -lkrb5 -lk5crypto \
-		-lall -lkeyutils -lresolv
+		-lall -lkeyutils -lresolv -lldap -llber -lpthread
 
 LINCLUDES    = -L$(TOP_DIR)/third_party/aws-sdk-cpp/build/aws-cpp-sdk-core/ \
 	       -L$(TOP_DIR)/third_party/aws-sdk-cpp/build/aws-cpp-sdk-s3 \
@@ -17,11 +17,9 @@ LINCLUDES    = -L$(TOP_DIR)/third_party/aws-sdk-cpp/build/aws-cpp-sdk-core/ \
 	       -L$(TOP_DIR)/third_party/curl/lib/.libs/
 
 LDADD    = $(LINCLUDES) $(LIBS)
-LDFLAGS  = -static-libgcc  -static  -Wl,--whole-archive \
-	   -lpthread -Wl,--no-whole-archive
+LDFLAGS  = -lpthread
 
-CPPFLAGS = -static -static-libgcc -static-libstdc++ \
-           -I$(TOP_DIR) \
+CPPFLAGS = -I$(TOP_DIR) \
            -I$(TOP_DIR)/third_party/flatbuffers/include \
            -I$(TOP_DIR)/third_party/eigen_source \
 	   -I$(TOP_DIR)/third_party/aws-sdk-cpp/aws-cpp-sdk-s3/include/ \

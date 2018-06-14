@@ -8,6 +8,8 @@
 
 #include "config.h"
 
+#include <gflags/gflags.h>
+
 #define BILLION (1000000000ULL)
 #define MILLION (1000000ULL)
 #define SAMPLE_BASE   (0)
@@ -15,6 +17,10 @@
 #define GRADIENT_BASE (2 * BILLION)
 #define LABEL_BASE    (3 * BILLION)
 #define START_BASE    (4 * BILLION)
+
+DEFINE_int64(nworkers, -1, "number of workers");
+DEFINE_int64(rank, -1, "rank");
+DEFINE_string(config, "", "config");
 
 static const uint64_t GB = (1024*1024*1024);
 static const uint32_t SIZE = 1;
@@ -125,17 +131,22 @@ int main(int argc, char** argv) {
 
   print_hostname();
 
-  int nworkers = cirrus::string_to<int>(argv[2]);
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  if ((FLAGS_nworkers < 0) || (FLAGS_rank < 0) || (FLAGS_config == "")) {
+      throw std::runtime_error("Some flags not specified");
+  }
+
+  int nworkers = FLAGS_nworkers;
   std::cout << "Running parameter server with: "
     << nworkers << " workers"
     << std::endl;
 
-  int rank = cirrus::string_to<int>(argv[3]);
+  int rank = FLAGS_rank;
   std::cout << "Running parameter server with: "
     << rank << " rank"
     << std::endl;
 
-  auto config = load_configuration(argv[1]);
+  auto config = load_configuration(FLAGS_config);
   config.print();
 
   // from config we get

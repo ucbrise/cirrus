@@ -129,6 +129,10 @@ class Configuration {
 
     bool get_use_adagrad() const;
     uint64_t get_netflix_workers() const;
+    bool get_use_nesterov() const;
+    bool get_use_momentum() const;
+
+    double get_momentum_beta() const;
 
  public:
     /**
@@ -178,11 +182,14 @@ class Configuration {
     bool use_grad_threshold = false;
     double grad_threshold = 0;
 
-    bool use_adagrad = true;
+    bool use_adagrad = false;
 
     uint64_t model_bits = 20;
 
     uint64_t netflix_workers = 0;
+    bool use_momentum = false;
+    bool use_nesterov = false;
+    double momentum_beta = 0.0;
 };
 
 }  // namespace cirrus

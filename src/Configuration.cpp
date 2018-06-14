@@ -129,6 +129,8 @@ void Configuration::parse_line(const std::string& line) {
         iss >> limit_cols;
     } else if (s == "limit_samples:") {
         iss >> limit_samples;
+    } else if (s == "momentum_beta:") {
+        iss >> momentum_beta;  
     } else if (s == "s3_bucket:") {
         iss >> s3_bucket_name;
     } else if (s == "use_bias:") {
@@ -139,6 +141,10 @@ void Configuration::parse_line(const std::string& line) {
         iss >> nitems;
     } else if (s == "use_adagrad:") {
         iss >> use_adagrad;
+    } else if (s == "use_momentum:") {
+        iss >> use_momentum;  
+    } else if (s == "use_nesterov:") {
+        iss >> use_nesterov;  
     } else if (s == "model_bits:") {
         iss >> model_bits;
     } else if (s == "netflix_workers:") {
@@ -196,6 +202,10 @@ void Configuration::parse_line(const std::string& line) {
 
     if (iss.fail()) {
         throw std::runtime_error("Error parsing configuration file");
+    }
+
+    if ((use_adagrad and use_momentum) or (use_adagrad and use_nesterov) or (use_momentum and use_nesterov)) {
+        throw std::runtime_error("Choose one update method");
     }
 }
 
@@ -347,6 +357,18 @@ bool Configuration::get_use_adagrad() const {
 
 uint64_t Configuration::get_netflix_workers() const {
   return netflix_workers;
+}
+
+bool Configuration::get_use_momentum() const {
+    return use_momentum;
+}
+
+bool Configuration::get_use_nesterov() const {
+    return use_nesterov;
+}
+
+double Configuration::get_momentum_beta() const {
+    return momentum_beta;
 }
 
 } // namespace cirrus

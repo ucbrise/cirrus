@@ -1,4 +1,8 @@
 #include <Tasks.h>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
 
 #include "Serializers.h"
 #include "config.h"
@@ -77,6 +81,9 @@ void ErrorSparseTask::run(const Configuration& config) {
 
   std::cout << "[ERROR_TASK] Computing accuracies"
     << "\n";
+  std::ofstream myfile;
+  myfile.open("adagrad015.csv");
+  myfile << "Time,Loss," << std::endl;
   while (1) {
     usleep(ERROR_INTERVAL_USEC);
 
@@ -109,6 +116,11 @@ void ErrorSparseTask::run(const Configuration& config) {
         total_num_features += ds.num_features();
         start_index += config.get_minibatch_size();
       }
+      std::stringstream time_string;
+      std::ostringstream loss_string;
+      time_string << ((get_time_us() - start_time) / 1000000.0);
+      loss_string << (total_loss/total_num_samples);
+      myfile << time_string.str() << "," << loss_string.str() << "," << std::endl;
 
       if (config.get_model_type() == Configuration::LOGISTICREGRESSION) {
         std::cout
@@ -132,6 +144,7 @@ void ErrorSparseTask::run(const Configuration& config) {
       std::cout << "run_compute_error_task unknown id" << std::endl;
     }
   }
+  myfile.close();
 }
 
 } // namespace cirrus

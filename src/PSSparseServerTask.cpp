@@ -111,10 +111,10 @@ bool PSSparseServerTask::process_send_lr_gradient(const Request& req, std::vecto
 
   model_lock.lock();
   std::string method = task_config.get_opt_method();
-  if (method.compare("nesterov") == 0 or method.compare("momentum") == 0) {
+  if (method == "adagrad" or method == "momentum") {
     lr_model->sgd_update_momentum(
         task_config.get_learning_rate(), task_config.get_momentum_beta(), &gradient);
-  } else if (method.compare("sgd") == 0) {
+  } else if (method == "sgd") {
     lr_model->sgd_update(
         task_config.get_learning_rate(), &gradient);  
   } else {
@@ -205,7 +205,7 @@ bool PSSparseServerTask::process_get_lr_sparse_model(
   for (uint32_t i = 0; i < num_entries; ++i) {
     uint32_t entry_index = load_value<uint32_t>(data);
     std::string method = task_config.get_opt_method();
-    if (method.compare("nesterov") == 0) {
+    if (method == "nesterov") {
         store_value<FEATURE_TYPE>(
             data_to_send_ptr,
             lr_model->get_nth_weight_nesterov(entry_index, task_config.get_momentum_beta()));

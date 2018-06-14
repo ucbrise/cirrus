@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <string>
 #include <Utils.h>
 
 namespace cirrus {
@@ -54,8 +55,9 @@ void Configuration::print() const {
     std::cout << "epsilon: " << epsilon << std::endl;
     std::cout << "s3_bucket_name: " << s3_bucket_name << std::endl;
     std::cout << "use_bias: " << use_bias << std::endl;
+    std::cout << "momentum_beta: " << momentum_beta << std::endl;
     std::cout << "use_grad_threshold: " << use_grad_threshold << std::endl;
-    std::cout << "use_adagrad: " << use_adagrad << std::endl;
+    std::cout << "opt_method: " << opt_method << std::endl;
     std::cout << "grad_threshold: " << grad_threshold << std::endl;
     std::cout << "model_bits: " << model_bits << std::endl;
     std::cout << "netflix_workers: " << netflix_workers << std::endl;
@@ -117,7 +119,9 @@ void Configuration::parse_line(const std::string& line) {
         iss >> labels_path;
     } else if (s == "n_workers:") {
         iss >> n_workers;
-    } else if (s == "epsilon:") {
+    } else if (s == "opt_method:") {
+        iss >> opt_method; 
+    }  else if (s == "epsilon:") {
         iss >> epsilon;
     } else if (s == "input_type:") {
         iss >> input_type;
@@ -138,13 +142,7 @@ void Configuration::parse_line(const std::string& line) {
     } else if (s == "num_users:") {
         iss >> nusers;
     } else if (s == "num_items:") {
-        iss >> nitems;
-    } else if (s == "use_adagrad:") {
-        iss >> use_adagrad;
-    } else if (s == "use_momentum:") {
-        iss >> use_momentum;  
-    } else if (s == "use_nesterov:") {
-        iss >> use_nesterov;  
+        iss >> nitems; 
     } else if (s == "model_bits:") {
         iss >> model_bits;
     } else if (s == "netflix_workers:") {
@@ -204,8 +202,9 @@ void Configuration::parse_line(const std::string& line) {
         throw std::runtime_error("Error parsing configuration file");
     }
 
-    if ((use_adagrad and use_momentum) or (use_adagrad and use_nesterov) or (use_momentum and use_nesterov)) {
-        throw std::runtime_error("Choose one update method");
+    if ((opt_method.compare("adagrad") != 0) and (opt_method.compare("nesterov") != 0) and (opt_method.compare("momentum") != 0)) {
+        std::cout << opt_method << std::endl;
+        throw std::runtime_error("Choose a valid update rule: adagrad, nesterov, or momentum");
     }
 }
 
@@ -351,20 +350,12 @@ uint64_t Configuration::get_model_bits() const {
   return model_bits;
 }
 
-bool Configuration::get_use_adagrad() const {
-  return use_adagrad;
-}
-
 uint64_t Configuration::get_netflix_workers() const {
   return netflix_workers;
 }
 
-bool Configuration::get_use_momentum() const {
-    return use_momentum;
-}
-
-bool Configuration::get_use_nesterov() const {
-    return use_nesterov;
+std::string Configuration::get_opt_method() const {
+  return opt_method;
 }
 
 double Configuration::get_momentum_beta() const {

@@ -10,16 +10,10 @@
 class MLTask {
  public:
      MLTask(const std::string& IP, const std::string& PORT,
-             uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-             uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-             uint64_t SAMPLE_BASE, uint64_t START_BASE,
              uint64_t batch_size, uint64_t samples_per_batch,
              uint64_t features_per_sample, uint64_t nworkers,
              uint64_t worker_id) :
-         IP(IP), PORT(PORT), MODEL_GRAD_SIZE(MODEL_GRAD_SIZE),
-         MODEL_BASE(MODEL_BASE), LABEL_BASE(LABEL_BASE),
-         GRADIENT_BASE(GRADIENT_BASE), SAMPLE_BASE(SAMPLE_BASE),
-         START_BASE(START_BASE),
+         IP(IP), PORT(PORT),
          batch_size(batch_size), samples_per_batch(samples_per_batch),
          features_per_sample(features_per_sample), nworkers(nworkers),
          worker_id(worker_id)
@@ -39,12 +33,6 @@ class MLTask {
  protected:
      std::string IP;
      std::string PORT;
-     uint64_t MODEL_GRAD_SIZE;
-     uint64_t MODEL_BASE;
-     uint64_t LABEL_BASE;
-     uint64_t GRADIENT_BASE;
-     uint64_t SAMPLE_BASE;
-     uint64_t START_BASE;
      uint64_t batch_size;
      uint64_t samples_per_batch;
      uint64_t features_per_sample;
@@ -55,14 +43,10 @@ class MLTask {
 class LogisticTask : public MLTask {
  public:
      LogisticTask(const std::string& IP, const std::string& PORT,
-             uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-             uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-             uint64_t SAMPLE_BASE, uint64_t START_BASE,
              uint64_t batch_size, uint64_t samples_per_batch,
              uint64_t features_per_sample, uint64_t nworkers,
              uint64_t worker_id) :
-         MLTask(IP, PORT, MODEL_GRAD_SIZE, MODEL_BASE,
-                LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+         MLTask(IP, PORT,
                 batch_size, samples_per_batch, features_per_sample,
                 nworkers, worker_id)
     {}
@@ -78,14 +62,10 @@ class LogisticTask : public MLTask {
 class LogisticTaskPreloaded : public MLTask {
  public:
      LogisticTaskPreloaded(const std::string& IP, const std::string& PORT,
-             uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-             uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-             uint64_t SAMPLE_BASE, uint64_t START_BASE,
              uint64_t batch_size, uint64_t samples_per_batch,
              uint64_t features_per_sample, uint64_t nworkers,
              uint64_t worker_id) :
-     MLTask(IP, PORT, MODEL_GRAD_SIZE, MODEL_BASE,
-             LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+     MLTask(IP, PORT,
              batch_size, samples_per_batch, features_per_sample,
              nworkers, worker_id)
     {}
@@ -104,14 +84,10 @@ class LogisticTaskPreloaded : public MLTask {
 class PSTask : public MLTask {
  public:
      PSTask(const std::string& IP, const std::string& PORT,
-             uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-             uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-             uint64_t SAMPLE_BASE, uint64_t START_BASE,
              uint64_t batch_size, uint64_t samples_per_batch,
              uint64_t features_per_sample, uint64_t nworkers,
              uint64_t worker_id) :
-         MLTask(IP, PORT, MODEL_GRAD_SIZE, MODEL_BASE,
-                LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+         MLTask(IP, PORT,
                 batch_size, samples_per_batch, features_per_sample,
                 nworkers, worker_id)
     {}
@@ -123,14 +99,10 @@ class PSTask : public MLTask {
 class ErrorTask : public MLTask {
  public:
      ErrorTask(const std::string& IP, const std::string& PORT,
-             uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-             uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-             uint64_t SAMPLE_BASE, uint64_t START_BASE,
              uint64_t batch_size, uint64_t samples_per_batch,
              uint64_t features_per_sample, uint64_t nworkers,
              uint64_t worker_id) :
-         MLTask(IP, PORT, MODEL_GRAD_SIZE, MODEL_BASE,
-                LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+         MLTask(IP, PORT,
                 batch_size, samples_per_batch, features_per_sample,
                 nworkers, worker_id)
     {}
@@ -142,14 +114,10 @@ class ErrorTask : public MLTask {
 class LoadingTask : public MLTask {
  public:
      LoadingTask(const std::string& IP, const std::string& PORT,
-             uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-             uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-             uint64_t SAMPLE_BASE, uint64_t START_BASE,
              uint64_t batch_size, uint64_t samples_per_batch,
              uint64_t features_per_sample, uint64_t nworkers,
              uint64_t worker_id) :
-         MLTask(IP, PORT, MODEL_GRAD_SIZE, MODEL_BASE,
-                LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+         MLTask(IP, PORT,
                 batch_size, samples_per_batch, features_per_sample,
                 nworkers, worker_id)
     {}

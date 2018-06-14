@@ -25,17 +25,11 @@ namespace cirrus {
 class MLTask {
   public:
     MLTask(
-        uint64_t MODEL_GRAD_SIZE, //XXX this doesn't generalize to all types of gradients
-        uint64_t MODEL_BASE,
-        uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-        uint64_t SAMPLE_BASE, uint64_t START_BASE,
+        uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
         uint64_t worker_id) :
-      MODEL_GRAD_SIZE(MODEL_GRAD_SIZE),
-      MODEL_BASE(MODEL_BASE), LABEL_BASE(LABEL_BASE),
-      GRADIENT_BASE(GRADIENT_BASE), SAMPLE_BASE(SAMPLE_BASE),
-      START_BASE(START_BASE),
+      model_size(model_size),
       batch_size(batch_size), samples_per_batch(samples_per_batch),
       features_per_sample(features_per_sample),
       nworkers(nworkers), worker_id(worker_id)
@@ -49,12 +43,7 @@ class MLTask {
     void wait_for_start(int index, int nworkers);
 
   protected:
-    uint64_t MODEL_GRAD_SIZE;
-    uint64_t MODEL_BASE;
-    uint64_t LABEL_BASE;
-    uint64_t GRADIENT_BASE;
-    uint64_t SAMPLE_BASE;
-    uint64_t START_BASE;
+    uint64_t model_size;
     uint64_t batch_size;
     uint64_t samples_per_batch;
     uint64_t features_per_sample;
@@ -66,14 +55,11 @@ class MLTask {
 class LogisticSparseTaskS3 : public MLTask {
   public:
     LogisticSparseTaskS3(
-        uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-        uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-        uint64_t SAMPLE_BASE, uint64_t START_BASE,
+        uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
         uint64_t worker_id) :
-      MLTask(MODEL_GRAD_SIZE, MODEL_BASE,
-          LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+      MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, worker_id), psint(nullptr)
   {}
@@ -118,9 +104,7 @@ class LogisticSparseTaskS3 : public MLTask {
 class PSSparseTask : public MLTask {
   public:
     PSSparseTask(
-        uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-        uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-        uint64_t SAMPLE_BASE, uint64_t START_BASE,
+        uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
         uint64_t worker_id);
@@ -151,14 +135,11 @@ class PSSparseTask : public MLTask {
 class ErrorSparseTask : public MLTask {
   public:
     ErrorSparseTask(
-        uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-        uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-        uint64_t SAMPLE_BASE, uint64_t START_BASE,
+        uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
         uint64_t worker_id) :
-      MLTask(MODEL_GRAD_SIZE, MODEL_BASE,
-          LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+      MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, worker_id)
   {}
@@ -170,14 +151,11 @@ class ErrorSparseTask : public MLTask {
 class PerformanceLambdaTask : public MLTask {
   public:
     PerformanceLambdaTask(
-        uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-        uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-        uint64_t SAMPLE_BASE, uint64_t START_BASE,
+        uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
         uint64_t worker_id) :
-      MLTask(MODEL_GRAD_SIZE, MODEL_BASE,
-          LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+      MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, worker_id)
   {}
@@ -193,14 +171,11 @@ class PerformanceLambdaTask : public MLTask {
 class LoadingSparseTaskS3 : public MLTask {
   public:
     LoadingSparseTaskS3(
-        uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-        uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-        uint64_t SAMPLE_BASE, uint64_t START_BASE,
+        uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
         uint64_t worker_id) :
-      MLTask(MODEL_GRAD_SIZE, MODEL_BASE,
-          LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+      MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, worker_id)
   {}
@@ -215,14 +190,11 @@ class LoadingSparseTaskS3 : public MLTask {
 class LoadingNetflixTask : public MLTask {
   public:
     LoadingNetflixTask(
-        uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-        uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-        uint64_t SAMPLE_BASE, uint64_t START_BASE,
+        uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
         uint64_t worker_id) :
-      MLTask(MODEL_GRAD_SIZE, MODEL_BASE,
-          LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+      MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, worker_id)
   {}
@@ -236,9 +208,7 @@ class LoadingNetflixTask : public MLTask {
 class PSSparseServerTask : public MLTask {
   public:
     PSSparseServerTask(
-        uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-        uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-        uint64_t SAMPLE_BASE, uint64_t START_BASE,
+        uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
         uint64_t worker_id);
@@ -328,14 +298,11 @@ class PSSparseServerTask : public MLTask {
 class MFNetflixTask : public MLTask {
   public:
     MFNetflixTask(
-        uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-        uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-        uint64_t SAMPLE_BASE, uint64_t START_BASE,
+        uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
         uint64_t worker_id) :
-      MLTask(MODEL_GRAD_SIZE, MODEL_BASE,
-          LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+      MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, worker_id)
   {}

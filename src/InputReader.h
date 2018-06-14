@@ -9,6 +9,7 @@
 #include <vector>
 #include <queue>
 #include <mutex>
+#include <functional>
 #include <map>
 #include <config.h>
 #include <MurmurHash3.h>

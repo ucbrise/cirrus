@@ -22,6 +22,8 @@
 #define LOADING_SPARSE_TASK_RANK (0)
 #define WORKERS_BASE 3 // used in wait_for_start
 
+#define SAMPLE_BASE (0)
+
 using FEATURE_TYPE = float;
 
 //#define CRITEO_HASH_BITS 19

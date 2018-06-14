@@ -14,14 +14,11 @@
 namespace cirrus {
 
 PSSparseServerTask::PSSparseServerTask(
-    uint64_t MODEL_GRAD_SIZE, uint64_t MODEL_BASE,
-    uint64_t LABEL_BASE, uint64_t GRADIENT_BASE,
-    uint64_t SAMPLE_BASE, uint64_t START_BASE,
+    uint64_t model_size,
     uint64_t batch_size, uint64_t samples_per_batch,
     uint64_t features_per_sample, uint64_t nworkers,
     uint64_t worker_id) :
-  MLTask(MODEL_GRAD_SIZE, MODEL_BASE,
-      LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+  MLTask(model_size,
       batch_size, samples_per_batch, features_per_sample,
       nworkers, worker_id) {
     std::cout << "PSSparseServerTask is built" << std::endl;
@@ -414,7 +411,7 @@ bool PSSparseServerTask::process(struct pollfd& poll_fd, int thread_id) {
 }
 
 void PSSparseServerTask::start_server() {
-  lr_model.reset(new SparseLRModel(MODEL_GRAD_SIZE));
+  lr_model.reset(new SparseLRModel(model_size));
   lr_model->randomize();
   mf_model.reset(new MFModel(task_config.get_users(), task_config.get_items(), NUM_FACTORS));
   mf_model->randomize();
@@ -600,7 +597,6 @@ void sig_handler(int) {
 void PSSparseServerTask::run(const Configuration& config) {
   std::cout
     << "PS task initializing model"
-    << " MODEL_GRAD_SIZE: " << MODEL_GRAD_SIZE
     << std::endl;
 
   for (int i = 0; i < NUM_POLL_THREADS; i++) {

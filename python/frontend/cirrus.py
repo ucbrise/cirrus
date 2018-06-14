@@ -43,10 +43,10 @@ class LogisticRegressionTask:
         try:
             client.connect(hostname=ip, username=self.ps_username, pkey=key)
             # Set up ssm (if we choose to use that, and get the binary)
-            # XXX: replace a.pdf with the actual binary
+            # FIXME: make wget replace old copies of parameter_server and not make a new one.
             print("Done waiting... Attempting to copy over binary")
             stdin, stdout, stderr = client.exec_command(\
-                "wget -O https://s3-us-west-2.amazonaws.com/" \
+                "wget https://s3-us-west-2.amazonaws.com/" \
                 + "andrewmzhang-bucket/parameter_server && "\
                 + "chmod +x parameter_server")
 
@@ -81,14 +81,14 @@ class LogisticRegressionTask:
         os.system(cmd)
         time.sleep(2)
 
-    def launch_lambda(self, num_workers, timeout=180):
+    def launch_lambda(self, num_workers, timeout=50):
         print "Launching lambdas"
         client = boto3.client('lambda', region_name='us-west-2')
-
+        start_time = time.time()
         def launch(num_task):
             i = 0
-            while i < num_task:
-                i += 1
+
+            while time.time() - start_time < timeout:
                 if i == 1:
                     print "launching lambda with id %d" % num_task
                 else:
@@ -99,21 +99,28 @@ class LogisticRegressionTask:
                     LogType='Tail',
                     Payload='{"num_task": %d, "num_workers": %d}' % (num_task, num_workers))
                 time.sleep(2)
+            print "Lambda no. %d will stop refreshing" % num_task
 
         def error_task():
             cmd = 'ssh -t -o "StrictHostKeyChecking no" -i %s %s@%s ' % (self.key_path, self.ps_username, self.ps_ip) + \
     		  '"./parameter_server config_lr.txt 100 2" &> error.txt'
+            print('cmd', cmd)
+            os.system(cmd)
 
         threads = []
-        for i in range(2, 3 + num_workers):
+        for i in range(3, 3 + num_workers):
             thread = Thread(target=launch, args=(i, ))
             thread.start()
             threads.append(thread)
 
-
+        error_thread = Thread(target=error_task)
+        error_thread.start()
         print "Waiting for threads"
         for thread in threads:
             thread.join()
+
+        # FIXME: not a good way to terminate threads
+        error_thread.terminate()
 
         print "Lambdas have been launched"
 

@@ -280,6 +280,8 @@ void PSSparseServerTask::gradient_f() {
       num_connections--;
       std::cout << "PS closing connection after process(): " << num_connections << std::endl;
       req.poll_fd.fd = -1;
+      req.poll_fd.revents = 0;
+      continue;
     }
 
     req.req_id = operation;
@@ -293,6 +295,8 @@ void PSSparseServerTask::gradient_f() {
         num_connections--;
         std::cout << "PS closing connection after process(): " << num_connections << std::endl;
         req.poll_fd.fd = -1;
+        req.poll_fd.revents = 0;
+        continue;
       }
       req.incoming_size = incoming_size;
 
@@ -554,6 +558,7 @@ void PSSparseServerTask::loop(int poll_id) {
             fdses[r][curr_indexes[r]].fd = newsock;
             fdses[r][curr_indexes[r]].events = POLLIN;
             curr_indexes[r]++;
+            num_connections++;
 
           }
         } else {

@@ -114,6 +114,9 @@ bool PSSparseServerTask::process_send_lr_gradient(const Request& req, std::vecto
   if (method.compare("nesterov") == 0 or method.compare("momentum") == 0) {
     lr_model->sgd_update_momentum(
         task_config.get_learning_rate(), task_config.get_momentum_beta(), &gradient);
+  } else if (method.compare("sgd") == 0) {
+    lr_model->sgd_update(
+        task_config.get_learning_rate(), &gradient);  
   } else {
     lr_model->sgd_update_adagrad(
         task_config.get_learning_rate(), &gradient);

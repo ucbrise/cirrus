@@ -1,7 +1,7 @@
 import cirrus
 
-def progress_callback(loss, cost, task):
-  print("Current training loss:", loss, \
+def progress_callback(time_loss, cost, task):
+  print("Current training loss:", time_loss, \
         "current cost ($): ", cost)
 
 data_bucket = 'cirrus-criteo-kaggle-19b-random'

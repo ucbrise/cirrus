@@ -75,6 +75,7 @@ class LogisticRegressionTask:
             grad_threshold,
             timeout,
             threshold_loss,
+            progress_callback
             ):
         print("Starting LogisticRegressionTask")
         self.thread = threading.Thread(target=self.run)
@@ -97,6 +98,7 @@ class LogisticRegressionTask:
         self.grad_threshold=grad_threshold
         self.timeout=timeout
         self.threshold_loss=threshold_loss
+        self.progress_callback=progress_callback
 
     def __del__(self):
         print("Logistic Regression Task Lost. Closing ssh connection")
@@ -118,12 +120,6 @@ class LogisticRegressionTask:
                 "wget https://s3-us-west-2.amazonaws.com/" \
                 + "andrewmzhang-bucket/parameter_server && "\
                 + "chmod +x parameter_server")
-
-            stdout.readlines()
-            stdin, stdout, stderr = client.exec_command("ls")
-            for line in stdout.readlines():
-                print(line)
-            client.close()
         except Exception, e:
             print "Got an exception in copy_ps_to_vm..."
             print e
@@ -172,10 +168,41 @@ class LogisticRegressionTask:
             print "Lambda no. %d will stop refreshing" % num_task
 
         def error_task():
-            cmd = 'ssh -t -o "StrictHostKeyChecking no" -i %s %s@%s ' % (self.key_path, self.ps_username, self.ps_ip) + \
-    		  '"./parameter_server config_lr.txt 100 2" &> error.txt'
+            cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' % (self.key_path, self.ps_username, self.ps_ip) + \
+    		  '"./parameter_server config_lr.txt 10 2" > error_out &'
             print('cmd', cmd)
             os.system(cmd)
+            import time
+            time.sleep(2)
+            ssh_client = paramiko.SSHClient()
+            key = paramiko.RSAKey.from_private_key_file(self.key_path)
+            ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh_client.connect(hostname=self.ps_ip, username=self.ps_username, pkey=key)
+            sftp_client = ssh_client.open_sftp()
+            file = open('error_out')
+
+            def tail(file):
+                file.seek(0, 2)
+                while not file.closed:
+                    line = file.readline()
+                    if not line:
+                        time.sleep(2)
+                        continue
+                    yield line
+
+            for line in tail(file):
+                if "Loss" in line:
+                    s = line.split(" ")
+                    loss = s[3].split("/")[1]
+                    import string
+                    t = s[-1][:-2]
+                    self.progress_callback((float(t), float(loss)), 0.1, "task1")
+
+                    if float(t) > 100:
+                        print("error is timing out")
+                        return
+
+
 
         threads = []
         for i in range(3, 3 + num_workers):
@@ -183,14 +210,11 @@ class LogisticRegressionTask:
             thread.start()
             threads.append(thread)
 
-        error_thread = Thread(target=error_task)
-        error_thread.start()
+        error_task()
+
         print "Waiting for threads"
         for thread in threads:
             thread.join()
-
-        # FIXME: not a good way to terminate threads
-        error_thread.terminate()
 
         print "Lambdas have been launched"
 
@@ -204,7 +228,7 @@ class LogisticRegressionTask:
             vm_instance = vm_manager.start_vm_spot(1, self.key_name) # start 1 vm
             self.ps_ip = vm_manager.setup_vm_and_wait()
 
-            print "Got machine with ip %s" % ip_addr
+            print "Got machine with ip %s" % self.ps_ip
             # copy parameter server and binary to instance
             # Using ssh for now
             print("Waiting for VM start")
@@ -302,7 +326,8 @@ def LogisticRegression(
             use_grad_threshold=use_grad_threshold,
             grad_threshold=grad_threshold,
             timeout=timeout,
-            threshold_loss=threshold_loss
+            threshold_loss=threshold_loss,
+            progress_callback=progress_callback
            )
 
 def create_random_lr_model(n):

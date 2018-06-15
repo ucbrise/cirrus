@@ -110,17 +110,17 @@ bool PSSparseServerTask::process_send_lr_gradient(const Request& req, std::vecto
   gradient.loadSerialized(thread_buffer.data());
 
   model_lock.lock();
-  std::string method = task_config.get_opt_method();
-  if (method == "adagrad" or method == "momentum") {
+  std::string opt_method = task_config.get_opt_method();
+  if (opt_method == "nesterov" || opt_method == "momentum") {
     lr_model->sgd_update_momentum(
         task_config.get_learning_rate(), task_config.get_momentum_beta(), &gradient);
-  } else if (method == "sgd") {
+  } else if (opt_method == "sgd") {
     lr_model->sgd_update(
         task_config.get_learning_rate(), &gradient);  
-  } else {
+  } else if (opt_method == "adagrad") {
     lr_model->sgd_update_adagrad(
         task_config.get_learning_rate(), &gradient);
-  }
+  } else assert(0);
   model_lock.unlock();
   gradientUpdatesCount++;
   return true;

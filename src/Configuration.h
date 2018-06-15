@@ -180,7 +180,7 @@ class Configuration {
     bool use_grad_threshold = false;
     double grad_threshold = 0;
 
-    std::string opt_method = "";
+    std::string opt_method = "adagrad";
 
     uint64_t model_bits = 20;
 

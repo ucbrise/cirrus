@@ -1,20 +1,17 @@
+#include <Utils.h>
+#include <Configuration.h>
+#include <Tasks.h>
+#include <config.h>
+
 #include <stdlib.h>
 #include <cstdint>
 #include <string>
-#include "Utils.h"
-#include "Configuration.h"
 
-#include <Tasks.h>
+#include <gflags/gflags.h>
 
-#include "config.h"
-
-#define BILLION (1000000000ULL)
-#define MILLION (1000000ULL)
-#define SAMPLE_BASE   (0)
-#define MODEL_BASE    (1 * BILLION)
-#define GRADIENT_BASE (2 * BILLION)
-#define LABEL_BASE    (3 * BILLION)
-#define START_BASE    (4 * BILLION)
+DEFINE_int64(nworkers, -1, "number of workers");
+DEFINE_int64(rank, -1, "rank");
+DEFINE_string(config, "", "config");
 
 static const uint64_t GB = (1024*1024*1024);
 static const uint32_t SIZE = 1;
@@ -27,15 +24,13 @@ void run_tasks(int rank, int nworkers,
   int samples_per_batch = config.get_minibatch_size();
 
   if (rank == PERFORMANCE_LAMBDA_RANK) {
-    cirrus::PerformanceLambdaTask lt(features_per_sample, MODEL_BASE,
-        LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+    cirrus::PerformanceLambdaTask lt(features_per_sample,
         batch_size, samples_per_batch, features_per_sample,
         nworkers, rank);
     lt.run(config);
     cirrus::sleep_forever();
   } else if (rank == PS_SPARSE_SERVER_TASK_RANK) {
-    cirrus::PSSparseServerTask st((1 << config.get_model_bits()) + 1, MODEL_BASE,
-        LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+    cirrus::PSSparseServerTask st((1 << config.get_model_bits()) + 1,
         batch_size, samples_per_batch, features_per_sample,
         nworkers, rank);
     st.run(config);
@@ -46,14 +41,12 @@ void run_tasks(int rank, int nworkers,
      * Number of tasks is determined by the value of nworkers
      */
     if (config.get_model_type() == cirrus::Configuration::LOGISTICREGRESSION) {
-      cirrus::LogisticSparseTaskS3 lt(features_per_sample, MODEL_BASE,
-          LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+      cirrus::LogisticSparseTaskS3 lt(features_per_sample,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, rank);
       lt.run(config, rank - WORKERS_BASE);
     } else if(config.get_model_type() == cirrus::Configuration::COLLABORATIVE_FILTERING) {
-      cirrus::MFNetflixTask lt(0, MODEL_BASE,
-          LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+      cirrus::MFNetflixTask lt(0,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, rank);
       lt.run(config, rank - WORKERS_BASE);
@@ -64,22 +57,19 @@ void run_tasks(int rank, int nworkers,
     * SPARSE tasks
     */
   } else if (rank == ERROR_SPARSE_TASK_RANK) {
-    cirrus::ErrorSparseTask et((1 << config.get_model_bits()), MODEL_BASE,
-        LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+    cirrus::ErrorSparseTask et((1 << config.get_model_bits()),
         batch_size, samples_per_batch, features_per_sample,
         nworkers, rank);
     et.run(config);
     cirrus::sleep_forever();
   } else if (rank == LOADING_SPARSE_TASK_RANK) {
     if (config.get_model_type() == cirrus::Configuration::LOGISTICREGRESSION) {
-      cirrus::LoadingSparseTaskS3 lt((1 << config.get_model_bits()), MODEL_BASE,
-          LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+      cirrus::LoadingSparseTaskS3 lt((1 << config.get_model_bits()),
           batch_size, samples_per_batch, features_per_sample,
           nworkers, rank);
       lt.run(config);
     } else if(config.get_model_type() == cirrus::Configuration::COLLABORATIVE_FILTERING) {
-      cirrus::LoadingNetflixTask lt(0, MODEL_BASE,
-          LABEL_BASE, GRADIENT_BASE, SAMPLE_BASE, START_BASE,
+      cirrus::LoadingNetflixTask lt(0,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, rank);
       lt.run(config);
@@ -125,17 +115,22 @@ int main(int argc, char** argv) {
 
   print_hostname();
 
-  int nworkers = cirrus::string_to<int>(argv[2]);
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  if ((FLAGS_nworkers < 0) || (FLAGS_rank < 0) || (FLAGS_config == "")) {
+      throw std::runtime_error("Some flags not specified");
+  }
+
+  int nworkers = FLAGS_nworkers;
   std::cout << "Running parameter server with: "
     << nworkers << " workers"
     << std::endl;
 
-  int rank = cirrus::string_to<int>(argv[3]);
+  int rank = FLAGS_rank;
   std::cout << "Running parameter server with: "
     << rank << " rank"
     << std::endl;
 
-  auto config = load_configuration(argv[1]);
+  auto config = load_configuration(FLAGS_config);
   config.print();
 
   // from config we get

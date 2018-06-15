@@ -378,7 +378,7 @@ void SparseLRModel::ensure_preallocated_vectors(const Configuration& config) con
   }
   
   if (part3.capacity() == 0) {
-    part3.resize(1 << config.get_model_bits()); // XXX fix this MODEL_GRAD_SIZE
+    part3.resize(1 << config.get_model_bits());
   }
   
   // value needs to be less than number of samples in minibatch

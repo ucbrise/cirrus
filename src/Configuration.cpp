@@ -58,6 +58,7 @@ void Configuration::print() const {
     std::cout << "use_adagrad: " << use_adagrad << std::endl;
     std::cout << "grad_threshold: " << grad_threshold << std::endl;
     std::cout << "model_bits: " << model_bits << std::endl;
+    std::cout << "netflix_workers: " << netflix_workers << std::endl;
     std::cout << "train_set: "
       << train_set_range.first << "-" << train_set_range.second << std::endl;
     std::cout << "test_set: "
@@ -140,6 +141,8 @@ void Configuration::parse_line(const std::string& line) {
         iss >> use_adagrad;
     } else if (s == "model_bits:") {
         iss >> model_bits;
+    } else if (s == "netflix_workers:") {
+            iss >> netflix_workers;
     } else if (s == "normalize:") {
         int n;
         iss >> n;
@@ -342,5 +345,10 @@ bool Configuration::get_use_adagrad() const {
   return use_adagrad;
 }
 
+uint64_t Configuration::get_netflix_workers() const {
+  return netflix_workers;
+}
+
 } // namespace cirrus
+
 

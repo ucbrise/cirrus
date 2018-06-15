@@ -8,8 +8,57 @@ import os
 import boto3
 from threading import Thread
 
+class CostModel:
+    def __init__(self,
+            vm_type,
+            num_vms,
+            s3_space_mb,
+            num_workers,
+            worker_size):
+
+        self.vm_type = vm_type
+        self.num_vms = num_vms
+        self.s3_space_mb = s3_space_mb
+        self.num_workers = num_workers
+        self.worker_size = worker_size
+
+        print "Cost Model"
+
+    # compute cos ($) of running worload
+    # with given number of vms of specific type,
+    # with lambdas of specific size
+    # and s3 storage of specific size
+    def get_cost(num_secs):
+        # cost of smallest lambda (128MB) per hour
+        lambda_cost_base_h = 0.007488
+        total_lambda_cost_h = (self.worker_size / 128.0 * lambda_cost_base_h) \
+                * self.num_workers
+        total_lambda_cost = total_lambda_cost_h / (60 * 60) * num_secs
+
+        # vm_cost
+        vm_to_cost = {
+            'm5.large' : 0.096 # demand price per hour
+        }
+
+        if self.vm_type not in vm_to_cost:
+            raise "Unknown VM type"
+
+        total_vm_cost_h = vm_to_cost[self.vm_type] * self.num_vms
+        total_vm_cost = total_vm_cost_h / (60 * 60) * num_secs
+
+
+        # S3 cost
+        # s3 costs $0.023 per GB per month
+        s3_cost_gb_h = 0.023 / (30 * 24)
+        total_s3_cost_h = s3_cost_gb_h * (1.0 * self.s3_space_mb / 1024)
+        total_s3_cost = total_s3_cost_h / (60 * 60) * num_secs
+
+        return total_lambda_cost + total_vm_cost + total_s3_cost
+
+
 class LogisticRegressionTask:
     def __init__(self,
+            n_workers,
             dataset,
             learning_rate,
             epsilon,
@@ -31,6 +80,7 @@ class LogisticRegressionTask:
         print("Starting LogisticRegressionTask")
         self.thread = threading.Thread(target=self.run)
 
+        self.n_workers = n_workers
         self.dataset=dataset
         self.learning_rate = learning_rate
         self.epsilon = epsilon
@@ -55,13 +105,10 @@ class LogisticRegressionTask:
         self.client.close();
 
     def copy_ps_to_vm(self, ip):
-        print("Copying ps to vm")
+        print("Copying ps to vm..")
         # Setup via ssh
-        # XXX IMO this shouldn't be necessary if the user as done
-        # the aws config (that generates credentials in ~/.aws)
         key = paramiko.RSAKey.from_private_key_file(self.key_path)
         client = paramiko.SSHClient()
-        #ssh.load_system_host_keys()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         # Download ps to vm
         try:
@@ -73,11 +120,10 @@ class LogisticRegressionTask:
                 "wget https://s3-us-west-2.amazonaws.com/" \
                 + "andrewmzhang-bucket/parameter_server && "\
                 + "chmod +x parameter_server")
-
         except Exception, e:
             print "Got an exception in copy_ps_to_vm..."
             print e
-        print "Copied parameter server"
+        print "Copied PS binary to VM"
 
 
     def launch_ps(self, ip):
@@ -98,14 +144,17 @@ class LogisticRegressionTask:
         os.system(cmd)
         time.sleep(2)
 
-    def launch_lambda(self, num_workers, timeout=100):
+    # if timeout is 0 we run lambdas indefinitely
+    # otherwise we stop invoking them after timeout secs
+    def launch_lambda(self, num_workers, timeout=50):
         print "Launching lambdas"
         client = boto3.client('lambda', region_name='us-west-2')
         start_time = time.time()
         def launch(num_task):
             i = 0
 
-            while time.time() - start_time < timeout:
+            # if 0 run indefinitely
+            while (timeout == 0) or (time.time() - start_time < timeout):
                 if i == 1:
                     print "launching lambda with id %d" % num_task
                 else:
@@ -169,11 +218,6 @@ class LogisticRegressionTask:
 
         print "Lambdas have been launched"
 
-
-
-    def issue_ssh_command(self, command, ip):
-        print "Issuing command: %s on %s" % (command, ip)
-
     def run(self):
         if self.ps_ip == "":
             print "Creating a spot VM"
@@ -196,7 +240,7 @@ class LogisticRegressionTask:
         self.copy_ps_to_vm(self.ps_ip)
         self.define_config(self.ps_ip)
         self.launch_ps(self.ps_ip)
-        self.launch_lambda(2)
+        self.launch_lambda(self.n_workers, self.timeout)
 
     def wait(self):
         print "waiting"
@@ -260,11 +304,12 @@ def LogisticRegression(
             checkpoint_model=0,
             use_grad_threshold=False,
             grad_threshold=0.001,
-            timeout=0,
+            timeout=60,
             threshold_loss=0
             ):
     print "Running Logistic Regression workload"
     return LogisticRegressionTask(
+            n_workers=n_workers,
             dataset=dataset,
             learning_rate=learning_rate,
             epsilon=epsilon,

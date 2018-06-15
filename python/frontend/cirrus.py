@@ -163,7 +163,7 @@ class LogisticRegressionTask:
                 response = client.invoke(
                     FunctionName="myfunc",
                     LogType='Tail',
-                    Payload='{"num_task": %d, "num_workers": %d}' % (num_task, num_workers))
+                    Payload='{"num_task": %d, "num_workers": %d, "ps_ip": %s}' % (num_task, num_workers, self.ps_ip))
                 time.sleep(2)
             print "Lambda no. %d will stop refreshing" % num_task
 

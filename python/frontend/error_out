@@ -1,0 +1,336 @@
+Starting parameter server
+MPI multi task test running on hostname: ip-172-31-5-24.us-west-2.compute.internal
+Running parameter server with: 10 workers
+Running parameter server with: 2 rank
+Loading configuration
+Parsing line: input_path: /home/ec2-user/cirrus/examples/ml/tests/test_mf/nf_parsed 
+Parsing line: input_type: csv 
+Parsing line: minibatch_size: 20 
+Parsing line: s3_size: 10000 
+Parsing line: model_type: CollaborativeFiltering 
+Parsing line: learning_rate: 0.010000 
+Parsing line: epsilon: 0.000100 
+Parsing line: normalize: 1 
+Parsing line: limit_samples: 50000000 
+Parsing line: use_bias: 1 
+Parsing line: num_users: 480189 
+Parsing line: num_items: 17770 
+Parsing line: train_set: 0-5 
+Parsing line: s3_bucket: cirrus-netflix-not-normalized
+Printing configuration: 
+input_path: /home/ec2-user/cirrus/examples/ml/tests/test_mf/nf_parsed
+Minibatch size: 20
+S3 size: 10000
+learning rate: 0.01
+limit_samples: 50000000
+epsilon: 0.0001
+s3_bucket_name: cirrus-netflix-not-normalized
+use_bias: 1
+use_grad_threshold: 0
+use_adagrad: 1
+grad_threshold: 0
+model_bits: 20
+netflix_workers: 0
+train_set: 0-5
+test_set: 0-0
+users: 480189
+ items: 17770
+Configuration read
+Printing configuration: 
+input_path: /home/ec2-user/cirrus/examples/ml/tests/test_mf/nf_parsed
+Minibatch size: 20
+S3 size: 10000
+learning rate: 0.01
+limit_samples: 50000000
+epsilon: 0.0001
+s3_bucket_name: cirrus-netflix-not-normalized
+use_bias: 1
+use_grad_threshold: 0
+use_adagrad: 1
+grad_threshold: 0
+model_bits: 20
+netflix_workers: 0
+train_set: 0-5
+test_set: 0-0
+users: 480189
+ items: 17770
+samples_per_batch: 20 features_per_sample: 0 batch_size: 20
+Running task
+Run tasks rank: 2
+Compute error task connecting to store
+Creating sequential S3Iterator
+S3SparseIterator::Creating S3SparseIterator left_id: 0 right_id: 5 use_label: 0
+[ERROR_TASK] getting minibatches from 0 to 5
+Building S3 deser. with size: 
+Waiting for pref_sem
+S3SparseIterator: getting object CIRRUS0
+received s3 obj elapsed: 766948 size: 17118800 BW (MB/s): 20.9808
+Getting object count: 1 s3 e2e bw (MB/s): 1.63258e+07
+Waiting for pref_sem
+S3SparseIterator: getting object CIRRUS1
+received s3 obj elapsed: 708665 size: 16865552 BW (MB/s): 21.9345
+Getting object count: 2 s3 e2e bw (MB/s): 43.0978
+Waiting for pref_sem
+S3SparseIterator: getting object CIRRUS2
+received s3 obj elapsed: 961824 size: 17545200 BW (MB/s): 17.1661
+Getting object count: 3 s3 e2e bw (MB/s): 27.7136
+Waiting for pref_sem
+S3SparseIterator: getting object CIRRUS3
+received s3 obj elapsed: 782250 size: 17513280 BW (MB/s): 20.9808
+Getting object count: 4 s3 e2e bw (MB/s): 25.271
+Waiting for pref_sem
+S3SparseIterator: getting object CIRRUS4
+received s3 obj elapsed: 720772 size: 17050048 BW (MB/s): 21.9345
+Getting object count: 5 s3 e2e bw (MB/s): 24.3574
+Waiting for pref_sem
+S3SparseIterator: getting object CIRRUS0
+[ERROR_TASK] Got 2500 minibatches
+[ERROR_TASK] Building dataset
+[ERROR_TASK] Computing accuracies
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+received s3 obj elapsed: 1506692 size: 17118800 BW (MB/s): 10.4904
+Getting object count: 6 s3 e2e bw (MB/s): 19.8048
+Waiting for pref_sem
+S3SparseIterator: getting object CIRRUS1
+ buffer checksum: 4103886413
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+received s3 obj elapsed: 1450084 size: 16865552 BW (MB/s): 10.4904
+Getting object count: 7 s3 e2e bw (MB/s): 17.6825
+Waiting for pref_sem
+[ERROR_TASK] RMSE (Total): 1.08849 time(us): 1529043213959101 time from start (sec): 5.82841
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 771133113
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 1.03963 time(us): 1529043218583046 time from start (sec): 10.4524
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 3053384855
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 1.0297 time(us): 1529043223246511 time from start (sec): 15.1158
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 1910237313
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 1.02304 time(us): 1529043227485816 time from start (sec): 19.3551
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 1122677414
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 1.01907 time(us): 1529043231731096 time from start (sec): 23.6004
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 1792520334
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 1.01635 time(us): 1529043236085542 time from start (sec): 27.9548
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 4024643063
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 1.01184 time(us): 1529043241733597 time from start (sec): 33.6029
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 187461651
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 1.0065 time(us): 1529043246401767 time from start (sec): 38.2711
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 3695016321
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 1.00366 time(us): 1529043250742969 time from start (sec): 42.6123
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 2885501388
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 1.0029 time(us): 1529043255491397 time from start (sec): 47.3607
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 3283744732
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 1.00267 time(us): 1529043260019992 time from start (sec): 51.8893
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 879395522
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 1.00156 time(us): 1529043264427793 time from start (sec): 56.2971
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 3356485976
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 1.00317 time(us): 1529043268364233 time from start (sec): 60.2335
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 276801146
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 1.00365 time(us): 1529043273265634 time from start (sec): 65.1349
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 2936902576
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 1.00249 time(us): 1529043279489764 time from start (sec): 71.3591
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 3352400998
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 0.999427 time(us): 1529043285219898 time from start (sec): 77.0892
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 4115218337
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 0.998062 time(us): 1529043290667766 time from start (sec): 82.5371
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 2148734298
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 0.996478 time(us): 1529043295978641 time from start (sec): 87.8479
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 3491313235
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 0.993516 time(us): 1529043301946559 time from start (sec): 93.8159
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 2268050843
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 0.991993 time(us): 1529043307708351 time from start (sec): 99.5777
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 3590015118
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 0.986147 time(us): 1529043312727070 time from start (sec): 104.596
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 349320855
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 0.98539 time(us): 1529043318841623 time from start (sec): 110.711
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 2067921602
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 0.984981 time(us): 1529043323908424 time from start (sec): 115.778
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 438376581
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 0.984085 time(us): 1529043328347648 time from start (sec): 120.217
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 593726140
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 0.986644 time(us): 1529043333820439 time from start (sec): 125.69
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 1672077158
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 0.986836 time(us): 1529043340846567 time from start (sec): 132.716
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 3447951602
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 0.981617 time(us): 1529043346060111 time from start (sec): 137.929
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 2352285383
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 0.979536 time(us): 1529043351429840 time from start (sec): 143.299
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 3089077539
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 0.977708 time(us): 1529043357342609 time from start (sec): 149.212
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 2751874905
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 0.97619 time(us): 1529043363507565 time from start (sec): 155.377
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 609724465
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 0.972189 time(us): 1529043368726735 time from start (sec): 160.596
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 4060004269
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 0.968643 time(us): 1529043374859178 time from start (sec): 166.728
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 1422856409
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 0.964875 time(us): 1529043380584851 time from start (sec): 172.454
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes
+ buffer checksum: 2573013395
+loadSerialized nusers: 480189 nitems_: 17770 nfactors_: 10
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] RMSE (Total): 0.961549 time(us): 1529043385882989 time from start (sec): 177.752
+[ERROR_TASK] getting the full model
+Request sent. Receiving: 21910220 bytes

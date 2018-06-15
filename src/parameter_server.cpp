@@ -12,7 +12,7 @@
 DEFINE_int64(nworkers, -1, "number of workers");
 DEFINE_int64(rank, -1, "rank");
 DEFINE_string(config, "", "config");
-DEFINE_string(ps_ip, "", PS_IP);
+DEFINE_string(ps_ip, PS_IP, "parameter server ip");
 
 static const uint64_t GB = (1024*1024*1024);
 static const uint32_t SIZE = 1;

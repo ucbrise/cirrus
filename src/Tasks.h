@@ -60,10 +60,11 @@ class LogisticSparseTaskS3 : public MLTask {
         uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
-        uint64_t worker_id) :
+        uint64_t worker_id,
+        const std::string& ps_ip) :
       MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
-          nworkers, worker_id), psint(nullptr)
+          nworkers, worker_id, ps_ip), psint(nullptr)
   {}
 
     /**
@@ -109,7 +110,7 @@ class PSSparseTask : public MLTask {
         uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
-        uint64_t worker_id);
+        uint64_t worker_id, const std::string& ps_ip);
 
     void run(const Configuration& config);
 
@@ -140,10 +141,10 @@ class ErrorSparseTask : public MLTask {
         uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
-        uint64_t worker_id) :
+        uint64_t worker_id, const std::string& ps_ip) :
       MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
-          nworkers, worker_id)
+          nworkers, worker_id, ps_ip)
   {}
     void run(const Configuration& config);
 
@@ -156,10 +157,10 @@ class PerformanceLambdaTask : public MLTask {
         uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
-        uint64_t worker_id) :
+        uint64_t worker_id, const std::string& ps_ip) :
       MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
-          nworkers, worker_id)
+          nworkers, worker_id, ps_ip)
   {}
 
     /**
@@ -176,10 +177,10 @@ class LoadingSparseTaskS3 : public MLTask {
         uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
-        uint64_t worker_id) :
+        uint64_t worker_id, const std::string& ps_ip) :
       MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
-          nworkers, worker_id)
+          nworkers, worker_id, ps_ip)
   {}
     void run(const Configuration& config);
     SparseDataset read_dataset(const Configuration& config);
@@ -195,10 +196,10 @@ class LoadingNetflixTask : public MLTask {
         uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
-        uint64_t worker_id) :
+        uint64_t worker_id, const std::string& ps_ip) :
       MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
-          nworkers, worker_id)
+          nworkers, worker_id, ps_ip)
   {}
     void run(const Configuration& config);
     SparseDataset read_dataset(const Configuration& config, int&, int&);
@@ -213,7 +214,7 @@ class PSSparseServerTask : public MLTask {
         uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
-        uint64_t worker_id);
+        uint64_t worker_id, const std::string& ps_ip);
 
     void run(const Configuration& config);
 
@@ -303,10 +304,10 @@ class MFNetflixTask : public MLTask {
         uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
-        uint64_t worker_id) :
+        uint64_t worker_id, const std::string& ps_ip) :
       MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
-          nworkers, worker_id)
+          nworkers, worker_id, ps_ip)
   {}
 
     /**

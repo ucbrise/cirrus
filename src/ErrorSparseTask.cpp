@@ -13,7 +13,8 @@
 
 namespace cirrus {
 
-std::unique_ptr<CirrusModel> get_model(const Configuration& config) {
+std::unique_ptr<CirrusModel> get_model(const Configuration& config,
+        const std::string& ps_ip) {
   static PSSparseServerInterface* psi;
   static bool first_time = true;
   if (first_time) {
@@ -86,7 +87,7 @@ void ErrorSparseTask::run(const Configuration& config) {
       std::cout << "[ERROR_TASK] getting the full model"
         << "\n";
 #endif
-      std::unique_ptr<CirrusModel> model = get_model(config);
+      std::unique_ptr<CirrusModel> model = get_model(config, ps_ip);
 
 #ifdef DEBUG
       std::cout << "[ERROR_TASK] received the model" << std::endl;

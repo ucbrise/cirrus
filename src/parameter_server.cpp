@@ -12,11 +12,12 @@
 DEFINE_int64(nworkers, -1, "number of workers");
 DEFINE_int64(rank, -1, "rank");
 DEFINE_string(config, "", "config");
+DEFINE_string(ps_ip, "", PS_IP);
 
 static const uint64_t GB = (1024*1024*1024);
 static const uint32_t SIZE = 1;
 
-void run_tasks(int rank, int nworkers, 
+void run_tasks(int rank, int nworkers,
     int batch_size, const cirrus::Configuration& config) {
 
   std::cout << "Run tasks rank: " << rank << std::endl;
@@ -34,7 +35,6 @@ void run_tasks(int rank, int nworkers,
         batch_size, samples_per_batch, features_per_sample,
         nworkers, rank);
     st.run(config);
-    //sleep_forever();
   } else if (rank >= WORKERS_BASE && rank < WORKERS_BASE + nworkers) {
     /**
      * Worker tasks run here
@@ -45,7 +45,8 @@ void run_tasks(int rank, int nworkers,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, rank);
       lt.run(config, rank - WORKERS_BASE);
-    } else if(config.get_model_type() == cirrus::Configuration::COLLABORATIVE_FILTERING) {
+    } else if (config.get_model_type()
+            == cirrus::Configuration::COLLABORATIVE_FILTERING) {
       cirrus::MFNetflixTask lt(0,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, rank);
@@ -68,7 +69,8 @@ void run_tasks(int rank, int nworkers,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, rank);
       lt.run(config);
-    } else if(config.get_model_type() == cirrus::Configuration::COLLABORATIVE_FILTERING) {
+    } else if (config.get_model_type() ==
+            cirrus::Configuration::COLLABORATIVE_FILTERING) {
       cirrus::LoadingNetflixTask lt(0,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, rank);
@@ -84,7 +86,9 @@ void run_tasks(int rank, int nworkers,
 void print_arguments() {
   // nworkers is the number of processes computing gradients
   // rank starts at 0
-  std::cout << "./parameter_server config_file nworkers rank" << std::endl;
+  std::cout << "./parameter_server --config config_file "
+      << "--nworkers nworkers --rank rank [--ps_ip ps_ip]"
+      << std::endl;
 }
 
 cirrus::Configuration load_configuration(const std::string& config_path) {
@@ -105,14 +109,17 @@ void print_hostname() {
     << std::endl;
 }
 
-int main(int argc, char** argv) {
-  std::cout << "Starting parameter server" << std::endl;
-
-  if (argc != 4) {
+void check_arguments() {
+  if (FLAGS_nworkers == -1 || FLAGS_rank == -1 || FLAGS_config == "") {
     print_arguments();
     throw std::runtime_error("Wrong number of arguments");
   }
+}
 
+int main(int argc, char** argv) {
+  std::cout << "Starting parameter server" << std::endl;
+
+  check_arguments();
   print_hostname();
 
   gflags::ParseCommandLineFlags(&argc, &argv, true);

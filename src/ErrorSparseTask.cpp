@@ -18,7 +18,7 @@ std::unique_ptr<CirrusModel> get_model(const Configuration& config) {
   static bool first_time = true;
   if (first_time) {
     first_time = false;
-    psi = new PSSparseServerInterface(PS_IP, PS_PORT);
+    psi = new PSSparseServerInterface(ps_ip, PS_PORT);
   }
 
   bool use_col_filtering =

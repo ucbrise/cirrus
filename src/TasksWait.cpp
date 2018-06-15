@@ -12,7 +12,7 @@ void MLTask::wait_for_start(int index, int nworkers) {
   std::cout << "Setting start flag. id: " << index
     << std::endl;
 
-  PSSparseServerInterface psi(PS_IP, PS_PORT);
+  PSSparseServerInterface psi(ps_ip, PS_PORT);
 
   psi.set_status(index, 1);
 

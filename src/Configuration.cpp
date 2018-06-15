@@ -121,6 +121,11 @@ void Configuration::parse_line(const std::string& line) {
         iss >> n_workers;
     } else if (s == "opt_method:") {
         iss >> opt_method; 
+        if (opt_method != "adagrad" && opt_method != "nesterov"
+            && opt_method != "momentum" && opt_method != "sgd") {
+                throw std::runtime_error(
+                        "Choose a valid update rule: adagrad, nesterov, momentum, or sgd");
+        }
     }  else if (s == "epsilon:") {
         iss >> epsilon;
     } else if (s == "input_type:") {
@@ -200,10 +205,6 @@ void Configuration::parse_line(const std::string& line) {
 
     if (iss.fail()) {
         throw std::runtime_error("Error parsing configuration file");
-    }
-
-    if ((opt_method != "adagrad") and (opt_method != "nesterov") and (opt_method != "momentum") and (opt_method != "sgd") and (opt_method != "")) {
-        throw std::runtime_error("Choose a valid update rule: adagrad, nesterov, momentum, or sgd");
     }
 }
 

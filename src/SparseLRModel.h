@@ -166,7 +166,8 @@ class SparseLRModel : public CirrusModel {
       return weights_[n];
     }
 
-    FEATURE_TYPE get_nth_weight_nesterov(uint64_t n, double nesterov_beta) const {
+    FEATURE_TYPE get_nth_weight_nesterov(
+            uint64_t n, double nesterov_beta) const {
       return weights_[n] + (nesterov_beta * momentum_avg);
     }
 

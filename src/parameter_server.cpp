@@ -113,20 +113,17 @@ void print_hostname() {
 void check_arguments() {
   if (FLAGS_nworkers == -1 || FLAGS_rank == -1 || FLAGS_config == "") {
     print_arguments();
-    throw std::runtime_error("Wrong number of arguments");
+    throw std::runtime_error("Some flags not specified");
   }
 }
 
 int main(int argc, char** argv) {
   std::cout << "Starting parameter server" << std::endl;
 
-  check_arguments();
   print_hostname();
 
   gflags::ParseCommandLineFlags(&argc, &argv, true);
-  if ((FLAGS_nworkers < 0) || (FLAGS_rank < 0) || (FLAGS_config == "")) {
-      throw std::runtime_error("Some flags not specified");
-  }
+  check_arguments();
 
   int nworkers = FLAGS_nworkers;
   std::cout << "Running parameter server with: "

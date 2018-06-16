@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <string>
 #include <Utils.h>
 
 namespace cirrus {
@@ -14,8 +15,7 @@ Configuration::Configuration() :
 
 Configuration::Configuration(const std::string& path) :
         learning_rate(-1),
-        epsilon(-1)
-{
+        epsilon(-1) {
   read(path);
 }
 
@@ -54,8 +54,9 @@ void Configuration::print() const {
     std::cout << "epsilon: " << epsilon << std::endl;
     std::cout << "s3_bucket_name: " << s3_bucket_name << std::endl;
     std::cout << "use_bias: " << use_bias << std::endl;
+    std::cout << "momentum_beta: " << momentum_beta << std::endl;
     std::cout << "use_grad_threshold: " << use_grad_threshold << std::endl;
-    std::cout << "use_adagrad: " << use_adagrad << std::endl;
+    std::cout << "opt_method: " << opt_method << std::endl;
     std::cout << "grad_threshold: " << grad_threshold << std::endl;
     std::cout << "model_bits: " << model_bits << std::endl;
     std::cout << "netflix_workers: " << netflix_workers << std::endl;
@@ -63,6 +64,9 @@ void Configuration::print() const {
       << train_set_range.first << "-" << train_set_range.second << std::endl;
     std::cout << "test_set: "
       << test_set_range.first << "-" << test_set_range.second << std::endl;
+    std::cout << "checkpoint_frequency: " << checkpoint_frequency << std::endl;
+    std::cout << "checkpoint_s3_bucket: " << checkpoint_s3_bucket << std::endl;
+    std::cout << "checkpoint_s3_keyname: " << checkpoint_s3_keyname << std::endl;
     if (nusers || nitems) {
       std::cout
         << "users: " << nusers << std::endl
@@ -75,13 +79,23 @@ void Configuration::check() const {
     throw std::runtime_error("S3 bucket name missing from config file");
   }
   if (test_set_range.first && model_type == COLLABORATIVE_FILTERING) {
-    throw std::runtime_error("Can't use test range with COLLABORATIVE_FILTERING");
+    throw std::runtime_error(
+            "Can't use test range with COLLABORATIVE_FILTERING");
   }
   if (use_grad_threshold && grad_threshold == 0) {
     throw std::runtime_error("Can't use a 0 for grad threshold");
   }
   if (model_bits == 0) {
     throw std::runtime_error("Model bits can't be 0");
+  }
+  if (opt_method != "adagrad" && opt_method != "nesterov"
+          && opt_method != "momentum" && opt_method != "sgd") {
+      throw std::runtime_error(
+              "Choose a valid update rule: adagrad, nesterov, momentum, or sgd");
+  }
+  if (checkpoint_frequency > 0
+          && (checkpoint_s3_bucket == "" || checkpoint_s3_keyname == "")) {
+      throw std::runtime_error("Wrong checkpoing configuration parameters");
   }
 }
 
@@ -117,7 +131,9 @@ void Configuration::parse_line(const std::string& line) {
         iss >> labels_path;
     } else if (s == "n_workers:") {
         iss >> n_workers;
-    } else if (s == "epsilon:") {
+    } else if (s == "opt_method:") {
+        iss >> opt_method; 
+    }  else if (s == "epsilon:") {
         iss >> epsilon;
     } else if (s == "input_type:") {
         iss >> input_type;
@@ -129,6 +145,8 @@ void Configuration::parse_line(const std::string& line) {
         iss >> limit_cols;
     } else if (s == "limit_samples:") {
         iss >> limit_samples;
+    } else if (s == "momentum_beta:") {
+        iss >> momentum_beta;  
     } else if (s == "s3_bucket:") {
         iss >> s3_bucket_name;
     } else if (s == "use_bias:") {
@@ -136,51 +154,57 @@ void Configuration::parse_line(const std::string& line) {
     } else if (s == "num_users:") {
         iss >> nusers;
     } else if (s == "num_items:") {
-        iss >> nitems;
-    } else if (s == "use_adagrad:") {
-        iss >> use_adagrad;
+        iss >> nitems; 
     } else if (s == "model_bits:") {
         iss >> model_bits;
     } else if (s == "netflix_workers:") {
-            iss >> netflix_workers;
+       iss >> netflix_workers;
+    } else if (s == "checkpoint_frequency:") {
+       iss >> checkpoint_frequency;
+    } else if (s == "checkpoint_s3_bucket:") {
+       iss >> checkpoint_s3_bucket;
+    } else if (s == "checkpoint_s3_keyname:") {
+       iss >> checkpoint_s3_keyname;
     } else if (s == "normalize:") {
-        int n;
-        iss >> n;
-        normalize = (n == 1);
+      int n;
+      iss >> n;
+      normalize = (n == 1);
     } else if (s == "model_type:") {
-        std::string model;
-        iss >> model;
-        if (model == "LogisticRegression") {
-            model_type = LOGISTICREGRESSION;
-        } else if (model == "Softmax") {
-            model_type = SOFTMAX;
-        } else if (model == "CollaborativeFiltering") {
-            model_type = COLLABORATIVE_FILTERING;
-        } else {
-            throw std::runtime_error(std::string("Unknown model : ") + model);
-        }
+      std::string model;
+      iss >> model;
+      if (model == "LogisticRegression") {
+          model_type = LOGISTICREGRESSION;
+      } else if (model == "Softmax") {
+          model_type = SOFTMAX;
+      } else if (model == "CollaborativeFiltering") {
+          model_type = COLLABORATIVE_FILTERING;
+      } else {
+          throw std::runtime_error(std::string("Unknown model : ") + model);
+      }
     } else if (s == "train_set:") {
-        std::string range;
-        iss >> range;
-        size_t index = range.find("-");
-        if (index == std::string::npos)
-          throw std::runtime_error("Wrong index");
-        std::string left = range.substr(0, index);
-        std::string right = range.substr(index + 1);
-        train_set_range = std::make_pair(
-            string_to<int>(left),
-            string_to<int>(right));
+      std::string range;
+      iss >> range;
+      size_t index = range.find("-");
+      if (index == std::string::npos) {
+        throw std::runtime_error("Wrong index");
+      }
+      std::string left = range.substr(0, index);
+      std::string right = range.substr(index + 1);
+      train_set_range = std::make_pair(
+          string_to<int>(left),
+          string_to<int>(right));
     } else if (s == "test_set:") {
-        std::string range;
-        iss >> range;
-        size_t index = range.find("-");
-        if (index == std::string::npos)
-          throw std::runtime_error("Wrong index");
-        std::string left = range.substr(0, index);
-        std::string right = range.substr(index + 1);
-        test_set_range = std::make_pair(
-            string_to<int>(left),
-            string_to<int>(right));
+      std::string range;
+      iss >> range;
+      size_t index = range.find("-");
+      if (index == std::string::npos) {
+        throw std::runtime_error("Wrong index");
+      }
+      std::string left = range.substr(0, index);
+      std::string right = range.substr(index + 1);
+      test_set_range = std::make_pair(
+          string_to<int>(left),
+          string_to<int>(right));
     } else if (s == "use_grad_threshold:") {
       std::string b;
       iss >> b;
@@ -306,7 +330,7 @@ uint64_t Configuration::get_num_features() const {
   * Get S3 bucket name
   */
 std::string Configuration::get_s3_bucket() const {
-    return s3_bucket_name;
+  return s3_bucket_name;
 }
 
 std::pair<int, int> Configuration::get_train_range() const {
@@ -341,14 +365,28 @@ uint64_t Configuration::get_model_bits() const {
   return model_bits;
 }
 
-bool Configuration::get_use_adagrad() const {
-  return use_adagrad;
-}
-
 uint64_t Configuration::get_netflix_workers() const {
   return netflix_workers;
 }
 
-} // namespace cirrus
+uint64_t Configuration::get_checkpoint_frequency() const {
+  return checkpoint_frequency;
+}
 
+std::string Configuration::get_checkpoint_s3_bucket() const {
+  return checkpoint_s3_bucket;
+}
 
+std::string Configuration::get_opt_method() const {
+  return opt_method;
+}
+
+double Configuration::get_momentum_beta() const {
+    return momentum_beta;
+}
+
+std::string Configuration::get_checkpoint_s3_keyname() const {
+  return checkpoint_s3_keyname;
+}
+
+}  // namespace cirrus

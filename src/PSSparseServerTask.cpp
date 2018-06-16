@@ -17,10 +17,11 @@ PSSparseServerTask::PSSparseServerTask(
     uint64_t model_size,
     uint64_t batch_size, uint64_t samples_per_batch,
     uint64_t features_per_sample, uint64_t nworkers,
-    uint64_t worker_id) :
+    uint64_t worker_id, const std::string& ps_ip,
+    uint64_t ps_port) :
   MLTask(model_size,
       batch_size, samples_per_batch, features_per_sample,
-      nworkers, worker_id) {
+      nworkers, worker_id, ps_ip, ps_port) {
     std::cout << "PSSparseServerTask is built" << std::endl;
 
     std::atomic_init(&thread_count, 0);
@@ -110,13 +111,17 @@ bool PSSparseServerTask::process_send_lr_gradient(const Request& req, std::vecto
   gradient.loadSerialized(thread_buffer.data());
 
   model_lock.lock();
-  if (task_config.get_use_adagrad()) {
+  std::string opt_method = task_config.get_opt_method();
+  if (opt_method == "nesterov" || opt_method == "momentum") {
+    lr_model->sgd_update_momentum(
+        task_config.get_learning_rate(), task_config.get_momentum_beta(), &gradient);
+  } else if (opt_method == "sgd") {
+    lr_model->sgd_update(
+        task_config.get_learning_rate(), &gradient);  
+  } else if (opt_method == "adagrad") {
     lr_model->sgd_update_adagrad(
         task_config.get_learning_rate(), &gradient);
-  } else {
-    lr_model->sgd_update(
-        task_config.get_learning_rate(), &gradient);
-  }
+  } else assert(0);
   model_lock.unlock();
   gradientUpdatesCount++;
   return true;
@@ -200,9 +205,16 @@ bool PSSparseServerTask::process_get_lr_sparse_model(
 #endif
   for (uint32_t i = 0; i < num_entries; ++i) {
     uint32_t entry_index = load_value<uint32_t>(data);
-    store_value<FEATURE_TYPE>(
-        data_to_send_ptr,
-        lr_model->get_nth_weight(entry_index));
+    std::string method = task_config.get_opt_method();
+    if (method == "nesterov") {
+        store_value<FEATURE_TYPE>(
+            data_to_send_ptr,
+            lr_model->get_nth_weight_nesterov(entry_index, task_config.get_momentum_beta()));
+    } else {
+        store_value<FEATURE_TYPE>(
+            data_to_send_ptr,
+            lr_model->get_nth_weight(entry_index));
+    }
   }
   if (send_all(req.sock, data_to_send, to_send_size) == -1) {
     return false;
@@ -433,6 +445,12 @@ void PSSparseServerTask::start_server() {
     gradient_thread.push_back(std::make_unique<std::thread>(
           std::bind(&PSSparseServerTask::gradient_f, this)));
   }
+
+  // start checkpoing thread
+  if (task_config.get_checkpoint_frequency() > 0) {
+      checkpoint_thread.push_back(std::make_unique<std::thread>(
+                  std::bind(&PSSparseServerTask::checkpoint_model_loop, this)));
+  }
 }
 
 void PSSparseServerTask::main_poll_thread_fn(int poll_id) {
@@ -639,11 +657,23 @@ void PSSparseServerTask::run(const Configuration& config) {
   }
 }
 
-void PSSparseServerTask::checkpoint_model() const {
+void PSSparseServerTask::checkpoint_model_loop() {
+    if (task_config.get_checkpoint_frequency() == 0) {
+        // checkpoint disabled
+        return;
+    }
+
+    while (true) {
+        sleep(task_config.get_checkpoint_frequency());
+        // checkpoint to s3
+    }
+}
+
+void PSSparseServerTask::checkpoint_model_file(const std::string& filename) const {
   uint64_t model_size;
   std::shared_ptr<char> data = serialize_lr_model(*lr_model, &model_size);
 
-  std::ofstream fout("model_backup_file", std::ofstream::binary);
+  std::ofstream fout(filename.c_str(), std::ofstream::binary);
   fout.write(data.get(), model_size);
   fout.close();
 }

@@ -8,13 +8,17 @@ data_bucket = 'cirrus-criteo-kaggle-19b-random'
 model = 'model_v1'
 
 lr_task = cirrus.LogisticRegression(
-             # number of workers and number of PSs
-             n_workers = 3, n_ps = 2,
+             # number of workers
+             n_workers = 30,
+             # number of parameter servers
+             n_ps = 2,
+             # worker size in MB
+             worker_size = 128,
              # path to s3 bucket with input dataset
              dataset = data_bucket,
              # sgd update LR and epsilon
-             learning_rate=0.01, epsilon=0.0001,
-             #
+             learning_rate=0.01,
+             epsilon=0.0001,
              progress_callback = progress_callback,
              # stop workload after these many seconds
              timeout = 0,
@@ -27,7 +31,8 @@ lr_task = cirrus.LogisticRegression(
              # path to aws key
              key_path='/home/camus/Downloads/mykey.pem',
              # ip where ps lives
-             ps_ip='ec2-34-219-23-178.us-west-2.compute.amazonaws.com',
+             ps_ip_public='ec2-34-214-232-215.us-west-2.compute.amazonaws.com',
+             ps_ip_private='172.31.0.197',
              # username of VM
              ps_username='ec2-user',
              # choose between adagrad, sgd, nesterov, momentum
@@ -39,13 +44,13 @@ lr_task = cirrus.LogisticRegression(
              # model size
              model_bits=19,
              # whether to filter gradient weights
-             use_grad_threshold=True,
+             use_grad_threshold=False,
              # threshold value
              grad_threshold=0.001,
              # range of training minibatches
              train_set=(0,824),
              # range of testing minibatches
-             test_set=(825,840)
+             test_set=(835,840)
              )
 
 lr_task.run()

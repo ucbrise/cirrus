@@ -28,18 +28,20 @@ class MLTask {
         uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
-        uint64_t worker_id) :
+        uint64_t worker_id,
+        const std::string& ps_ip,
+        uint64_t ps_port) :
       model_size(model_size),
       batch_size(batch_size), samples_per_batch(samples_per_batch),
       features_per_sample(features_per_sample),
-      nworkers(nworkers), worker_id(worker_id)
+      nworkers(nworkers), worker_id(worker_id),
+      ps_ip(ps_ip), ps_port(ps_port)
   {}
 
     /**
      * Worker here is a value 0..nworkers - 1
      */
     void run(const Configuration& config, int worker);
-
     void wait_for_start(int index, int nworkers);
 
   protected:
@@ -49,6 +51,8 @@ class MLTask {
     uint64_t features_per_sample;
     uint64_t nworkers;
     uint64_t worker_id;
+    std::string ps_ip;
+    uint64_t ps_port;
     Configuration config;
 };
 
@@ -58,10 +62,12 @@ class LogisticSparseTaskS3 : public MLTask {
         uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
-        uint64_t worker_id) :
+        uint64_t worker_id,
+        const std::string& ps_ip,
+        uint64_t ps_port) :
       MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
-          nworkers, worker_id), psint(nullptr)
+          nworkers, worker_id, ps_ip, ps_port), psint(nullptr)
   {}
 
     /**
@@ -107,7 +113,8 @@ class PSSparseTask : public MLTask {
         uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
-        uint64_t worker_id);
+        uint64_t worker_id, const std::string& ps_ip,
+        uint64_t ps_port);
 
     void run(const Configuration& config);
 
@@ -138,10 +145,11 @@ class ErrorSparseTask : public MLTask {
         uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
-        uint64_t worker_id) :
+        uint64_t worker_id, const std::string& ps_ip,
+        uint64_t ps_port) :
       MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
-          nworkers, worker_id)
+          nworkers, worker_id, ps_ip, ps_port)
   {}
     void run(const Configuration& config);
 
@@ -154,10 +162,11 @@ class PerformanceLambdaTask : public MLTask {
         uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
-        uint64_t worker_id) :
+        uint64_t worker_id, const std::string& ps_ip,
+        uint64_t ps_port) :
       MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
-          nworkers, worker_id)
+          nworkers, worker_id, ps_ip, ps_port)
   {}
 
     /**
@@ -174,10 +183,11 @@ class LoadingSparseTaskS3 : public MLTask {
         uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
-        uint64_t worker_id) :
+        uint64_t worker_id, const std::string& ps_ip,
+        uint64_t ps_port) :
       MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
-          nworkers, worker_id)
+          nworkers, worker_id, ps_ip, ps_port)
   {}
     void run(const Configuration& config);
     SparseDataset read_dataset(const Configuration& config);
@@ -193,10 +203,11 @@ class LoadingNetflixTask : public MLTask {
         uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
-        uint64_t worker_id) :
+        uint64_t worker_id, const std::string& ps_ip,
+        uint64_t ps_port) :
       MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
-          nworkers, worker_id)
+          nworkers, worker_id, ps_ip, ps_port)
   {}
     void run(const Configuration& config);
     SparseDataset read_dataset(const Configuration& config, int&, int&);
@@ -211,7 +222,8 @@ class PSSparseServerTask : public MLTask {
         uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
-        uint64_t worker_id);
+        uint64_t worker_id, const std::string& ps_ip,
+        uint64_t ps_port);
 
     void run(const Configuration& config);
 
@@ -229,6 +241,7 @@ class PSSparseServerTask : public MLTask {
 
   private:
     void thread_fn();
+    void checkpoint_model_loop();
 
     // network related methods
     void start_server();
@@ -239,7 +252,7 @@ class PSSparseServerTask : public MLTask {
     bool process(struct pollfd&, int id);
 
     // Model/ML related methods
-    void checkpoint_model() const;
+    void checkpoint_model_file(const std::string&) const;
     std::shared_ptr<char> serialize_lr_model(const SparseLRModel&, uint64_t* model_size) const;
     void gradient_f();
 
@@ -259,10 +272,10 @@ class PSSparseServerTask : public MLTask {
 #if 0
     uint64_t server_clock = 0;  // minimum of all worker clocks
 #endif
-    std::unique_ptr<std::thread> thread; // worker threads
+    //std::unique_ptr<std::thread> thread; // worker threads
     std::vector<std::unique_ptr<std::thread>> server_threads;
-    std::unique_ptr<std::thread> server_thread2;
     std::vector<std::unique_ptr<std::thread>> gradient_thread;
+    std::vector<std::unique_ptr<std::thread>> checkpoint_thread;
     pthread_t poll_thread;
     pthread_t main_thread;
     std::mutex to_process_lock;
@@ -301,10 +314,11 @@ class MFNetflixTask : public MLTask {
         uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
-        uint64_t worker_id) :
+        uint64_t worker_id, const std::string& ps_ip,
+        uint64_t ps_port) :
       MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
-          nworkers, worker_id)
+          nworkers, worker_id, ps_ip, ps_port)
   {}
 
     /**

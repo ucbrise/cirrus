@@ -12,14 +12,16 @@
 DEFINE_int64(nworkers, -1, "number of workers");
 DEFINE_int64(rank, -1, "rank");
 DEFINE_string(config, "", "config");
-DEFINE_string(ps_ip, PS_IP, "parameter server ip");
+
+DEFINE_int64(num_ps, 1, "number of parameter servers");
+DEFINE_string(ps_ip, PS_IP, "parameter server ips comma separated");
 
 static const uint64_t GB = (1024*1024*1024);
 static const uint32_t SIZE = 1;
 
 void run_tasks(int rank, int nworkers,
     int batch_size, const cirrus::Configuration& config,
-    const std::string& ps_ip) {
+    const std::vector<std::string> ps_ips) {
 
   std::cout << "Run tasks rank: " << rank << std::endl;
   int features_per_sample = config.get_num_features();
@@ -28,13 +30,13 @@ void run_tasks(int rank, int nworkers,
   if (rank == PERFORMANCE_LAMBDA_RANK) {
     cirrus::PerformanceLambdaTask lt(features_per_sample,
         batch_size, samples_per_batch, features_per_sample,
-        nworkers, rank, ps_ip);
+        nworkers, rank, ps_ips[0]);
     lt.run(config);
     cirrus::sleep_forever();
   } else if (rank == PS_SPARSE_SERVER_TASK_RANK) {
     cirrus::PSSparseServerTask st((1 << config.get_model_bits()) + 1,
         batch_size, samples_per_batch, features_per_sample,
-        nworkers, rank, ps_ip);
+        nworkers, rank, ps_ips[0]);
     st.run(config);
   } else if (rank >= WORKERS_BASE && rank < WORKERS_BASE + nworkers) {
     /**
@@ -44,13 +46,13 @@ void run_tasks(int rank, int nworkers,
     if (config.get_model_type() == cirrus::Configuration::LOGISTICREGRESSION) {
       cirrus::LogisticSparseTaskS3 lt(features_per_sample,
           batch_size, samples_per_batch, features_per_sample,
-          nworkers, rank, ps_ip);
+          nworkers, rank, ps_ips);
       lt.run(config, rank - WORKERS_BASE);
     } else if (config.get_model_type()
             == cirrus::Configuration::COLLABORATIVE_FILTERING) {
       cirrus::MFNetflixTask lt(0,
           batch_size, samples_per_batch, features_per_sample,
-          nworkers, rank, ps_ip);
+          nworkers, rank, ps_ips);
       lt.run(config, rank - WORKERS_BASE);
     } else {
       exit(-1);
@@ -135,6 +137,28 @@ int main(int argc, char** argv) {
     << rank << " rank"
     << std::endl;
 
+  int num_ps = FLAGS_num_ps;
+  std::cout << "Running parameter server with: "
+    << num_ps << " parameter server(s)"
+    << std::endl;
+
+  std::string ps_ip_string = FLAGS_ps_ip;
+  std::vector<std::string> param_ips;
+  std::string tmp;
+  std::stringstream ss(ps_ip_string);
+  while (ss) {
+    if (!getline( ss, tmp, ',' )) 
+      break;
+    param_ips.push_back(tmp);
+  }
+
+  std::cout << "Number of parameter servers: " << param_ips.size() << std::endl;
+  std::cout << "Parameter servers: "; 
+  for (auto ps_ip : param_ips) {
+    std::cout << ps_ip << " ";  
+  }
+  std::cout << std::endl;
+
   auto config = load_configuration(FLAGS_config);
   config.print();
 
@@ -146,6 +170,7 @@ int main(int argc, char** argv) {
     << " features_per_sample: " << config.get_num_features()
     << " batch_size: " << config.get_minibatch_size()
     << std::endl;
+
 
   // call the right task for this process
   std::cout << "Running task" << std::endl;

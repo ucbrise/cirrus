@@ -74,6 +74,14 @@ void PSSparseServerInterface::send_lr_gradient(const LRSparseGradient& gradient)
   }
 }
 
+int PSSparseServerInterface::send_wrapper(uint32_t num, std::size_t size) {
+  return send(sock, &num, size, 0);
+}
+
+int PSSparseServerInterface::send_all_wrapper(char* data, uint32_t size) {
+  return send_all(sock, data, size);
+}
+
 void PSSparseServerInterface::get_lr_sparse_model_inplace(const SparseDataset& ds, SparseLRModel& lr_model,
     const Configuration& config) {
 #ifdef DEBUG

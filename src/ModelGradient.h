@@ -102,6 +102,7 @@ class LRSparseGradient : public ModelGradient {
 
     void loadSerialized(const void*);
     void serialize(void*) const override;
+    std::vector<int> shard_serialize(void* mem, uint32_t parts);
     uint64_t getSerializedSize() const override;
 
     void print() const override;

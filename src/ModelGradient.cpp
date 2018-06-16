@@ -151,6 +151,20 @@ void LRSparseGradient::serialize(void* mem) const {
   }
 }
 
+/** 
+ * Method will serialize like this [data to send ps1, data to send ps2, ... data to send ps_parts]
+ * 
+ */
+ 
+std::vector<int> LRSparseGradient::shard_serialize(void* mem, uint32_t parts) {
+
+  std::vector<int> starts;
+  starts.resize(parts);
+
+
+}
+
+
 uint64_t LRSparseGradient::getSerializedSize() const {
   return weights.size() * (sizeof(FEATURE_TYPE) + sizeof(int)) + // pairs (index, weight value)
     sizeof(int) * 2; // version + number of weights

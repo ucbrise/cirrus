@@ -127,8 +127,10 @@ class Configuration {
     int get_users() const;
     int get_items() const;
 
-    bool get_use_adagrad() const;
+    std::string get_opt_method() const;
     uint64_t get_netflix_workers() const;
+
+    double get_momentum_beta() const;
 
  public:
     /**
@@ -178,11 +180,12 @@ class Configuration {
     bool use_grad_threshold = false;
     double grad_threshold = 0;
 
-    bool use_adagrad = true;
+    std::string opt_method = "adagrad";
 
     uint64_t model_bits = 20;
 
     uint64_t netflix_workers = 0;
+    double momentum_beta = 0.0;
 };
 
 }  // namespace cirrus

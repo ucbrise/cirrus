@@ -447,7 +447,7 @@ void PSSparseServerTask::start_server() {
   }
 
   // start checkpoing thread
-  if (task_config.get_do_checkpoint()) {
+  if (task_config.get_checkpoint_frequency() > 0) {
       checkpoint_thread.push_back(std::make_unique<std::thread>(
                   std::bind(&PSSparseServerTask::checkpoint_model_loop, this)));
   }

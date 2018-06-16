@@ -241,6 +241,7 @@ class PSSparseServerTask : public MLTask {
 
   private:
     void thread_fn();
+    void checkpoint_model_loop();
 
     // network related methods
     void start_server();
@@ -251,7 +252,7 @@ class PSSparseServerTask : public MLTask {
     bool process(struct pollfd&, int id);
 
     // Model/ML related methods
-    void checkpoint_model() const;
+    void checkpoint_model_file(const std::string&) const;
     std::shared_ptr<char> serialize_lr_model(const SparseLRModel&, uint64_t* model_size) const;
     void gradient_f();
 

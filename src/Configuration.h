@@ -120,6 +120,13 @@ class Configuration {
 
     uint64_t get_model_bits() const;
 
+    /**
+      * Model checkpointing
+      */
+    uint64_t get_checkpoint_frequency() const;
+    std::string get_checkpoint_s3_bucket() const;
+    std::string get_checkpoint_s3_keyname() const;
+
 
     /**
       * Netflix specific
@@ -183,6 +190,10 @@ class Configuration {
     uint64_t model_bits = 20;
 
     uint64_t netflix_workers = 0;
+
+    uint64_t checkpoint_frequency = 0;  // how often (secs) to checkpoint model
+    std::string checkpoint_s3_bucket = "";  // s3 bucket where to store model
+    std::string checkpoint_s3_keyname = "";  // s3 key where to store model
 };
 
 }  // namespace cirrus

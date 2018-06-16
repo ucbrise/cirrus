@@ -14,8 +14,7 @@ Configuration::Configuration() :
 
 Configuration::Configuration(const std::string& path) :
         learning_rate(-1),
-        epsilon(-1)
-{
+        epsilon(-1) {
   read(path);
 }
 
@@ -63,6 +62,9 @@ void Configuration::print() const {
       << train_set_range.first << "-" << train_set_range.second << std::endl;
     std::cout << "test_set: "
       << test_set_range.first << "-" << test_set_range.second << std::endl;
+    std::cout << "checkpoint_frequency: " << checkpoint_frequency << std::endl;
+    std::cout << "checkpoint_s3_bucket: " << checkpoint_s3_bucket << std::endl;
+    std::cout << "checkpoint_s3_keyname: " << checkpoint_s3_keyname << std::endl;
     if (nusers || nitems) {
       std::cout
         << "users: " << nusers << std::endl
@@ -75,7 +77,8 @@ void Configuration::check() const {
     throw std::runtime_error("S3 bucket name missing from config file");
   }
   if (test_set_range.first && model_type == COLLABORATIVE_FILTERING) {
-    throw std::runtime_error("Can't use test range with COLLABORATIVE_FILTERING");
+    throw std::runtime_error(
+            "Can't use test range with COLLABORATIVE_FILTERING");
   }
   if (use_grad_threshold && grad_threshold == 0) {
     throw std::runtime_error("Can't use a 0 for grad threshold");
@@ -142,45 +145,49 @@ void Configuration::parse_line(const std::string& line) {
     } else if (s == "model_bits:") {
         iss >> model_bits;
     } else if (s == "netflix_workers:") {
-            iss >> netflix_workers;
+       iss >> netflix_workers;
+    } else if (s == "do_checkpoint:") {
+       iss >> do_checkpoint;
     } else if (s == "normalize:") {
-        int n;
-        iss >> n;
-        normalize = (n == 1);
+      int n;
+      iss >> n;
+      normalize = (n == 1);
     } else if (s == "model_type:") {
-        std::string model;
-        iss >> model;
-        if (model == "LogisticRegression") {
-            model_type = LOGISTICREGRESSION;
-        } else if (model == "Softmax") {
-            model_type = SOFTMAX;
-        } else if (model == "CollaborativeFiltering") {
-            model_type = COLLABORATIVE_FILTERING;
-        } else {
-            throw std::runtime_error(std::string("Unknown model : ") + model);
-        }
+      std::string model;
+      iss >> model;
+      if (model == "LogisticRegression") {
+          model_type = LOGISTICREGRESSION;
+      } else if (model == "Softmax") {
+          model_type = SOFTMAX;
+      } else if (model == "CollaborativeFiltering") {
+          model_type = COLLABORATIVE_FILTERING;
+      } else {
+          throw std::runtime_error(std::string("Unknown model : ") + model);
+      }
     } else if (s == "train_set:") {
-        std::string range;
-        iss >> range;
-        size_t index = range.find("-");
-        if (index == std::string::npos)
-          throw std::runtime_error("Wrong index");
-        std::string left = range.substr(0, index);
-        std::string right = range.substr(index + 1);
-        train_set_range = std::make_pair(
-            string_to<int>(left),
-            string_to<int>(right));
+      std::string range;
+      iss >> range;
+      size_t index = range.find("-");
+      if (index == std::string::npos) {
+        throw std::runtime_error("Wrong index");
+      }
+      std::string left = range.substr(0, index);
+      std::string right = range.substr(index + 1);
+      train_set_range = std::make_pair(
+          string_to<int>(left),
+          string_to<int>(right));
     } else if (s == "test_set:") {
-        std::string range;
-        iss >> range;
-        size_t index = range.find("-");
-        if (index == std::string::npos)
-          throw std::runtime_error("Wrong index");
-        std::string left = range.substr(0, index);
-        std::string right = range.substr(index + 1);
-        test_set_range = std::make_pair(
-            string_to<int>(left),
-            string_to<int>(right));
+      std::string range;
+      iss >> range;
+      size_t index = range.find("-");
+      if (index == std::string::npos) {
+        throw std::runtime_error("Wrong index");
+      }
+      std::string left = range.substr(0, index);
+      std::string right = range.substr(index + 1);
+      test_set_range = std::make_pair(
+          string_to<int>(left),
+          string_to<int>(right));
     } else if (s == "use_grad_threshold:") {
       std::string b;
       iss >> b;
@@ -306,7 +313,7 @@ uint64_t Configuration::get_num_features() const {
   * Get S3 bucket name
   */
 std::string Configuration::get_s3_bucket() const {
-    return s3_bucket_name;
+  return s3_bucket_name;
 }
 
 std::pair<int, int> Configuration::get_train_range() const {
@@ -349,6 +356,16 @@ uint64_t Configuration::get_netflix_workers() const {
   return netflix_workers;
 }
 
-} // namespace cirrus
+uint64_t Configuration::get_checkpoint_frequency() const {
+  return checkpoint_frequency;
+}
 
+std::string Configuration::get_checkpoint_s3_bucket() const {
+  return checkpoint_s3_bucket;
+}
 
+std::string Configuration::get_checkpoint_s3_keyname() const {
+  return checkpoint_s3_keyname;
+}
+
+}  // namespace cirrus

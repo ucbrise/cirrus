@@ -17,10 +17,11 @@ PSSparseServerTask::PSSparseServerTask(
     uint64_t model_size,
     uint64_t batch_size, uint64_t samples_per_batch,
     uint64_t features_per_sample, uint64_t nworkers,
-    uint64_t worker_id, const std::string& ps_ip) :
+    uint64_t worker_id, const std::string& ps_ip,
+    uint64_t ps_port) :
   MLTask(model_size,
       batch_size, samples_per_batch, features_per_sample,
-      nworkers, worker_id, ps_ip) {
+      nworkers, worker_id, ps_ip, ps_port) {
     std::cout << "PSSparseServerTask is built" << std::endl;
 
     std::atomic_init(&thread_count, 0);
@@ -433,6 +434,12 @@ void PSSparseServerTask::start_server() {
     gradient_thread.push_back(std::make_unique<std::thread>(
           std::bind(&PSSparseServerTask::gradient_f, this)));
   }
+
+  // start checkpoing thread
+  if (task_config.get_do_checkpoint()) {
+      checkpoint_thread.push_back(std::make_unique<std::thread>(
+                  std::bind(&PSSparseServerTask::checkpoint_model_loop, this)));
+  }
 }
 
 void PSSparseServerTask::main_poll_thread_fn(int poll_id) {
@@ -639,11 +646,23 @@ void PSSparseServerTask::run(const Configuration& config) {
   }
 }
 
-void PSSparseServerTask::checkpoint_model() const {
+void PSSparseServerTask::checkpoint_model_loop() {
+    if (task_config.get_checkpoint_frequency() == 0) {
+        // checkpoint disabled
+        return;
+    }
+
+    while (true) {
+        sleep(task_config.get_checkpoint_frequency());
+        // checkpoint to s3
+    }
+}
+
+void PSSparseServerTask::checkpoint_model_file(const std::string& filename) const {
   uint64_t model_size;
   std::shared_ptr<char> data = serialize_lr_model(*lr_model, &model_size);
 
-  std::ofstream fout("model_backup_file", std::ofstream::binary);
+  std::ofstream fout(filename.c_str(), std::ofstream::binary);
   fout.write(data.get(), model_size);
   fout.close();
 }

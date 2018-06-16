@@ -88,6 +88,15 @@ void Configuration::check() const {
   if (model_bits == 0) {
     throw std::runtime_error("Model bits can't be 0");
   }
+  if (opt_method != "adagrad" && opt_method != "nesterov"
+          && opt_method != "momentum" && opt_method != "sgd") {
+      throw std::runtime_error(
+              "Choose a valid update rule: adagrad, nesterov, momentum, or sgd");
+  }
+  if (checkpoint_frequency > 0
+          && (checkpoint_s3_bucket == "" || checkpoint_s3_keyname == "")) {
+      throw std::runtime_error("Wrong checkpoing configuration parameters");
+  }
 }
 
 /**
@@ -124,11 +133,6 @@ void Configuration::parse_line(const std::string& line) {
         iss >> n_workers;
     } else if (s == "opt_method:") {
         iss >> opt_method; 
-        if (opt_method != "adagrad" && opt_method != "nesterov"
-            && opt_method != "momentum" && opt_method != "sgd") {
-                throw std::runtime_error(
-                        "Choose a valid update rule: adagrad, nesterov, momentum, or sgd");
-        }
     }  else if (s == "epsilon:") {
         iss >> epsilon;
     } else if (s == "input_type:") {
@@ -155,8 +159,12 @@ void Configuration::parse_line(const std::string& line) {
         iss >> model_bits;
     } else if (s == "netflix_workers:") {
        iss >> netflix_workers;
-    } else if (s == "do_checkpoint:") {
-       iss >> do_checkpoint;
+    } else if (s == "checkpoint_frequency:") {
+       iss >> checkpoint_frequency;
+    } else if (s == "checkpoint_s3_bucket:") {
+       iss >> checkpoint_s3_bucket;
+    } else if (s == "checkpoint_s3_keyname:") {
+       iss >> checkpoint_s3_keyname;
     } else if (s == "normalize:") {
       int n;
       iss >> n;

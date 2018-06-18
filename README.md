@@ -15,6 +15,12 @@ The Cirrus backend has been tested on Ubuntu >= 14.04 and Amazon AMI.
 It has been tested with the following environment / dependencies:
 * g++ 6
 
+In the Amazon AMI please do:
+
+    $ sudo yum install glibc-static
+    $ sudo yum install openssl-static.x86_64
+    $ sudo yum install zlib-static.x86_64
+
 Building
 =========
 

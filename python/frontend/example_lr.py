@@ -31,10 +31,10 @@ lr_task = cirrus.LogisticRegression(
              # path to aws key
              key_path='/home/camus/Downloads/mykey.pem',
              # ip where ps lives
-             ps_ip_public='ec2-34-214-232-215.us-west-2.compute.amazonaws.com',
-             ps_ip_private='172.31.0.197',
+             ps_ip_public='ec2-52-38-231-71.us-west-2.compute.amazonaws.com',
+             ps_ip_private='172.31.22.5',
              # username of VM
-             ps_username='ec2-user',
+             ps_username='ubuntu',
              # choose between adagrad, sgd, nesterov, momentum
              opt_method = 'adagrad',
              # checkpoint model every x secs
@@ -53,6 +53,13 @@ lr_task = cirrus.LogisticRegression(
              test_set=(835,840)
              )
 
-lr_task.run()
 
+try:
+    lr_task.run()
+
+    while True:
+        pass
+except KeyboardInterrupt:
+    lr_task.kill()
+    
 #model, loss = lr_task.wait()

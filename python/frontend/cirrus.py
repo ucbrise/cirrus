@@ -124,7 +124,7 @@ class LogisticRegressionTask:
             stdin, stdout, stderr = client.exec_command(\
                 "rm -rf parameter_server && " \
                 + "wget -q https://s3-us-west-2.amazonaws.com/" \
-                + "andrewmzhang-bucket/parameter_server && "\
+                + "cirrus-parameter-server/parameter_server && "\
                 + "chmod +x parameter_server")
         except Exception, e:
             print "Got an exception in copy_ps_to_vm..."
@@ -202,7 +202,7 @@ class LogisticRegressionTask:
                         response = client.invoke(
                             #FunctionName="testfunc1",
                             FunctionName="myfunc",
-                            InvocationType='RequestResponse',
+                            InvocationType='Event',
                             LogType='Tail',
                             Payload=payload)
                     except:
@@ -302,6 +302,7 @@ class LogisticRegressionTask:
         self.kill_signal.set()
         self.lambda_launcher.join()
         self.error_task.join()
+        print "Everyone is dead"
 
     def wait(self):
         print "waiting"

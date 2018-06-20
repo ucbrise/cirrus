@@ -9,7 +9,7 @@ model = 'model_v1'
 
 lr_task = cirrus.LogisticRegression(
              # number of workers
-             n_workers = 30,
+             n_workers = 5,
              # number of parameter servers
              n_ps = 2,
              # worker size in MB
@@ -31,8 +31,8 @@ lr_task = cirrus.LogisticRegression(
              # path to aws key
              key_path='/home/camus/Downloads/mykey.pem',
              # ip where ps lives
-             ps_ip_public='ec2-52-38-231-71.us-west-2.compute.amazonaws.com',
-             ps_ip_private='172.31.22.5',
+             ps_ip_public='ec2-54-188-0-164.us-west-2.compute.amazonaws.com',
+             ps_ip_private='172.31.26.54',
              # username of VM
              ps_username='ubuntu',
              # choose between adagrad, sgd, nesterov, momentum
@@ -61,5 +61,5 @@ try:
         pass
 except KeyboardInterrupt:
     lr_task.kill()
-    
+
 #model, loss = lr_task.wait()

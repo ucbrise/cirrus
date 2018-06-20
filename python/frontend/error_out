@@ -1,0 +1,2 @@
+Starting parameter server
+./parameter_server config_file nworkers rank

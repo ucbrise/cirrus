@@ -124,7 +124,7 @@ class LogisticRegressionTask:
             stdin, stdout, stderr = client.exec_command(\
                 "rm -rf parameter_server && " \
                 + "wget -q https://s3-us-west-2.amazonaws.com/" \
-                + "cirrus-parameter-server/parameter_server && "\
+                + "andrewmzhang-bucket/parameter_server && "\
                 + "chmod +x parameter_server")
         except Exception, e:
             print "Got an exception in copy_ps_to_vm..."

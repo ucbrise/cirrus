@@ -151,36 +151,62 @@ class LogisticRegressionTask:
         os.system(cmd)
         time.sleep(2)
 
+    def fetch_num_lambdas(self):
+        key = paramiko.RSAKey.from_private_key_file(self.key_path)
+        ssh_client = paramiko.SSHClient()
+        ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh_client.connect(hostname=self.ps_ip_public, username=self.ps_username, pkey=key)
+        sftp_client = ssh_client.open_sftp()
+        remote_file = sftp_client.open('ps_output')
+
+        num_connections = 0
+        try:
+            for line in remote_file:
+                if "conns: " in line:
+                    s = line.split(" ")
+                    num_connections = int(s[10])
+        finally:
+            remote_file.close()
+
+        return num_connections
+
     # if timeout is 0 we run lambdas indefinitely
     # otherwise we stop invoking them after timeout secs
     def launch_lambda(self, num_workers, timeout=50):
         print "Launching lambdas"
         client = boto3.client('lambda', region_name='us-west-2')
         start_time = time.time()
-        def launch(num_task):
-            i = 0
+        def launch():
 
             # if 0 run indefinitely
             while (timeout == 0) or (time.time() - start_time < timeout):
-                if i == 1:
-                    print "launching lambda with id %d" % num_task
-                else:
-                    print "relaunching lambda with id %d %d" % (num_task, i)
-
-                payload = '{"num_task": %d, "num_workers": %d, "ps_ip": \"%s\"}' \
-                            % (num_task, num_workers, self.ps_ip_private)
-                print "payload:", payload
-
-                try:
-                    response = client.invoke(
-                        FunctionName="testfunc1",
-                        #FunctionName="myfunc",
-                        LogType='Tail',
-                        Payload=payload)
-                except:
-                    print "client.invoke exception caught"
                 time.sleep(2)
-            print "Lambda no. %d will stop refreshing" % num_task
+
+                if self.kill_signal.is_set():
+                    print("Lambda launcher has received kill signal")
+                    return;
+
+                # TODO: Make this grab the number of lambdas from PS log
+                num_lambdas = self.fetch_num_lambdas();
+                print "PS has %d lambdas" % num_lambdas
+                # FIXME: Rename num_workers
+                num_task = 3
+                if num_lambdas < num_workers:
+                    # Launch more lambdas
+
+                    payload = '{"num_task": %d, "num_workers": %d, "ps_ip": \"%s\"}' \
+                                % (num_task, num_workers, self.ps_ip_private)
+                    print "payload:", payload
+
+                    try:
+                        response = client.invoke(
+                            #FunctionName="testfunc1",
+                            FunctionName="myfunc",
+                            InvocationType='Event',
+                            LogType='Tail',
+                            Payload=payload)
+                    except:
+                        print "client.invoke exception caught"
 
         def error_task():
             print "Starting error task"
@@ -207,6 +233,8 @@ class LogisticRegressionTask:
                     if not line:
                         time.sleep(2)
                         continue
+                    if self.kill_signal.is_set():
+                        yield "END"
                     yield line
 
             start_time = time.time()
@@ -231,20 +259,17 @@ class LogisticRegressionTask:
                     if self.timeout > 0 and float(t) > self.timeout:
                         print("error is timing out")
                         return
+                elif "END" in line:
+                    print("Error task has received kill signal")
+                    return
 
 
 
-        threads = []
-        for i in range(3, 3 + num_workers):
-            thread = Thread(target=launch, args=(i, ))
-            thread.start()
-            threads.append(thread)
+        self.lambda_launcher = Thread(target=launch)
+        self.error_task = Thread(target=error_task)
 
-        error_task()
-
-        print "Waiting for threads"
-        for thread in threads:
-            thread.join()
+        self.lambda_launcher.start()
+        self.error_task.start()
 
         print "Lambdas have been launched"
 
@@ -270,7 +295,14 @@ class LogisticRegressionTask:
         self.copy_ps_to_vm(self.ps_ip_public)
         self.define_config(self.ps_ip_public)
         self.launch_ps(self.ps_ip_public)
+        self.kill_signal = threading.Event()
         self.launch_lambda(self.n_workers, self.timeout)
+
+    def kill(self):
+        self.kill_signal.set()
+        self.lambda_launcher.join()
+        self.error_task.join()
+        print "Everyone is dead"
 
     def wait(self):
         print "waiting"

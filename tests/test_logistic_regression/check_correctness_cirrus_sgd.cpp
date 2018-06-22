@@ -31,9 +31,9 @@ std::unique_ptr<LRModel> model;
 double epsilon = 0.00001;
 double learning_rate = 0.00000001;
 
-void learning_function(const Dataset& dataset) {
+void learning_function(const cirrus::Dataset& dataset) {
   for (uint64_t i = 0; 1; ++i) {
-    Dataset ds = dataset.random_sample(20);
+    cirrus::Dataset ds = dataset.random_sample(20);
 
     auto gradient = model->minibatch_grad(ds.samples_,
         const_cast<FEATURE_TYPE*>(ds.labels_.get()),
@@ -46,8 +46,8 @@ void learning_function(const Dataset& dataset) {
 }
 
 int main() {
-  InputReader input;
-  Dataset dataset = input.read_input_csv(
+  cirrus::InputReader input;
+  cirrus::Dataset dataset = input.read_input_csv(
       INPUT_PATH,
       "\t", 1,
       10000,

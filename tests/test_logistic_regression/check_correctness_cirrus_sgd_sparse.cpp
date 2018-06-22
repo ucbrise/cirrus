@@ -11,8 +11,8 @@
 #include <SparseLRModel.h>
 #include <S3SparseIterator.h>
 
-#include "../config.h"
-#include "../Utils.h"
+#include <config.h>
+#include <Utils.h>
 
 const std::string INPUT_PATH = "criteo_data/train.csv_100K_sparse";
 
@@ -80,7 +80,7 @@ int main() {
   Configuration config;
   config.s3_size = 50000;
   config.minibatch_size = 20;
-  config.input_type = "csv";
+  config.load_input_type = "csv";
   config.model_bits = 19;
   config.normalize = 1;
   config.train_set_range = std::make_pair(0, 824);

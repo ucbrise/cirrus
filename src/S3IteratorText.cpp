@@ -11,10 +11,6 @@
 
 //#define DEBUG
 
-// The way S3IteratorText works
-// groups of minibatches are distributed across multiple files in a range left_id..right_id
-// we want to change this so that all samples are in the same file
-
 // example
 // imagine input is in libsvm formta
 // <label> <index1>:<value1> <index2>:<value2> ...
@@ -29,14 +25,15 @@ S3IteratorText::S3IteratorText(
         bool use_label,          // whether each sample has a label
         int worker_id,           // id of this worker
         bool random_access) :    // whether to access samples in a random fashion
-    left_id(left_id), right_id(right_id),
-    conf(c), s3_rows(s3_rows),
-    minibatch_rows(minibatch_rows),
-    minibatches_list(100000),
-    use_label(use_label),
-    worker_id(worker_id),
-    re(worker_id),
-    random_access(random_access)
+  S3Iterator(c),
+  left_id(left_id), right_id(right_id),
+  conf(c), s3_rows(s3_rows),
+  minibatch_rows(minibatch_rows),
+  minibatches_list(100000),
+  use_label(use_label),
+  worker_id(worker_id),
+  re(worker_id),
+  random_access(random_access)
 {
       
   std::cout << "S3IteratorText::Creating S3IteratorText"
@@ -67,20 +64,6 @@ S3IteratorText::S3IteratorText(
 }
 
 const void* S3IteratorText::get_next_fast() {
-  // we need to delete entry
-  if (to_delete != -1) {
-#ifdef DEBUG
-    std::cout << "get_next_fast::Deleting entry: " << to_delete
-      << std::endl;
-#endif
-    list_strings.erase(to_delete);
-#ifdef DEBUG
-    std::cout << "get_next_fast::Deleted entry: " << to_delete
-      << std::endl;
-#endif
-  }
- 
-  //std::cout << "sem_wait" << std::endl; 
   sem_wait(&semaphore);
   ring_lock.lock();
 
@@ -100,8 +83,7 @@ const void* S3IteratorText::get_next_fast() {
   }
 #endif
 
-  to_delete = ret.second;
-
+  // FIXME this should be calculating the local amount of memory
   if (num_minibatches_ready < 200 && pref_sem.getvalue() < (int)read_ahead) {
 #ifdef DEBUG
     std::cout << "get_next_fast::pref_sem.signal" << std::endl;
@@ -112,35 +94,112 @@ const void* S3IteratorText::get_next_fast() {
   return ret.first;
 }
 
-// XXX we need to build minibatches from S3 objects
-// in a better way to allow support for different types
-// of minibatches
+/**
+  * Moves index forward while data[index] is a space
+  * returns true if it ended on a digit, otherwise returns false
+  */
+bool ignore_spaces(uint64_t& index, const std::string& data) {
+  while (data[index] && data[index] == ' ') {
+    index++;
+  }
+  return isdigit(data[index]);
+}
+
+template <class T>
+T read_num(uint64_t& index, const std::string& data) {
+  assert(isdigit(data[index]));
+  
+  uint64_t index_fw = index;
+  while (isdigit(data[index_fw])) {
+    index_fw++;
+  }
+}
+
+/**
+  * Build minibatch from text in libsvm format
+  */
+bool S3IteratorText::build_dataset(
+    const std::string& data, uint64_t index,
+    std::shared_ptr<SparseDataset>& minibatch) {
+  // format
+  //<label> <index1>:<value1> <index2>:<value2>
+
+  try {
+    std::shared_ptr<SparseDataset> = std::make_shared<SparseDataset>();
+    std::vector<std::vector<std::pair<int, FEATURE_TYPE>>> samples;
+    std::vector<FEATURE_TYPE> labels;
+
+    samples.resize(minibatch_rows);
+    labels.resize(minibatch_rows);
+
+    for (uint64_t sample = 0; sample < minibatch_rows; ++sample) {
+      // ignore spaces
+      if (!ignore_spaces(index, data)) {
+        return false;
+      }
+      int label = read_num<int>(index, data);
+
+      // read pairs
+      while (1) {
+        if (!ignore_spaces(index, data)) {
+          if (data[index] == '\n') break; // move to next sample
+          else return false; // end of text
+        }
+        uint64_t ind = read_num<uint64_t>(index, data);
+        if (data[index] != ':') {
+          return false;
+        }
+        index++;
+        FEATURE_TYPE value = read_num<FEATURE_TYPE>(index, data);
+
+        samples[sample].push_back(std::make_pair(ind, value));
+      }
+      labels[sample] = label;
+    }
+  } catch (...) {
+    // read_num throws exception if it can't find a digit right away
+    return false;
+  }
+}
+
+std::vector<std::shared_ptr<SparseDataset>>>
+parse_s3_obj_libsvm(const std::string& s3_data) {
+  std::vector<std::shared_ptr<SparseDataset>> result;
+  // find first sample
+  uint64_t index = 0;
+  while (1) {
+    if (index >= s3_data.size()) {
+      return result;
+    }
+    if (s3_data[index] == "\n") {
+      index++;
+      break;
+    }
+    index++;
+  }
+  if (index == s3_data.size()) {
+    // bad luck last char was the first newline
+    throw std::runtime_error("Error");
+  }
+
+  while (1) {
+    std::shared_ptr<SparseDataset> minibatch;
+    if (!build_dataset(s3_data, index, &minibatch)) {
+      // could not build full minibatch
+      return result;
+    }
+    result.push_back(minibatch);
+  }
+}
+
 void S3IteratorText::push_samples(std::ostringstream* oss) {
   uint64_t n_minibatches = s3_rows / minibatch_rows;
 
-  list_strings[str_version] = oss->str();
-  delete oss;
-
-  auto str_iter = list_strings.find(str_version);
-  print_progress(str_iter->second);
-
-  // parse the contents
-  const void* s3_data = reinterpret_cast<const void*>(str_iter->second.c_str());
-  int s3_obj_size = load_value<int>(s3_data);
-  int num_samples = load_value<int>(s3_data);
-  (void)s3_obj_size;
-  (void)num_samples;
-#ifdef DEBUG
-  std::cout
-    << "push_samples s3_obj_size: " << s3_obj_size
-    << " num_samples: " << num_samples << std::endl;
-  assert(s3_obj_size > 0 && s3_obj_size < 100 * 1024 * 1024);
-  assert(num_samples > 0 && num_samples < 1000000);
-#endif
-
   // we parse this piece of text
   // this returns a collection of minibatches
-  auto dataset = parse_s3_obj_libsvm();
+  auto s3_data = oss->str();
+  std::vector<std::shared_ptr<SparseDataset>> dataset =
+    parse_s3_obj_libsvm(s3_data);
 
   ring_lock.lock();
   minibatches_list.add(dataset);
@@ -150,29 +209,6 @@ void S3IteratorText::push_samples(std::ostringstream* oss) {
     sem_post(&semaphore);
   }
   str_version++;
-}
-
-/**
-  * This function is used to compute the amount of S3 data consumed
-  * per second. This might not be the same as the available S3
-  * bandwidth if the system is bottleneck somewhere else
-  */
-void S3IteratorText::print_progress(const std::string& s3_obj) {
-  static uint64_t start_time = 0;
-  static uint64_t total_received = 0;
-  static uint64_t count = 0;
-
-  if (start_time == 0) {
-    start_time = get_time_us();
-  }
-  total_received += s3_obj.size();
-  count++;
-
-  double elapsed_sec = (get_time_us() - start_time) / 1000.0 / 1000.0;
-  std::cout
-    << "Getting object count: " << count
-    << " s3 e2e bw (MB/s): " << total_received / elapsed_sec / 1024.0 / 1024
-    << std::endl;
 }
 
 static int sstream_size(std::ostringstream& ss) {
@@ -197,12 +233,10 @@ S3IteratorText::get_file_range(uint64_t file_size) {
     // make sure we get a range with size FETCH_SIZE
     left_index = file_size - FETCH_SIZE;
   }
-
   return std::make_pair(left_index, left_index + FETCH_SIZE);
-
 }
 
-void report_bandwidth() {
+void S3IteratorText::report_bandwidth() {
   uint64_t elapsed_us = (get_time_us() - start);
   double mb_s = sstream_size(*s3_obj) / elapsed_us
     * 1000.0 * 1000 / 1024 / 1024;
@@ -211,14 +245,6 @@ void report_bandwidth() {
     << " size: " << sstream_size(*s3_obj)
     << " BW (MB/s): " << mb_s
     << "\n";
-
-#ifdef DEBUG
-      //double MBps = (1.0 * (32812.5*1024.0) / elapsed_us) / 1024 / 1024 * 1000 * 1000;
-      //std::cout << "Get s3 obj took (us): " << (elapsed_us)
-      //  << " size (KB): " << 32812.5
-      //  << " bandwidth (MB/s): " << MBps
-      //  << std::endl;
-#endif
 }
 
 void S3IteratorText::thread_function(const Configuration& config) {
@@ -236,7 +262,7 @@ void S3IteratorText::thread_function(const Configuration& config) {
     // random range of bytes to be fetched from dataset
     std::pair<uint64_t, uint64_t> range = get_file_range(file_size);
 
-    std::ostringstream* s3_obj;
+    std::ostringstream* s3_obj = nullptr;
 try_start:
     try {
       std::cout << "S3IteratorText: getting object " << obj_id_str << std::endl;

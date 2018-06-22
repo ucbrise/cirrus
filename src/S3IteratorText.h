@@ -32,9 +32,10 @@ class S3SparseIterator : public S3Iterator {
     void thread_function(const Configuration&);
 
  private:
+  void report_bandwidth();
   void push_samples(std::ostringstream* oss);
-  void print_progress(const std::string& s3_obj);
-  uint64_t get_obj_id(uint64_t left, uint64_t right);
+
+  std::pair<uint64_t, uint64_t> get_file_range(uint64_t);
 
   uint64_t left_id;
   uint64_t right_id;
@@ -54,25 +55,18 @@ class S3SparseIterator : public S3Iterator {
   uint64_t s3_rows;
   uint64_t minibatch_rows;
 
-  //ProgressMonitor pm;
-
   sem_t semaphore;
-  int str_version = 0;
-  std::map<int, std::string> list_strings; // strings from s3
-
   // this contains a pointer to memory where a minibatch can be found
   // the int tells whether this is the last minibatch of a block of memory
   CircularBuffer<std::queue<std::pair<const void*, int>>*> minibatches_list;
   std::atomic<int> num_minibatches_ready{0};
   
-  int to_delete = -1;
   bool use_label; // whether the dataset has labels or not
   int worker_id = 0;
   
   std::default_random_engine re;
   bool random_access = true;
   uint64_t current = 0;
-
 };
 
 }

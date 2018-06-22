@@ -20,15 +20,15 @@ S3SparseIterator::S3SparseIterator(
         bool use_label,
         int worker_id,
         bool random_access) :
-    left_id(left_id), right_id(right_id),
-    conf(c), s3_rows(s3_rows),
-    minibatch_rows(minibatch_rows),
-    //pm(REDIS_IP, REDIS_PORT),
-    minibatches_list(100000),
-    use_label(use_label),
-    worker_id(worker_id),
-    re(worker_id),
-    random_access(random_access)
+  S3Iterator(c),
+  left_id(left_id), right_id(right_id),
+  conf(c), s3_rows(s3_rows),
+  minibatch_rows(minibatch_rows),
+  minibatches_list(100000),
+  use_label(use_label),
+  worker_id(worker_id),
+  re(worker_id),
+  random_access(random_access)
 {
       
   std::cout << "S3SparseIterator::Creating S3SparseIterator"
@@ -253,7 +253,6 @@ try_start:
         << " size: " << sstream_size(*s3_obj)
         << " BW (MB/s): " << mb_s
         << "\n";
-      //pm.increment_batches(); // increment number of batches we have processed
 
 #ifdef DEBUG
       //double MBps = (1.0 * (32812.5*1024.0) / elapsed_us) / 1024 / 1024 * 1000 * 1000;

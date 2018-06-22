@@ -1,5 +1,5 @@
-#include "S3IteratorText.h"
-#include "Utils.h"
+#include <S3IteratorText.h>
+#include <Utils.h>
 #include <unistd.h>
 #include <vector>
 #include <iostream>
@@ -21,13 +21,13 @@ namespace cirrus {
 S3IteratorText::S3IteratorText(
         const Configuration& c,
         uint64_t file_size,
-        uint64_t minibatch_rows, // number of samples in a minibatch
-        bool use_label,          // whether each sample has a label
-        int worker_id,           // id of this worker
-        bool random_access) :    // whether to access samples in a random fashion
+        uint64_t minibatch_rows,
+        bool use_label,
+        int worker_id,
+        bool random_access) :
   S3Iterator(c),
-  left_id(left_id), right_id(right_id),
-  conf(c), s3_rows(s3_rows),
+  file_size(file_size),
+  s3_rows(s3_rows),
   minibatch_rows(minibatch_rows),
   minibatches_list(100000),
   use_label(use_label),
@@ -37,8 +37,6 @@ S3IteratorText::S3IteratorText(
 {
       
   std::cout << "S3IteratorText::Creating S3IteratorText"
-    << " left_id: " << left_id
-    << " right_id: " << right_id
     << " use_label: " << use_label
     << std::endl;
 
@@ -58,8 +56,6 @@ S3IteratorText::S3IteratorText(
   // to ensure each worker receives a different minibatch
   if (random_access) {
     srand(42 + worker_id);
-  } else {
-    current = left_id;
   }
 }
 
@@ -68,12 +64,10 @@ const void* S3IteratorText::get_next_fast() {
   ring_lock.lock();
 
   // first discard empty queue
-  while (minibatches_list.front()->size() == 0) {
+  while (minibatches_list.front().size() == 0) {
     auto queue_ptr = minibatches_list.pop();
-    delete queue_ptr; // free memory of empty queue
   }
-  auto ret = minibatches_list.front()->front();
-  minibatches_list.front()->pop();
+  auto ret = minibatches_list.front().pop_back();
   num_minibatches_ready--;
   ring_lock.unlock();
 
@@ -107,12 +101,32 @@ bool ignore_spaces(uint64_t& index, const std::string& data) {
 
 template <class T>
 T read_num(uint64_t& index, const std::string& data) {
-  assert(isdigit(data[index]));
+  if (!isdigit(data[index])) {
+    throw std::runtime_error("Error in the dataset");
+  }
   
   uint64_t index_fw = index;
   while (isdigit(data[index_fw])) {
     index_fw++;
   }
+
+  char c = data[index_fw];
+  data[index_fw] = 0;
+
+  T result;
+  if constexpr (std::is_same<T, int>::value) {
+      sscanf(&data[index], "%d", &result);
+  } else if constexpr (std::is_same<T, double>::value || std::is_same<T, float>::value) { 
+      sscanf(&data[index], "%lf", &result);
+  } else if constexpr (std::is_same<T, uint64_t>::value) { 
+      sscanf(&data[index], "%llu", &result);
+  } else {
+    throw std::runtime_error("Data type not supported");
+  }
+
+  data[index_fw] = c; // repair
+  index = index_fw;
+  return result;
 }
 
 /**
@@ -125,7 +139,6 @@ bool S3IteratorText::build_dataset(
   //<label> <index1>:<value1> <index2>:<value2>
 
   try {
-    std::shared_ptr<SparseDataset> = std::make_shared<SparseDataset>();
     std::vector<std::vector<std::pair<int, FEATURE_TYPE>>> samples;
     std::vector<FEATURE_TYPE> labels;
 
@@ -156,13 +169,16 @@ bool S3IteratorText::build_dataset(
       }
       labels[sample] = label;
     }
+
+    minibatch.reset(new SparseDataset(samples, labels));
+    return true;
   } catch (...) {
     // read_num throws exception if it can't find a digit right away
     return false;
   }
 }
 
-std::vector<std::shared_ptr<SparseDataset>>>
+std::vector<std::shared_ptr<SparseDataset>>
 parse_s3_obj_libsvm(const std::string& s3_data) {
   std::vector<std::shared_ptr<SparseDataset>> result;
   // find first sample
@@ -171,7 +187,7 @@ parse_s3_obj_libsvm(const std::string& s3_data) {
     if (index >= s3_data.size()) {
       return result;
     }
-    if (s3_data[index] == "\n") {
+    if (s3_data[index] == '\n') {
       index++;
       break;
     }
@@ -208,7 +224,6 @@ void S3IteratorText::push_samples(std::ostringstream* oss) {
     num_minibatches_ready++;
     sem_post(&semaphore);
   }
-  str_version++;
 }
 
 static int sstream_size(std::ostringstream& ss) {
@@ -218,7 +233,7 @@ static int sstream_size(std::ostringstream& ss) {
 /**
   * Returns a range of bytes (right side is exclusive)
   */
-std::make_pair<uint64_t, uint64_t>
+std::pair<uint64_t, uint64_t>
 S3IteratorText::get_file_range(uint64_t file_size) {
   // given the size of the file we return a random file index
   if (file_size < FETCH_SIZE) {
@@ -236,7 +251,8 @@ S3IteratorText::get_file_range(uint64_t file_size) {
   return std::make_pair(left_index, left_index + FETCH_SIZE);
 }
 
-void S3IteratorText::report_bandwidth() {
+void S3IteratorText::report_bandwidth(uint64_t elapsed, uint64_t size) {
+#if 0
   uint64_t elapsed_us = (get_time_us() - start);
   double mb_s = sstream_size(*s3_obj) / elapsed_us
     * 1000.0 * 1000 / 1024 / 1024;
@@ -245,6 +261,7 @@ void S3IteratorText::report_bandwidth() {
     << " size: " << sstream_size(*s3_obj)
     << " BW (MB/s): " << mb_s
     << "\n";
+#endif
 }
 
 void S3IteratorText::thread_function(const Configuration& config) {
@@ -265,7 +282,7 @@ void S3IteratorText::thread_function(const Configuration& config) {
     std::ostringstream* s3_obj = nullptr;
 try_start:
     try {
-      std::cout << "S3IteratorText: getting object " << obj_id_str << std::endl;
+      std::cout << "S3IteratorText: getting object" << std::endl;
       uint64_t start = get_time_us();
 
       s3_obj = s3_get_object_range_ptr(
@@ -276,7 +293,6 @@ try_start:
     } catch(...) {
       std::cout
         << "S3IteratorText: error in s3_get_object"
-        << " obj_id_str: " << obj_id_str
         << std::endl;
       goto try_start;
       exit(-1);

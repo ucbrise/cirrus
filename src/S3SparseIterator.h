@@ -2,6 +2,7 @@
 #define _S3_SPARSEITERATOR_H_
 
 #include "S3.h"
+#include "S3Iterator.h"
 #include "Configuration.h"
 #include "config.h"
 

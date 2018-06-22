@@ -42,7 +42,6 @@ CPP_SOURCES = InputReader.cpp Utils.cpp \
 	      LoadingSparseTaskS3.cpp LoadingNetflixTask.cpp \
               TasksWait.cpp MurmurHash3.cpp \
 	      S3SparseIterator.cpp S3IteratorText.cpp \
-	      PerformanceLambdaTask.cpp \
 	      S3.cpp SparseDataset.cpp \
 	      PSSparseServerTask.cpp PSSparseServerInterface.cpp
 

@@ -22,7 +22,7 @@ S3SparseIterator::S3SparseIterator(
         bool random_access) :
   S3Iterator(c),
   left_id(left_id), right_id(right_id),
-  conf(c), s3_rows(s3_rows),
+  s3_rows(s3_rows),
   minibatch_rows(minibatch_rows),
   minibatches_list(100000),
   use_label(use_label),

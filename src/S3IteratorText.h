@@ -1,44 +1,48 @@
-#ifndef _S3_SPARSEITERATOR_H_
-#define _S3_SPARSEITERATOR_H_
+#ifndef _S3_ITERATORTEXT_H_
+#define _S3_ITERATORTEXT_H_
 
-#include "S3.h"
-#include "Configuration.h"
-#include "config.h"
+#include <S3.h>
+#include <S3Iterator.h>
+#include <Configuration.h>
+#include <config.h>
+#include <SparseDataset.h>
+#include <Synchronization.h>
+#include <Serializers.h>
+#include <CircularBuffer.h>
 
 #include <thread>
 #include <list>
 #include <mutex>
 #include <queue>
 #include <semaphore.h>
-#include "Synchronization.h"
-#include "Serializers.h"
-#include <CircularBuffer.h>
 
 namespace cirrus {
 
-class S3SparseIterator : public S3Iterator {
+class S3IteratorText : public S3Iterator {
  public:
-    S3SparseIterator(
-        uint64_t left_id, uint64_t right_id,
+    S3IteratorText(
         const Configuration& c,
-        uint64_t s3_rows,
-        uint64_t minibatch_rows,
-        bool use_label = true,
-        int worker_id = 0,
-        bool random_access = true);
+        uint64_t file_size,
+        uint64_t minibatch_rows, // number of samples in a minibatch
+        bool use_label,          // whether each sample has a label
+        int worker_id,           // id of this worker
+        bool random_access);     // whether to access samples in a rand. fashion
 
     const void* get_next_fast();
 
     void thread_function(const Configuration&);
 
  private:
-  void report_bandwidth();
+  void report_bandwidth(uint64_t elapsed, uint64_t size);
   void push_samples(std::ostringstream* oss);
+
+  bool build_dataset(
+    const std::string& data, uint64_t index,
+    std::shared_ptr<SparseDataset>& minibatch);
 
   std::pair<uint64_t, uint64_t> get_file_range(uint64_t);
 
-  uint64_t left_id;
-  uint64_t right_id;
+  uint64_t file_size = 0;
 
   std::shared_ptr<Aws::S3::S3Client> s3_client;
 
@@ -58,7 +62,8 @@ class S3SparseIterator : public S3Iterator {
   sem_t semaphore;
   // this contains a pointer to memory where a minibatch can be found
   // the int tells whether this is the last minibatch of a block of memory
-  CircularBuffer<std::queue<std::pair<const void*, int>>*> minibatches_list;
+  CircularBuffer<
+    std::vector<std::shared_ptr<SparseDataset>>> minibatches_list;
   std::atomic<int> num_minibatches_ready{0};
   
   bool use_label; // whether the dataset has labels or not
@@ -71,4 +76,4 @@ class S3SparseIterator : public S3Iterator {
 
 }
 
-#endif  // _S3_SPARSEITERATOR_H_
+#endif  // _S3_ITERATORTEXT_H_

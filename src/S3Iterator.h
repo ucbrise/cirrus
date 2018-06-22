@@ -1,6 +1,8 @@
 #ifndef _S3_ITERATOR_H_
 #define _S3_ITERATOR_H_
 
+#include <Configuration.h>
+
 namespace cirrus {
 
 class S3Iterator {

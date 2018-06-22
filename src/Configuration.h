@@ -175,7 +175,7 @@ class Configuration {
     uint64_t limit_samples = 0;  //< max number of training input samples
     uint64_t num_features = 0;   //< number of features in each sample
 
-    std::string dataset_formatn;  //< format of the dataset in S3
+    std::string dataset_format;  //< format of the dataset in S3
     std::string s3_dataset_key;   //< key name in the s3 bucket
     std::string s3_bucket_name;   //< bucket used for training dataset
 

@@ -314,8 +314,8 @@ class LogisticRegressionTask:
         else:
             grad_t = 0
 
-        config = "input_path: /mnt/efs/criteo_kaggle/train.csv \n" + \
-                 "input_type: csv\n" + \
+        config = "load_input_path: /mnt/efs/criteo_kaggle/train.csv \n" + \
+                 "load_input_type: csv\n" + \
                  "num_classes: 2 \n" + \
                  "num_features: 13 \n" + \
                  "limit_cols: 14 \n" + \

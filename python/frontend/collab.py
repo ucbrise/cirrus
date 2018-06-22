@@ -321,8 +321,8 @@ class CollaborativeFilteringTask:
         else:
             grad_t = 0
 
-        config = "input_path: /home/ec2-user/cirrus/examples/ml/tests/test_mf/nf_parsed \n" + \
-                 "input_type: csv \n" + \
+        config = "load_input_path: /home/ec2-user/cirrus/examples/ml/tests/test_mf/nf_parsed \n" + \
+                 "load_input_type: csv \n" + \
                  "minibatch_size: %d \n" % self.minibatch_size + \
                  "s3_size: 10000 \n" + \
                  "model_type: CollaborativeFiltering \n" + \

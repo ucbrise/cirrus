@@ -14,11 +14,11 @@ SparseDataset LoadingSparseTaskS3::read_dataset(
   InputReader input;
 
   std::string delimiter;
-  if (config.get_input_type() == "csv_space") {
+  if (config.get_load_input_type() == "csv_space") {
     delimiter = "";
-  } else if (config.get_input_type() == "csv_tab") {
+  } else if (config.get_load_input_type() == "csv_tab") {
     delimiter = "\t";
-  } else if (config.get_input_type() == "csv") {
+  } else if (config.get_load_input_type() == "csv") {
     delimiter = ",";
   } else {
     throw std::runtime_error("unknown input type");
@@ -26,7 +26,7 @@ SparseDataset LoadingSparseTaskS3::read_dataset(
 
   // READ the kaggle criteo dataset
   return input.read_input_criteo_kaggle_sparse(
-      config.get_input_path(),
+      config.get_load_input_path(),
       delimiter,
       config);
 }

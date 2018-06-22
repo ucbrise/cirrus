@@ -46,13 +46,14 @@ void Configuration::read(const std::string& path) {
 
 void Configuration::print() const {
     std::cout << "Printing configuration: " << std::endl;
-    std::cout << "input_path: " << get_input_path() << std::endl;
+    std::cout << "load_input_path: " << get_load_input_path() << std::endl;
     std::cout << "Minibatch size: " << get_minibatch_size() << std::endl;
     std::cout << "S3 size: " << get_s3_size() << std::endl;
     std::cout << "learning rate: " << get_learning_rate() << std::endl;
     std::cout << "limit_samples: " << get_limit_samples() << std::endl;
     std::cout << "epsilon: " << epsilon << std::endl;
     std::cout << "s3_bucket_name: " << s3_bucket_name << std::endl;
+    std::cout << "dataset_format: " << dataset_format << std::endl;
     std::cout << "use_bias: " << use_bias << std::endl;
     std::cout << "momentum_beta: " << momentum_beta << std::endl;
     std::cout << "use_grad_threshold: " << use_grad_threshold << std::endl;
@@ -77,6 +78,10 @@ void Configuration::print() const {
 void Configuration::check() const {
   if (s3_bucket_name == "") {
     throw std::runtime_error("S3 bucket name missing from config file");
+  }
+  if (!(dataset_format == "csv" || dataset_format == "libsvm"
+        || dataset_format == "svmlight" || dataset_format == "cirrus")) {
+    throw std::runtime_error("Unknown dataset format");
   }
   if (test_set_range.first && model_type == COLLABORATIVE_FILTERING) {
     throw std::runtime_error(
@@ -123,8 +128,8 @@ void Configuration::parse_line(const std::string& line) {
         }
     } else if (s == "num_features:") {
         iss >> num_features;
-    } else if (s == "input_path:") {
-        iss >> input_path;
+    } else if (s == "load_input_path:") {
+        iss >> load_input_path;
     } else if (s == "samples_path:") {
         iss >> samples_path;
     } else if (s == "labels_path:") {
@@ -135,8 +140,8 @@ void Configuration::parse_line(const std::string& line) {
         iss >> opt_method; 
     }  else if (s == "epsilon:") {
         iss >> epsilon;
-    } else if (s == "input_type:") {
-        iss >> input_type;
+    } else if (s == "load_input_type:") {
+        iss >> load_input_type;
     } else if (s == "learning_rate:") {
         iss >> learning_rate;
     } else if (s == "num_classes:") {
@@ -149,6 +154,10 @@ void Configuration::parse_line(const std::string& line) {
         iss >> momentum_beta;  
     } else if (s == "s3_bucket:") {
         iss >> s3_bucket_name;
+    } else if (s == "dataset_format:") {
+        iss >> dataset_format;
+    } else if (s == "s3_dataset_key:") {
+        iss >> s3_dataset_key;
     } else if (s == "use_bias:") {
         iss >> use_bias;
     } else if (s == "num_users:") {
@@ -223,16 +232,16 @@ void Configuration::parse_line(const std::string& line) {
     }
 }
 
-std::string Configuration::get_input_path() const {
-    if (input_path == "")
+std::string Configuration::get_load_input_path() const {
+    if (load_input_path == "")
         throw std::runtime_error("input path not loaded");
-    return input_path;
+    return load_input_path;
 }
 
 std::string Configuration::get_samples_path() const {
     if (samples_path == "")
         throw std::runtime_error("samples path not loaded");
-    if (input_type != "double_binary")
+    if (load_input_type != "double_binary")
         throw std::runtime_error("mismatch between paths and input type");
     return samples_path;
 }
@@ -240,7 +249,7 @@ std::string Configuration::get_samples_path() const {
 std::string Configuration::get_labels_path() const {
     if (labels_path == "")
         throw std::runtime_error("labels path not loaded");
-    if (input_type != "double_binary")
+    if (load_input_type != "double_binary")
         throw std::runtime_error("mismatch between paths and input type");
     return labels_path;
 }
@@ -269,10 +278,10 @@ uint64_t Configuration::get_s3_size() const {
     return s3_size;
 }
 
-std::string Configuration::get_input_type() const {
-    if (input_type == "")
-        throw std::runtime_error("input_type not loaded");
-    return input_type;
+std::string Configuration::get_load_input_type() const {
+    if (load_input_type == "")
+        throw std::runtime_error("load_input_type not loaded");
+    return load_input_type;
 }
 
 /**
@@ -331,6 +340,14 @@ uint64_t Configuration::get_num_features() const {
   */
 std::string Configuration::get_s3_bucket() const {
   return s3_bucket_name;
+}
+
+std::string Configuration::get_s3_dataset_key() const {
+  return s3_dataset_key;
+}
+
+std::string Configuration::get_dataset_format() const {
+  return dataset_format;
 }
 
 std::pair<int, int> Configuration::get_train_range() const {

@@ -13,7 +13,7 @@ SparseDataset LoadingNetflixTask::read_dataset(
     int& number_movies, int& number_users) {
   InputReader input;
   SparseDataset dataset =
-    input.read_netflix_ratings(config.get_input_path(), &number_movies, &number_users);
+    input.read_netflix_ratings(config.get_load_input_path(), &number_movies, &number_users);
   std::cout << "Processed netflix dataset."
     << " #movies: " << number_movies
     << " #users: " << number_users

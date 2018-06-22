@@ -197,7 +197,11 @@ class CollaborativeFilteringTask:
                     return;
 
                 # TODO: Make this grab the number of lambdas from PS log
+
+
                 num_lambdas = self.fetch_num_lambdas();
+
+
                 print "PS has %d lambdas" % num_lambdas
                 # FIXME: Rename num_workers
                 num_task = 3
@@ -255,6 +259,7 @@ class CollaborativeFilteringTask:
                     num_workers,
                     self.worker_size)
 
+            # TODO: This needs to be more universal
             for line in tail(file):
                 if "RMSE" in line:
                     s = line.split(" ")

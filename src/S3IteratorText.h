@@ -28,7 +28,7 @@ class S3IteratorText : public S3Iterator {
         int worker_id,           // id of this worker
         bool random_access);     // whether to access samples in a rand. fashion
 
-    const void* get_next_fast();
+    std::shared_ptr<SparseDataset> get_next_fast();
 
     void thread_function(const Configuration&);
 
@@ -36,9 +36,22 @@ class S3IteratorText : public S3Iterator {
   void report_bandwidth(uint64_t elapsed, uint64_t size);
   void push_samples(std::ostringstream* oss);
 
-  bool build_dataset(
-    const std::string& data, uint64_t index,
+  template <class T>
+    T read_num(uint64_t& index, std::string& data);
+
+  std::vector<std::shared_ptr<SparseDataset>>
+    parse_s3_obj_libsvm(std::string& s3_data);
+
+  bool build_dataset_libsvm(
+    std::string& data, uint64_t index,
     std::shared_ptr<SparseDataset>& minibatch);
+  bool build_dataset_csv(
+      const std::string& data, uint64_t index,
+      std::shared_ptr<SparseDataset>& minibatch);
+
+  bool build_dataset_vowpal_wabbit(
+      const std::string& data, uint64_t index,
+      std::shared_ptr<SparseDataset>& minibatch);
 
   std::pair<uint64_t, uint64_t> get_file_range(uint64_t);
 
@@ -64,6 +77,8 @@ class S3IteratorText : public S3Iterator {
   // the int tells whether this is the last minibatch of a block of memory
   CircularBuffer<
     std::vector<std::shared_ptr<SparseDataset>>> minibatches_list;
+
+  // how many minibatches ready to be processed
   std::atomic<int> num_minibatches_ready{0};
   
   bool use_label; // whether the dataset has labels or not

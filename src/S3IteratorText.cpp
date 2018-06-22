@@ -59,7 +59,7 @@ S3IteratorText::S3IteratorText(
   }
 }
 
-const void* S3IteratorText::get_next_fast() {
+std::shared_ptr<SparseDataset> S3IteratorText::get_next_fast() {
   sem_wait(&semaphore);
   ring_lock.lock();
 
@@ -67,15 +67,10 @@ const void* S3IteratorText::get_next_fast() {
   while (minibatches_list.front().size() == 0) {
     auto queue_ptr = minibatches_list.pop();
   }
-  auto ret = minibatches_list.front().pop_back();
+  auto ret = minibatches_list.front().back();
+  minibatches_list.front().pop_back();
   num_minibatches_ready--;
   ring_lock.unlock();
-
-#ifdef DEBUG
-  if (ret.second != -1) {
-    std::cout << "get_next_fast::ret.second: " << ret.second << std::endl;
-  }
-#endif
 
   // FIXME this should be calculating the local amount of memory
   if (num_minibatches_ready < 200 && pref_sem.getvalue() < (int)read_ahead) {
@@ -85,7 +80,7 @@ const void* S3IteratorText::get_next_fast() {
     pref_sem.signal();
   }
 
-  return ret.first;
+  return ret;
 }
 
 /**
@@ -100,7 +95,7 @@ bool ignore_spaces(uint64_t& index, const std::string& data) {
 }
 
 template <class T>
-T read_num(uint64_t& index, const std::string& data) {
+T S3IteratorText::read_num(uint64_t& index, std::string& data) {
   if (!isdigit(data[index])) {
     throw std::runtime_error("Error in the dataset");
   }
@@ -129,11 +124,23 @@ T read_num(uint64_t& index, const std::string& data) {
   return result;
 }
 
+bool S3IteratorText::build_dataset_csv(
+    const std::string& data, uint64_t index,
+    std::shared_ptr<SparseDataset>& minibatch) {
+    return false;
+}
+
+bool S3IteratorText::build_dataset_vowpal_wabbit(
+    const std::string& data, uint64_t index,
+    std::shared_ptr<SparseDataset>& minibatch) {
+    return false;
+}
+
 /**
   * Build minibatch from text in libsvm format
   */
-bool S3IteratorText::build_dataset(
-    const std::string& data, uint64_t index,
+bool S3IteratorText::build_dataset_libsvm(
+    std::string& data, uint64_t index,
     std::shared_ptr<SparseDataset>& minibatch) {
   // format
   //<label> <index1>:<value1> <index2>:<value2>
@@ -170,7 +177,7 @@ bool S3IteratorText::build_dataset(
       labels[sample] = label;
     }
 
-    minibatch.reset(new SparseDataset(samples, labels));
+    minibatch.reset(new SparseDataset(std::move(samples), std::move(labels)));
     return true;
   } catch (...) {
     // read_num throws exception if it can't find a digit right away
@@ -179,7 +186,7 @@ bool S3IteratorText::build_dataset(
 }
 
 std::vector<std::shared_ptr<SparseDataset>>
-parse_s3_obj_libsvm(const std::string& s3_data) {
+S3IteratorText::parse_s3_obj_libsvm(std::string& s3_data) {
   std::vector<std::shared_ptr<SparseDataset>> result;
   // find first sample
   uint64_t index = 0;
@@ -200,7 +207,7 @@ parse_s3_obj_libsvm(const std::string& s3_data) {
 
   while (1) {
     std::shared_ptr<SparseDataset> minibatch;
-    if (!build_dataset(s3_data, index, &minibatch)) {
+    if (!build_dataset_libsvm(s3_data, index, minibatch)) {
       // could not build full minibatch
       return result;
     }

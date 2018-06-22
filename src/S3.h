@@ -30,6 +30,8 @@ std::string s3_get_object_value(const std::string& id, Aws::S3::S3Client& s3_cli
                 const std::string& bucket_name);
 std::ostringstream* s3_get_object_ptr(uint64_t id, Aws::S3::S3Client& s3_client,
                 const std::string& bucket_name);
+std::ostringstream* s3_get_object_range_ptr(const std::string& id, Aws::S3::S3Client& s3_client,
+                const std::string& bucket_name, std::pair<uint64_t, uint64_t> range);
 std::ostringstream* s3_get_object_ptr(const std::string& id, Aws::S3::S3Client& s3_client,
                 const std::string& bucket_name);
 

@@ -2,7 +2,7 @@
 #include <Configuration.h>
 
 int main() {
-  Configuration conf;
-  S3IteratorText s3iter;
+  cirrus::Configuration conf;
+  cirrus::S3IteratorText s3iter(conf, 0, 0, 0, false);
   return 0;
 }

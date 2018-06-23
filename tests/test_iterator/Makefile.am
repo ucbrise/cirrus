@@ -1,3 +1,5 @@
+AUTOMAKE_OPTIONS = foreign
+
 CXX=g++
 CXXFLAGS=-Wall -ansi -O3 -std=c++14 -ggdb
 
@@ -20,22 +22,26 @@ CIRRUS_SRC_FILES=$(CIRRUS_SRC_DIR)/Configuration.cpp \
 		    $(CIRRUS_SRC_DIR)/PSSparseServerInterface.cpp \
 		    $(CIRRUS_SRC_DIR)/SparseMFModel.cpp \
 		    $(CIRRUS_SRC_DIR)/MFModel.cpp \
+		    $(CIRRUS_SRC_DIR)/S3IteratorText.cpp \
 		    $(CIRRUS_SRC_DIR)/SparseDataset.cpp
 
+LINCLUDES = -L$(THIRD_PARTY_DIR)/kerberos/src/lib \
+	    -L$(THIRD_PARTY_DIR)/keyutils/ \
+	    -L$(THIRD_PARTY_DIR)/gflags/lib/ \
+	    -L$(THIRD_PARTY_DIR)/curl/curl/lib/.libs/ \
+	    -L$(THIRD_PARTY_DIR)/aws-sdk-cpp/build/aws-cpp-sdk-core/ \
+	    -L$(THIRD_PARTY_DIR)/aws-sdk-cpp/build/aws-cpp-sdk-s3 \
+	    -L/home/ec2-user/kerberos/krb5-1.15.2/src/lib \
+	    -L/home/ec2-user/keyutils/keyutils-1.5.10
 
-LIBFLAGS =-static-libgcc  -static \
-	  -Wl,--whole-archive -lpthread -Wl,--no-whole-archive \
-	  -L$(THIRD_PARTY_DIR)/kerberos/src/lib \
-	  -L$(THIRD_PARTY_DIR)/keyutils/ \
-	  -L$(THIRD_PARTY_DIR)/gflags/lib/ \
-	  -L$(THIRD_PARTY_DIR)/curl/curl/lib/.libs/ \
-	  -L$(THIRD_PARTY_DIR)/aws-sdk-cpp/build/aws-cpp-sdk-core/ \
-	  -L$(THIRD_PARTY_DIR)/aws-sdk-cpp/build/aws-cpp-sdk-s3 \
-	  -L/home/ec2-user/kerberos/krb5-1.15.2/src/lib \
-	  -L/home/ec2-user/keyutils/keyutils-1.5.10 \
-          -laws-cpp-sdk-s3 -laws-cpp-sdk-core \
-	  -lcurl -lssl -lcrypto -lz -ldl -lkrb5 -lk5crypto \
-          -lall -lkeyutils -lresolv -lgflags
+LIBS= -laws-cpp-sdk-s3 -laws-cpp-sdk-core \
+      -lcurl -lssl -lcrypto -lz -ldl -lkrb5 -lk5crypto \
+      -lall -lkeyutils -lresolv -lgflags
+
+LDFLAGS  =-static-libgcc  -static \
+	  -Wl,--whole-archive -lpthread -Wl,--no-whole-archive
+
+LDADD    = $(LINCLUDES) $(LIBS)
 
 INCLUDES=-I$(CIRRUS_SRC_DIR) \
 	 -I$(THIRD_PARTY_DIR)/aws-sdk-cpp/aws-cpp-sdk-s3/include/ \
@@ -44,7 +50,7 @@ INCLUDES=-I$(CIRRUS_SRC_DIR) \
 
 bin_PROGRAMS = test_iterator
 
-test_iterator_SOURCES  = test_iterator.cpp $(CPP_SOURCES)
+test_iterator_SOURCES  = test_iterator.cpp $(CIRRUS_SRC_FILES)
 
 clean:
 	rm -rf a.out test_iterator

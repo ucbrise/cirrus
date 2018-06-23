@@ -6,6 +6,9 @@
 #include "Checksum.h"
 #include <signal.h>
 #include "OptimizationMethod.h"
+#include "AdaGrad.h"
+#include "Momentum.h"
+#include "SGD.h"
 
 #undef DEBUG
 

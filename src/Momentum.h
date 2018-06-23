@@ -9,7 +9,8 @@ class Momentum : public OptimizationMethod {
  public:
    Momentum(double lr, double mb);
    void sgd_update(
-       std::unique_ptr<SparseLRModel>& lr_model, const ModelGradient* gradient);
+       std::unique_ptr<SparseLRModel>& lr_model, 
+       const ModelGradient* gradient);
 
  private:
    double momentum_beta;

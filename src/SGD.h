@@ -10,7 +10,8 @@ class SGD : public OptimizationMethod {
     SGD(double lr);
 
     void sgd_update(
-        std::unique_ptr<SparseLRModel>& lr_model, const ModelGradient* gradient);
+        std::unique_ptr<SparseLRModel>& lr_model, 
+        const ModelGradient* gradient);
 };
 
 }  // namespace cirrus

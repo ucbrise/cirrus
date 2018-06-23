@@ -6,7 +6,8 @@ Momentum::Momentum(double lr, double mb)
   : OptimizationMethod(lr), momentum_beta(mb){}
 
 void Momentum::sgd_update(
-    std::unique_ptr<SparseLRModel>& lr_model, const ModelGradient* gradient) {
+    std::unique_ptr<SparseLRModel>& lr_model, 
+    const ModelGradient* gradient) {
   const LRSparseGradient* grad =
     dynamic_cast<const LRSparseGradient*>(gradient);
 

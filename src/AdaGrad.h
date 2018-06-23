@@ -9,7 +9,8 @@ class AdaGrad: public OptimizationMethod {
  public:
    AdaGrad(double lr, double ae);
    void sgd_update(
-          std::unique_ptr<SparseLRModel>& lr_model, const ModelGradient* gradient);
+          std::unique_ptr<SparseLRModel>& lr_model, 
+          const ModelGradient* gradient);
  
  private:
     double adagrad_epsilon;

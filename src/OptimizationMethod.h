@@ -20,6 +20,7 @@ namespace cirrus {
       OptimizationMethod(double lr);
       virtual void sgd_update(
           std::vector<FEATURE_TYPE>& weights, const ModelGradient* gradient, std::vector<FEATURE_TYPE>& weights_hist_) = 0;
+      virtual void edit_weight(double& weight) = 0;
     public:
       double learning_rate;
   };

@@ -24,4 +24,7 @@ namespace cirrus {
           (e + std::sqrt(weight_hist));
         }
       }
+    void AdaGrad::edit_weight(double& weight) {
+      return;
+    }
 }

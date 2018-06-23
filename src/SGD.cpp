@@ -16,4 +16,7 @@ namespace cirrus {
            weights[index] += learning_rate * value;
           }
     }
+        void SGD::edit_weight(double& weight) {
+          return;
+        }
 }

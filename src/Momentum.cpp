@@ -22,4 +22,7 @@ namespace cirrus {
           weights[index] +=  momentum_avg;
         }
    }
+        void Momentum::edit_weight(double& weight) {
+          return;
+        }
 }

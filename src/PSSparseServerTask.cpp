@@ -118,9 +118,9 @@ bool PSSparseServerTask::process_send_lr_gradient(const Request& req, std::vecto
   OptimizationMethod* opt_method = task_config.get_opt_method();
   std::vector<FEATURE_TYPE> weights = lr_model->get_weights();
   std::vector<FEATURE_TYPE> weight_hist = lr_model->get_weight_history();
-  std::vector<FEATURE_TYPE> updated_weights = opt_method->sgd_update(
+  opt_method->sgd_update(
       weights, &gradient, weight_hist);
-  lr_model->update_weights(updated_weights);
+  lr_model->update_weights(weights);
   lr_model->update_weight_history(weight_hist);
   model_lock.unlock();
   gradientUpdatesCount++;

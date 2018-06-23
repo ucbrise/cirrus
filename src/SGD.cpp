@@ -1,7 +1,7 @@
 #include "SGD.h"
 
 namespace cirrus {
-	SGD::SGD(double lr) : learning_rate(lr) {}
+	SGD::SGD(double lr) : OptimizationMethod(lr) {}
 	std::vector<FEATURE_TYPE> SGD::sgd_update(
           std::vector<FEATURE_TYPE> weights, const ModelGradient* gradient) {
        const LRSparseGradient* grad =

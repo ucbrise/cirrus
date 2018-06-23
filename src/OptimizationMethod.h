@@ -6,7 +6,6 @@
 #include <Model.h>
 #include <SparseDataset.h>
 #include <ModelGradient.h>
-#include <Configuration.h>
 #include <unordered_map>
 #include <Utils.h>
 #include <MlUtils.h>

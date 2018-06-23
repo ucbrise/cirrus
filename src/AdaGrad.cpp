@@ -1,9 +1,9 @@
 #include "AdaGrad.h"
 
 namespace cirrus {
-      AdaGrad(double lr, double ae):
+  AdaGrad::AdaGrad(double lr, double ae):
        OptimizationMethod(lr), adagrad_epsilon(ae) {}
-      std::vector<FEATURE_TYPE> sgd_update(
+      std::vector<FEATURE_TYPE> AdaGrad::sgd_update(
           std::vector<FEATURE_TYPE> weights, const ModelGradient* gradient) {
         int64_t size = static_cast<int64_t>(weights_hist_.size());
         if (size == 0) {

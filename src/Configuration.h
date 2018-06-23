@@ -139,8 +139,7 @@ class Configuration {
     int get_users() const;
     int get_items() const;
 
-    std::string get_opt_method_string() const;
-    OptimizationMethod* get_opt_method() const;
+    std::string get_opt_method() const;
     void resize(uint64_t d) const;
     uint64_t get_netflix_workers() const;
 
@@ -194,8 +193,7 @@ class Configuration {
     bool use_grad_threshold = false;
     double grad_threshold = 0;
 
-    std::string opt_method_string = "adagrad";
-    OptimizationMethod* opt_method;
+    std::string opt_method = "adagrad";
 
     uint64_t model_bits = 20;
 

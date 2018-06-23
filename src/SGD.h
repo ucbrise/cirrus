@@ -4,13 +4,16 @@
 #include "OptimizationMethod.h"
 
 namespace cirrus {
-  class SGD : public OptimizationMethod {
-    public:
-      SGD(double lr);
-      void sgd_update(
-         std::vector<FEATURE_TYPE>& weights, const ModelGradient* gradient, std::vector<FEATURE_TYPE>& weights_hist_);
-      void edit_weight(double& weight);
-  };
-}
 
-#endif
+class SGD : public OptimizationMethod {
+  public:
+    SGD(double lr);
+
+    void sgd_update(
+        std::vector<FEATURE_TYPE>& weights, const ModelGradient* gradient,
+        std::vector<FEATURE_TYPE>& weights_hist_);
+};
+
+}  // namespace cirrus
+
+#endif  // _SGD_H_

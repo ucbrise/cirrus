@@ -171,6 +171,13 @@ class SparseLRModel : public CirrusModel {
       return weights_[n] + (nesterov_beta * momentum_avg);
     }
 
+    void update_weights(std::vector<FEATURE_TYPE> weights) {
+      weights_ = weights;
+    }
+
+    std::vector<FEATURE_TYPE> get_weights() {
+      return weights_;
+    }
 
  private:
     void ensure_preallocated_vectors(const Configuration&) const;

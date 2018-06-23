@@ -56,7 +56,7 @@ void Configuration::print() const {
     std::cout << "use_bias: " << use_bias << std::endl;
     std::cout << "momentum_beta: " << momentum_beta << std::endl;
     std::cout << "use_grad_threshold: " << use_grad_threshold << std::endl;
-    std::cout << "opt_method: " << opt_method << std::endl;
+    std::cout << "opt_method: " << opt_method_string << std::endl;
     std::cout << "grad_threshold: " << grad_threshold << std::endl;
     std::cout << "model_bits: " << model_bits << std::endl;
     std::cout << "netflix_workers: " << netflix_workers << std::endl;
@@ -88,8 +88,8 @@ void Configuration::check() const {
   if (model_bits == 0) {
     throw std::runtime_error("Model bits can't be 0");
   }
-  if (opt_method != "adagrad" && opt_method != "nesterov"
-          && opt_method != "momentum" && opt_method != "sgd") {
+  if (opt_method_string != "adagrad" && opt_method_string != "nesterov"
+          && opt_method_string != "momentum" && opt_method_string != "sgd") {
       throw std::runtime_error(
               "Choose a valid update rule: adagrad, nesterov, momentum, or sgd");
   }
@@ -132,7 +132,18 @@ void Configuration::parse_line(const std::string& line) {
     } else if (s == "n_workers:") {
         iss >> n_workers;
     } else if (s == "opt_method:") {
-        iss >> opt_method; 
+        iss >> opt_method_string;
+        OptimizationMethod* method;
+        if (opt_method_string == "sgd") {
+          method = new SGD(learning_rate);
+        } else if (opt_method_string == "nesterov") {
+          method = new Momentum(learning_rate, momentum_beta);
+        } else if (opt_method_string == "momentum") {
+          method = new Momentum(learning_rate, momentum_beta);
+        } else {
+          method = new AdaGrad(learning_rate, epsilon);
+        }
+        opt_method = method;
     }  else if (s == "epsilon:") {
         iss >> epsilon;
     } else if (s == "input_type:") {
@@ -377,7 +388,7 @@ std::string Configuration::get_checkpoint_s3_bucket() const {
   return checkpoint_s3_bucket;
 }
 
-std::string Configuration::get_opt_method() const {
+OptimizationMethod* Configuration::get_opt_method() const {
   return opt_method;
 }
 
@@ -387,6 +398,10 @@ double Configuration::get_momentum_beta() const {
 
 std::string Configuration::get_checkpoint_s3_keyname() const {
   return checkpoint_s3_keyname;
+}
+
+std::string Configuration::get_opt_method_string() const {
+  return opt_method_string;
 }
 
 }  // namespace cirrus

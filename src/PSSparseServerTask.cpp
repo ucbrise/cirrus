@@ -5,6 +5,7 @@
 #include "Constants.h"
 #include "Checksum.h"
 #include <signal.h>
+#include "OptimizationMethod.h"
 
 #undef DEBUG
 
@@ -111,17 +112,11 @@ bool PSSparseServerTask::process_send_lr_gradient(const Request& req, std::vecto
   gradient.loadSerialized(thread_buffer.data());
 
   model_lock.lock();
-  std::string opt_method = task_config.get_opt_method();
-  if (opt_method == "nesterov" || opt_method == "momentum") {
-    lr_model->sgd_update_momentum(
-        task_config.get_learning_rate(), task_config.get_momentum_beta(), &gradient);
-  } else if (opt_method == "sgd") {
-    lr_model->sgd_update(
-        task_config.get_learning_rate(), &gradient);  
-  } else if (opt_method == "adagrad") {
-    lr_model->sgd_update_adagrad(
-        task_config.get_learning_rate(), &gradient);
-  } else assert(0);
+  OptimizationMethod* opt_method = task_config.get_opt_method();
+  std::vector<FEATURE_TYPE> weights = lr_model->get_weights();
+  std::vector<FEATURE_TYPE> updated_weights = opt_method->sgd_update(
+      weights, task_config.get_learning_rate(), task_config.get_momentum_beta(), &gradient);
+  lr_model->update_weights(updated_weights);
   model_lock.unlock();
   gradientUpdatesCount++;
   return true;
@@ -205,8 +200,8 @@ bool PSSparseServerTask::process_get_lr_sparse_model(
 #endif
   for (uint32_t i = 0; i < num_entries; ++i) {
     uint32_t entry_index = load_value<uint32_t>(data);
-    std::string method = task_config.get_opt_method();
-    if (method == "nesterov") {
+    std::string opt_method = task_config.get_opt_method_string();
+    if (opt_method == "nesterov") {
         store_value<FEATURE_TYPE>(
             data_to_send_ptr,
             lr_model->get_nth_weight_nesterov(entry_index, task_config.get_momentum_beta()));

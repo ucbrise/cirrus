@@ -2,6 +2,7 @@
 #define _CONFIGURATION_H_
 
 #include <string>
+#include "OptimizationMethod.h"
 
 namespace cirrus {
 
@@ -134,7 +135,8 @@ class Configuration {
     int get_users() const;
     int get_items() const;
 
-    std::string get_opt_method() const;
+    std::string get_opt_method_string() const;
+    OptimizationMethod* get_opt_method() const;
     uint64_t get_netflix_workers() const;
 
     double get_momentum_beta() const;
@@ -187,7 +189,8 @@ class Configuration {
     bool use_grad_threshold = false;
     double grad_threshold = 0;
 
-    std::string opt_method = "adagrad";
+    std::string opt_method_string = "adagrad";
+    OptimizationMethod* opt_method;
 
     uint64_t model_bits = 20;
 

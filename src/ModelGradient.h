@@ -89,6 +89,9 @@ class LRGradient : public ModelGradient {
 
 class LRSparseGradient : public ModelGradient {
  public:
+    friend class AdaGrad;
+    friend class Momentum;
+    friend class SGD;
     friend class LRModel;
     friend class SparseLRModel;
 

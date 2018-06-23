@@ -24,7 +24,6 @@ class S3IteratorText : public S3Iterator {
         const Configuration& c,
         uint64_t file_size,
         uint64_t minibatch_rows, // number of samples in a minibatch
-        bool use_label,          // whether each sample has a label
         int worker_id,           // id of this worker
         bool random_access);     // whether to access samples in a rand. fashion
 
@@ -55,12 +54,12 @@ class S3IteratorText : public S3Iterator {
 
   std::pair<uint64_t, uint64_t> get_file_range(uint64_t);
 
+  /**
+    * Attributes
+    */
   uint64_t file_size = 0;
 
   std::shared_ptr<Aws::S3::S3Client> s3_client;
-
-  uint64_t cur;
-  std::list<std::shared_ptr<FEATURE_TYPE>> ring;
 
   uint64_t read_ahead = 1;
 
@@ -81,12 +80,11 @@ class S3IteratorText : public S3Iterator {
   // how many minibatches ready to be processed
   std::atomic<int> num_minibatches_ready{0};
   
-  bool use_label; // whether the dataset has labels or not
   int worker_id = 0;
   
   std::default_random_engine re;
   bool random_access = true;
-  uint64_t current = 0;
+  uint64_t cur_index = 0;
 };
 
 }

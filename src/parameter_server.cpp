@@ -27,13 +27,7 @@ void run_tasks(int rank, int nworkers,
   int features_per_sample = config.get_num_features();
   int samples_per_batch = config.get_minibatch_size();
 
-  if (rank == PERFORMANCE_LAMBDA_RANK) {
-    cirrus::PerformanceLambdaTask lt(features_per_sample,
-        batch_size, samples_per_batch, features_per_sample,
-        nworkers, rank, ps_ip, ps_port);
-    lt.run(config);
-    cirrus::sleep_forever();
-  } else if (rank == PS_SPARSE_SERVER_TASK_RANK) {
+  if (rank == PS_SPARSE_SERVER_TASK_RANK) {
     cirrus::PSSparseServerTask st((1 << config.get_model_bits()) + 1,
         batch_size, samples_per_batch, features_per_sample,
         nworkers, rank, ps_ip, ps_port);

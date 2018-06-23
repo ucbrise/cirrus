@@ -22,7 +22,6 @@ S3IteratorText::S3IteratorText(
         const Configuration& c,
         uint64_t file_size,
         uint64_t minibatch_rows,
-        bool use_label,
         int worker_id,
         bool random_access) :
   S3Iterator(c),
@@ -30,14 +29,13 @@ S3IteratorText::S3IteratorText(
   s3_rows(s3_rows),
   minibatch_rows(minibatch_rows),
   minibatches_list(100000),
-  use_label(use_label),
   worker_id(worker_id),
   re(worker_id),
-  random_access(random_access)
+  random_access(random_access),
+  cur_index(0)
 {
       
   std::cout << "S3IteratorText::Creating S3IteratorText"
-    << " use_label: " << use_label
     << std::endl;
 
   // initialize s3
@@ -245,17 +243,21 @@ S3IteratorText::get_file_range(uint64_t file_size) {
   // given the size of the file we return a random file index
   if (file_size < FETCH_SIZE) {
     // file is small so we get the whole file
+    // XXX we should cache file in these cases
     return std::make_pair(0, file_size);
   }
 
-  // we sample the left side of the range
-  std::uniform_int_distribution<int> sampler(0, file_size - 1);
-  uint64_t left_index = sampler(re);
-  if (file_size - left_index < FETCH_SIZE) {
-    // make sure we get a range with size FETCH_SIZE
-    left_index = file_size - FETCH_SIZE;
+  if (random_access) {
+    // we sample the left side of the range
+    std::uniform_int_distribution<int> sampler(0, file_size - 1);
+    uint64_t left_index = sampler(re);
+    if (file_size - left_index < FETCH_SIZE) {
+      // make sure we get a range with size FETCH_SIZE
+      left_index = file_size - FETCH_SIZE;
+    }
+    return std::make_pair(left_index, left_index + FETCH_SIZE);
+  } else {
   }
-  return std::make_pair(left_index, left_index + FETCH_SIZE);
 }
 
 void S3IteratorText::report_bandwidth(uint64_t elapsed, uint64_t size) {

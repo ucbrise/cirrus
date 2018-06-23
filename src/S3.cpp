@@ -1,8 +1,10 @@
-#include "S3.h"
+#include <S3.h>
 
 //#define DEBUG
 
 using namespace Aws::S3;
+
+namespace cirrus {
 
 Aws::SDKOptions options;
 
@@ -10,7 +12,10 @@ void s3_initialize_aws() {
   Aws::InitAPI(options);
 }
 
-Aws::S3::S3Client s3_create_client() {
+Aws::S3::S3Client s3_create_client(
+    uint64_t max_connections,
+    uint64_t connect_timeout_ms,
+    uint64_t request_timeout_ms) {
   Aws::Client::ClientConfiguration clientConfig;
   clientConfig.region = Aws::Region::US_WEST_2;
   clientConfig.maxConnections = 2;
@@ -71,12 +76,14 @@ void s3_put_object(const std::string& key_name, Aws::S3::S3Client& s3_client,
 }
 
 void s3_put_object(uint64_t id, Aws::S3::S3Client& s3_client,
-                const std::string& bucket_name, const std::string& object) {
-  std::string key_name = "CIRRUS" + std::to_string(id);
+    const std::string& bucket_name, const std::string& object) {
+  std::string key_name = std::to_string(id);
   s3_put_object(key_name, s3_client, bucket_name, object);
 }
 
-std::string s3_get_object_value(const std::string& key_name, Aws::S3::S3Client& s3_client,
+
+std::string s3_get_object_value(
+    const std::string& key_name, Aws::S3::S3Client& s3_client,
     const std::string& bucket_name) {
   auto ret = s3_get_object_ptr(key_name, s3_client, bucket_name);
   std::string value = ret->str();
@@ -86,23 +93,49 @@ std::string s3_get_object_value(const std::string& key_name, Aws::S3::S3Client& 
 
 std::string s3_get_object_value(uint64_t id, Aws::S3::S3Client& s3_client,
     const std::string& bucket_name) {
-  std::string key_name = "cirrus" + std::to_string(id);
+  std::string key_name = std::to_string(id);
   auto ret = s3_get_object_ptr(key_name, s3_client, bucket_name);
   std::string value = ret->str();
   delete ret;
   return std::move(value);
 }
 
-std::ostringstream* s3_get_object_ptr(uint64_t id, Aws::S3::S3Client& s3_client,
-                const std::string& bucket_name) {
-  std::string key_name = "CIRRUS" + std::to_string(id);
+std::ostringstream* s3_get_object_ptr(
+    uint64_t id, Aws::S3::S3Client& s3_client,
+    const std::string& bucket_name) {
+  std::string key_name = std::to_string(id);
   return s3_get_object_ptr(key_name, s3_client, bucket_name);
 }
 
-std::ostringstream* s3_get_object_ptr(const std::string& key_name, Aws::S3::S3Client& s3_client,
-                const std::string& bucket_name) {
+std::ostringstream* s3_get_object_ptr(
+    const std::string& key_name, Aws::S3::S3Client& s3_client,
+    const std::string& bucket_name) {
   Aws::S3::Model::GetObjectRequest object_request;
   object_request.WithBucket(bucket_name.c_str()).WithKey(key_name.c_str());
+
+  auto get_object_outcome = s3_client.GetObject(object_request);
+
+  if (get_object_outcome.IsSuccess()) {
+    std::ostringstream* ss = new std::ostringstream;
+    *ss << get_object_outcome.GetResult().GetBody().rdbuf();
+    return ss;
+  } else {
+    std::cout << "GetObject error: " <<
+       get_object_outcome.GetError().GetExceptionName() << " " <<
+       get_object_outcome.GetError().GetMessage() << std::endl;
+    throw std::runtime_error("Error");
+  }
+}
+
+std::ostringstream* s3_get_object_range_ptr(
+    const std::string& key_name, Aws::S3::S3Client& s3_client,
+    const std::string& bucket_name, std::pair<uint64_t, uint64_t> range) {
+  Aws::S3::Model::GetObjectRequest object_request;
+
+  std::string range_str =
+    "bytes=" + std::to_string(range.first) + "-" + std::to_string(range.second);
+  object_request.WithBucket(bucket_name.c_str()).WithKey(key_name.c_str()).
+    WithRange(range_str.c_str());
 
   auto get_object_outcome = s3_client.GetObject(object_request);
 
@@ -122,3 +155,4 @@ void s3_shutdown_aws() {
   Aws::ShutdownAPI(options);
 }
 
+}  // namespace cirrus

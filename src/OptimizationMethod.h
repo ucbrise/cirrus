@@ -17,10 +17,9 @@
 namespace cirrus {
   class OptimizationMethod {
     public:
-      OptimizationMethod(double lr)
-        :learning_rate(lr) {}
+      OptimizationMethod(double lr);
       virtual std::vector<FEATURE_TYPE> sgd_update(
-          std::vector<FEATURE_TYPE> weights, const ModelGradient* gradient) = 0;
+          std::vector<FEATURE_TYPE> weights, const ModelGradient* gradient, std::vector<FEATURE_TYPE>& weights_hist_) = 0;
     public:
       double learning_rate;
   };

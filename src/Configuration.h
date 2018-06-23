@@ -140,6 +140,7 @@ class Configuration {
 
     std::string get_opt_method_string() const;
     OptimizationMethod* get_opt_method() const;
+    void resize(uint64_t d) const;
     uint64_t get_netflix_workers() const;
 
     double get_momentum_beta() const;

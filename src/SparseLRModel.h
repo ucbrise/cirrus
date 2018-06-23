@@ -179,6 +179,14 @@ class SparseLRModel : public CirrusModel {
       return weights_;
     }
 
+    std::vector<FEATURE_TYPE> get_weight_history() {
+      return weights_hist_;
+    }
+
+    void update_weight_history(std::vector<FEATURE_TYPE> weight_hist) {
+      weights_hist_ = weight_hist;
+    }
+
  private:
     void ensure_preallocated_vectors(const Configuration&) const;
     /**

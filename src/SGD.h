@@ -8,7 +8,7 @@ namespace cirrus {
     public:
       SGD(double lr);
       std::vector<FEATURE_TYPE> sgd_update(
-         std::vector<FEATURE_TYPE> weights, const ModelGradient* gradient);
+         std::vector<FEATURE_TYPE> weights, const ModelGradient* gradient, std::vector<FEATURE_TYPE>& weights_hist_);
   };
 }
 

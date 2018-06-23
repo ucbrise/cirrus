@@ -6,9 +6,7 @@ AdaGrad::AdaGrad(double lr, double ae):
   OptimizationMethod(lr), adagrad_epsilon(ae) {}
 
 void AdaGrad::sgd_update(
-    std::vector<FEATURE_TYPE>& weights, const ModelGradient* gradient,
-    std::vector<FEATURE_TYPE>& weights_hist_) {
-  int64_t size = static_cast<int64_t>(weights_hist_.size());
+    std::unique_ptr<SparseLRModel>& lr_model, const ModelGradient* gradient) {
   const LRSparseGradient* grad =
     dynamic_cast<const LRSparseGradient*>(gradient);
 
@@ -20,9 +18,9 @@ void AdaGrad::sgd_update(
     FEATURE_TYPE value = w.second;
 
     // update history
-    FEATURE_TYPE& weight_hist = weights_hist_[index];
+    FEATURE_TYPE& weight_hist = lr_model->weights_hist_[index];
     weight_hist += value * value;
-    weights[index] += learning_rate * value /
+    lr_model->weights_[index] += learning_rate * value /
       (adagrad_epsilon + std::sqrt(weight_hist));
   }
 }

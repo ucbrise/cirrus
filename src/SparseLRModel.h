@@ -17,6 +17,10 @@ namespace cirrus {
   */
 class SparseLRModel : public CirrusModel {
  public:
+    friend class AdaGrad;
+    friend class Momentum;
+    friend class Nesterov;
+    friend class SGD;
     /**
       * SparseLRModel constructor
       * @param d Features dimension
@@ -186,6 +190,9 @@ class SparseLRModel : public CirrusModel {
     void update_weight_history(std::vector<FEATURE_TYPE> weight_hist) {
       weights_hist_ = weight_hist;
     }
+ protected:
+    std::vector<FEATURE_TYPE> weights_;
+    std::vector<FEATURE_TYPE> weights_hist_;
 
  private:
     void ensure_preallocated_vectors(const Configuration&) const;
@@ -196,8 +203,6 @@ class SparseLRModel : public CirrusModel {
 
     bool is_sparse_ = false;
 
-    std::vector<FEATURE_TYPE> weights_;  //< vector of the model weights
-    std::vector<FEATURE_TYPE> weights_hist_;  //< vector of the model weights
     //mutable std::unordered_map<uint32_t, FEATURE_TYPE> weights_sparse_;
     mutable std::vector<FEATURE_TYPE> weights_sparse_;
 

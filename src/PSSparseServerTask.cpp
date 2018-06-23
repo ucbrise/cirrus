@@ -9,6 +9,7 @@
 #include "AdaGrad.h"
 #include "Momentum.h"
 #include "SGD.h"
+#include "Nesterov.h"
 
 #undef DEBUG
 
@@ -116,12 +117,8 @@ bool PSSparseServerTask::process_send_lr_gradient(const Request& req, std::vecto
   gradient.loadSerialized(thread_buffer.data());
 
   model_lock.lock();
-  std::vector<FEATURE_TYPE> weights = lr_model->get_weights();
-  std::vector<FEATURE_TYPE> weight_hist = lr_model->get_weight_history();
   opt_method->sgd_update(
-      weights, &gradient, weight_hist);
-  lr_model->update_weights(weights);
-  lr_model->update_weight_history(weight_hist);
+      lr_model, &gradient);
   model_lock.unlock();
   gradientUpdatesCount++;
   return true;

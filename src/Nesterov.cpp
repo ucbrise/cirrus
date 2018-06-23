@@ -6,8 +6,7 @@ Nesterov::Nesterov(double lr, double mb)
   : OptimizationMethod(lr), momentum_beta(mb) {}
 
 void Nesterov::sgd_update(
-    std::vector<FEATURE_TYPE>& weights, const ModelGradient* gradient,
-    std::vector<FEATURE_TYPE>& weights_hist_) {
+    std::unique_ptr<SparseLRModel>& lr_model, const ModelGradient* gradient) {
   const LRSparseGradient* grad =
     dynamic_cast<const LRSparseGradient*>(gradient);
 
@@ -24,7 +23,7 @@ void Nesterov::sgd_update(
       momentum_avg = momentum_beta * momentum_avg + (1.0 - momentum_beta)
         * learning_rate * value;
     }
-    weights[index] +=  momentum_avg;
+    lr_model->weights_[index] +=  momentum_avg;
   }
 }
 

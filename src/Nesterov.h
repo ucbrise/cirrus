@@ -10,8 +10,7 @@ class Nesterov : public OptimizationMethod {
    Nesterov(double lr, double mb);
 
    void sgd_update(
-       std::vector<FEATURE_TYPE>& weights, const ModelGradient* gradient,
-       std::vector<FEATURE_TYPE>& weights_hist_);
+       std::unique_ptr<SparseLRModel>& lr_model, const ModelGradient* gradient);
    void edit_weight(double& weight);
 
  private:

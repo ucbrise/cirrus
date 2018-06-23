@@ -6,8 +6,7 @@ SGD::SGD(double lr)
   : OptimizationMethod(lr) {}
 
 void SGD::sgd_update(
-    std::vector<FEATURE_TYPE>& weights, const ModelGradient* gradient,
-    std::vector<FEATURE_TYPE>& weights_history_) {
+    std::unique_ptr<SparseLRModel>& lr_model, const ModelGradient* gradient) {
   const LRSparseGradient* grad =
     dynamic_cast<const LRSparseGradient*>(gradient);
   if (grad == nullptr) {
@@ -17,7 +16,7 @@ void SGD::sgd_update(
   for (const auto& w : grad->weights) {
     int index = w.first;
     FEATURE_TYPE value = w.second;
-    weights[index] += learning_rate * value;
+    lr_model->weights_[index] += learning_rate * value;
   }
 }
 

@@ -9,8 +9,7 @@ class Momentum : public OptimizationMethod {
  public:
    Momentum(double lr, double mb);
    void sgd_update(
-       std::vector<FEATURE_TYPE>& weights, const ModelGradient* gradient,
-       std::vector<FEATURE_TYPE>& weights_hist_);
+       std::unique_ptr<SparseLRModel>& lr_model, const ModelGradient* gradient);
 
  private:
    double momentum_beta;

@@ -9,6 +9,7 @@
 #include "SparseLRModel.h"
 #include "PSSparseServerInterface.h"
 #include "S3SparseIterator.h"
+#include "OptimizationMethod.h"
 
 #include <string>
 #include <vector>

@@ -4,15 +4,9 @@
 #include <vector>
 #include <utility>
 #include <Model.h>
-#include <SparseDataset.h>
 #include <ModelGradient.h>
-#include <unordered_map>
 #include <Utils.h>
 #include <MlUtils.h>
-#include <Eigen/Dense>
-#include <Checksum.h>
-#include <algorithm>
-#include <map>
 
 namespace cirrus {
   class OptimizationMethod {

@@ -22,7 +22,7 @@ class S3IteratorText : public S3Iterator {
  public:
     S3IteratorText(
         const Configuration& c,
-        uint64_t file_size,
+        uint64_t file_size, // FIXME we should
         uint64_t minibatch_rows, // number of samples in a minibatch
         int worker_id,           // id of this worker
         bool random_access);     // whether to access samples in a rand. fashion
@@ -39,7 +39,7 @@ class S3IteratorText : public S3Iterator {
     T read_num(uint64_t& index, std::string& data);
 
   std::vector<std::shared_ptr<SparseDataset>>
-    parse_s3_obj_libsvm(std::string& s3_data);
+    parse_obj_libsvm(std::string& data);
 
   bool build_dataset_libsvm(
     std::string& data, uint64_t index,
@@ -53,6 +53,8 @@ class S3IteratorText : public S3Iterator {
       std::shared_ptr<SparseDataset>& minibatch);
 
   std::pair<uint64_t, uint64_t> get_file_range(uint64_t);
+
+  void read_until_newline(uint64_t* index, const std::string& data);
 
   /**
     * Attributes

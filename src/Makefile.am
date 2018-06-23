@@ -45,13 +45,6 @@ CPP_SOURCES = InputReader.cpp Utils.cpp \
 	      S3.cpp SparseDataset.cpp \
 	      PSSparseServerTask.cpp PSSparseServerInterface.cpp
 
-CPP_SOURCES_SOFTMAX = InputReader.cpp Utils.cpp \
-              Dataset.cpp Matrix.cpp Model.cpp LRModel.cpp \
-              ModelGradient.cpp MlUtils.cpp Configuration.cpp \
-              Checksum.cpp SoftmaxModel.cpp \
-              Serializers.cpp  \
-              SparseDataset.cpp MurmurHash3.cpp
-
 parameter_server_SOURCES  = parameter_server.cpp $(CPP_SOURCES)
 
 ps_test_SOURCES = PSSparseServerTaskTest.cpp $(CPP_SOURCES)

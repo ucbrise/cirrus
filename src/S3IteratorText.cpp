@@ -20,6 +20,8 @@ namespace cirrus {
   
 S3IteratorText::S3IteratorText(
         const Configuration& c,
+        // FIXME we should pass the filename and bucket instead
+        // FIXME we should figure out file_size from that
         uint64_t file_size,
         uint64_t minibatch_rows,
         int worker_id,
@@ -136,12 +138,13 @@ bool S3IteratorText::build_dataset_vowpal_wabbit(
 
 /**
   * Build minibatch from text in libsvm format
+  * We assume index is at a start of a line
   */
 bool S3IteratorText::build_dataset_libsvm(
     std::string& data, uint64_t index,
     std::shared_ptr<SparseDataset>& minibatch) {
-  // format
-  //<label> <index1>:<value1> <index2>:<value2>
+  // libsvm format
+  // <label> <index1>:<value1> <index2>:<value2>
 
   try {
     std::vector<std::vector<std::pair<int, FEATURE_TYPE>>> samples;
@@ -153,6 +156,7 @@ bool S3IteratorText::build_dataset_libsvm(
     for (uint64_t sample = 0; sample < minibatch_rows; ++sample) {
       // ignore spaces
       if (!ignore_spaces(index, data)) {
+        // did not end up in a digit
         return false;
       }
       int label = read_num<int>(index, data);
@@ -161,7 +165,8 @@ bool S3IteratorText::build_dataset_libsvm(
       while (1) {
         if (!ignore_spaces(index, data)) {
           if (data[index] == '\n') break; // move to next sample
-          else return false; // end of text
+          else if (data[index] == 0) return false; // end of text
+          else throw std::runtime_error("Error parsing");
         }
         uint64_t ind = read_num<uint64_t>(index, data);
         if (data[index] != ':') {
@@ -183,29 +188,33 @@ bool S3IteratorText::build_dataset_libsvm(
   }
 }
 
+void S3IteratorText::read_until_newline(uint64_t* index, const std::string& data) {
+  while (1) {
+    if (*index >= data.size()) {
+      throw std::runtime_error("Error parsing");
+    }
+    if (data[*index] == '\n') {
+      (*index)++;
+      break;
+    }
+    (*index)++;
+  }
+}
+
 std::vector<std::shared_ptr<SparseDataset>>
-S3IteratorText::parse_s3_obj_libsvm(std::string& s3_data) {
+S3IteratorText::parse_obj_libsvm(std::string& data) {
   std::vector<std::shared_ptr<SparseDataset>> result;
   // find first sample
   uint64_t index = 0;
-  while (1) {
-    if (index >= s3_data.size()) {
-      return result;
-    }
-    if (s3_data[index] == '\n') {
-      index++;
-      break;
-    }
-    index++;
-  }
-  if (index == s3_data.size()) {
-    // bad luck last char was the first newline
-    throw std::runtime_error("Error");
+  read_until_newline(&index, data);
+
+  if (index >= data.size()) {
+    throw std::runtime_error("Error parsing data");
   }
 
   while (1) {
     std::shared_ptr<SparseDataset> minibatch;
-    if (!build_dataset_libsvm(s3_data, index, minibatch)) {
+    if (!build_dataset_libsvm(data, index, minibatch)) {
       // could not build full minibatch
       return result;
     }
@@ -218,9 +227,9 @@ void S3IteratorText::push_samples(std::ostringstream* oss) {
 
   // we parse this piece of text
   // this returns a collection of minibatches
-  auto s3_data = oss->str();
+  auto data = oss->str();
   std::vector<std::shared_ptr<SparseDataset>> dataset =
-    parse_s3_obj_libsvm(s3_data);
+    parse_obj_libsvm(data);
 
   ring_lock.lock();
   minibatches_list.add(dataset);
@@ -257,6 +266,15 @@ S3IteratorText::get_file_range(uint64_t file_size) {
     }
     return std::make_pair(left_index, left_index + FETCH_SIZE);
   } else {
+    if (cur_index >= file_size) {
+      // we reached the end
+      cur_index = 0;
+    }
+    // we return <cur, cur + FETCH_SIZE>
+    auto ret = std::make_pair(cur_index, std::min(cur_index + FETCH_SIZE, file_size));
+    cur_index += FETCH_SIZE;
+    cur_index = std::min(cur_index, file_size);
+    return ret;
   }
 }
 
@@ -284,8 +302,6 @@ void S3IteratorText::thread_function(const Configuration& config) {
     std::cout << "Waiting for pref_sem" << std::endl;
     pref_sem.wait();
 
-    // FIXME we should allow random and non-random
-    // random range of bytes to be fetched from dataset
     std::pair<uint64_t, uint64_t> range = get_file_range(file_size);
 
     std::ostringstream* s3_obj = nullptr;

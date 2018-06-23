@@ -137,7 +137,7 @@ void Configuration::parse_line(const std::string& line) {
         if (opt_method_string == "sgd") {
           method = new SGD(learning_rate);
         } else if (opt_method_string == "nesterov") {
-          method = new Momentum(learning_rate, momentum_beta);
+          method = new Nesterov(learning_rate, momentum_beta);
         } else if (opt_method_string == "momentum") {
           method = new Momentum(learning_rate, momentum_beta);
         } else {

@@ -205,16 +205,12 @@ bool PSSparseServerTask::process_get_lr_sparse_model(
 #endif
   for (uint32_t i = 0; i < num_entries; ++i) {
     uint32_t entry_index = load_value<uint32_t>(data);
-    std::string opt_method = task_config.get_opt_method_string();
-    if (opt_method == "nesterov") {
-        store_value<FEATURE_TYPE>(
-            data_to_send_ptr,
-            lr_model->get_nth_weight_nesterov(entry_index, task_config.get_momentum_beta()));
-    } else {
-        store_value<FEATURE_TYPE>(
-            data_to_send_ptr,
-            lr_model->get_nth_weight(entry_index));
-    }
+    OptimizationMethod* opt_method = task_config.get_opt_method();
+    double weight = lr_model->get_nth_weight(entry_index);
+    opt_method->edit_weight(weight);
+    store_value<FEATURE_TYPE>(
+        data_to_send_ptr,
+        weight);
   }
   if (send_all(req.sock, data_to_send, to_send_size) == -1) {
     return false;

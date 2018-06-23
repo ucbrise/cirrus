@@ -13,7 +13,7 @@ namespace cirrus {
 		private:
 			double momentum_beta;
 			double momentum_avg = 0.0;
-	}
+	};
 }
 
 #endif

@@ -5,6 +5,7 @@
 #include "AdaGrad.h"
 #include "Momentum.h"
 #include "SGD.h"
+#include "Nesterov.h"
 #include "OptimizationMethod.h"
 
 namespace cirrus {

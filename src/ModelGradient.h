@@ -92,6 +92,7 @@ class LRSparseGradient : public ModelGradient {
     friend class AdaGrad;
     friend class Momentum;
     friend class SGD;
+    friend class Nesterov;
     friend class LRModel;
     friend class SparseLRModel;
 

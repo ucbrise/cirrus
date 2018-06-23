@@ -12,7 +12,6 @@ namespace cirrus {
         if (grad == nullptr) {
           throw std::runtime_error("Error in dynamic cast");
         }
-        double e = 0.0001;
         for (const auto& w : grad->weights) {
            int index = w.first;
            FEATURE_TYPE value = w.second;
@@ -21,7 +20,7 @@ namespace cirrus {
           FEATURE_TYPE& weight_hist = weights_hist_[index];
           weight_hist += value * value;
           weights[index] += learning_rate * value /
-          (e + std::sqrt(weight_hist));
+          (adagrad_epsilon + std::sqrt(weight_hist));
         }
       }
     void AdaGrad::edit_weight(double& weight) {

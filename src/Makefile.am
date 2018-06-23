@@ -32,7 +32,7 @@ CPPFLAGS = -static -static-libgcc -static-libstdc++ \
 
 CPP_SOURCES = InputReader.cpp Utils.cpp \
               Dataset.cpp Matrix.cpp \
-	      OptimizationMethod.cpp AdaGrad.cpp Momentum.cpp SGD.cpp \
+	      OptimizationMethod.cpp AdaGrad.cpp Momentum.cpp SGD.cpp Nesterov.cpp\
 	      Model.cpp LRModel.cpp SoftmaxModel.cpp SparseLRModel.cpp \
 	      SparseMFModel.cpp MFModel.cpp\
               ModelGradient.cpp MlUtils.cpp Configuration.cpp \

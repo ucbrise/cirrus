@@ -46,7 +46,7 @@ install:
   - sudo ln -s -f /usr/bin/g++-6 /usr/local/bin/g++
   - mv src/Makefile.am src/Makefile_centos.am
   - mv src/Makefile_ubuntu.am src/Makefile.am
-  - .travis/check-git-clang-format.sh  
+  - .travis/check-git-clang-format-output.sh  
   - ./bootstrap.sh
   - gcc --version
   - g++ --version

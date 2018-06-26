@@ -13,6 +13,44 @@
 
 namespace cirrus {
 
+
+void ErrorSparseTask::time_error_thread() {
+
+  server_sock_ = socket(AF_INET, SOCK_DGRAM, 0);
+  if (server_sock_ < 0) {
+    throw std::string("Server error creating socket");
+  }
+
+  char buffer[1024];
+  char outbuffer[1024];
+  struct sockaddr_in serv_addr, cli_addr;
+
+  memset(&serv_addr, 0, sizeof(serv_addr));
+  memset(&cli_addr, 0, sizeof(cli_addr));
+
+  serv_addr.sin_family = AF_INET;
+  serv_addr.sin_addr.s_addr = INADDR_ANY;
+  serv_addr.sin_port = htons(1337);
+  std::memset(serv_addr.sin_zero, 0, sizeof(serv_addr.sin_zero));
+
+  int ret = bind(server_sock_, reinterpret_cast<sockaddr*> (&serv_addr), sizeof(serv_addr));
+  if (ret < 0) {
+    throw std::runtime_error("Error binding in port " + to_string(1337));
+  }
+
+  int n;
+  socklen_t len;
+  while(true) {
+    n =  recvfrom(server_sock_, (char *) buffer, 1024, MSG_WAITALL, (struct sockaddr *) &cli_addr, &len);
+    buffer[n] = '\0';
+    printf("Client : %s\n", buffer);
+    sprintf(outbuffer, "%f, %f", last_time, last_loss);
+    std::cout << "Replying with: " << outbuffer << std::endl;
+    sendto(server_sock_, outbuffer, strlen(outbuffer), MSG_CONFIRM, (const struct sockaddr *) &cli_addr, len);
+  }
+
+}
+
 std::unique_ptr<CirrusModel> get_model(const Configuration& config,
         const std::string& ps_ip, uint64_t ps_port) {
   static PSSparseServerInterface* psi;
@@ -78,6 +116,9 @@ void ErrorSparseTask::run(const Configuration& config) {
 
   std::cout << "[ERROR_TASK] Computing accuracies"
     << "\n";
+
+  auto resp_thread = std::make_unique<std::thread>(std::bind(&ErrorSparseTask::time_error_thread, this));
+
   while (1) {
     usleep(ERROR_INTERVAL_USEC);
 
@@ -112,6 +153,8 @@ void ErrorSparseTask::run(const Configuration& config) {
       }
 
       if (config.get_model_type() == Configuration::LOGISTICREGRESSION) {
+        last_loss = (total_loss / total_num_samples);
+        last_time = (get_time_us() - start_time) / 1000000.0;
         std::cout
           << "[ERROR_TASK] Loss (Total/Avg): " << total_loss
           << "/" << (total_loss / total_num_samples)
@@ -121,12 +164,14 @@ void ErrorSparseTask::run(const Configuration& config) {
           << (get_time_us() - start_time) / 1000000.0
           << std::endl;
       } else if (config.get_model_type() == Configuration::COLLABORATIVE_FILTERING) {
+        last_time = (get_time_us() - start_time) / 1000000.0;
+        last_loss = std::sqrt(total_loss / total_num_features);
         std::cout
           << "[ERROR_TASK] RMSE (Total): "
-          << std::sqrt(total_loss / total_num_features)
+          << last_loss
           << " time(us): " << get_time_us()
           << " time from start (sec): "
-          << (get_time_us() - start_time) / 1000000.0
+          << last_time
           << std::endl;
       }
     } catch(...) {

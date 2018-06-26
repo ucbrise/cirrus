@@ -150,10 +150,18 @@ class ErrorSparseTask : public MLTask {
       MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, worker_id, ps_ip, ps_port)
-  {}
+  {
+    this->last_loss = 0;
+    this->last_time = 0;
+
+  }
     void run(const Configuration& config);
+    void time_error_thread();
+    double last_time;
+    double last_loss;
 
   private:
+  int server_sock_;
 };
 
 class PerformanceLambdaTask : public MLTask {

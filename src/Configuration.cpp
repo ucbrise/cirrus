@@ -215,7 +215,7 @@ void Configuration::parse_line(const std::string& line) {
     } else if (s == "grad_threshold:") {
       iss >> grad_threshold;
     } else {
-        throw std::runtime_error("Unrecognized option: " + line);
+      std::cout << ("Unrecognized option: " + line) << std::endl;
     }
 
     if (iss.fail()) {

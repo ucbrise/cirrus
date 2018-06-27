@@ -14,4 +14,3 @@ void s3_shutdown_aws() {
   Aws::ShutdownAPI(options);
 }
 }
-

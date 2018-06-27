@@ -62,7 +62,7 @@ void S3Client::s3_put_object(const std::string& key_name,
 std::string S3Client::s3_get_object_value(uint64_t id,
                                           const std::string& bucket_name) {
   std::string key_name = "cirrus" + std::to_string(id);
-  return s3_get_object_value(key_name, bucket_name);                               
+  return s3_get_object_value(key_name, bucket_name);
 }
 
 std::string S3Client::s3_get_object_value(const std::string& key_name,

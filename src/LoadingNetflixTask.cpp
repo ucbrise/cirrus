@@ -30,7 +30,7 @@ void LoadingNetflixTask::check_loading(const Configuration& config,
                                        std::unique_ptr<S3Client>& s3_client) {
   std::cout << "[LOADER] Trying to get sample with id: " << 0 << std::endl;
 
-  std::string data = 
+  std::string data =
       s3_client->s3_get_object_value(SAMPLE_BASE, config.get_s3_bucket());
   
   SparseDataset dataset(data.data(), true, false);

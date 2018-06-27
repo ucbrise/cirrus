@@ -46,7 +46,7 @@ void LoadingSparseTaskS3::check_loading(const Configuration& config,
   std::cout << "[LOADER] Trying to get sample with id: " << 0 << std::endl;
 
   std::string obj_id = std::to_string(hash_f(std::to_string(SAMPLE_BASE).c_str())) + "-CRITEO";
-  std::string data = 
+  std::string data =
       s3_client->s3_get_object_value(obj_id, config.get_s3_bucket());
   
   SparseDataset dataset(data.data(), true);

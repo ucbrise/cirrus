@@ -11,7 +11,7 @@
 #include <aws/core/client/ClientConfiguration.h>
 #include <string>
 
-using namespace Aws::S3
+using namespace Aws::S3;
 
 namespace cirrus {
   class S3Client {

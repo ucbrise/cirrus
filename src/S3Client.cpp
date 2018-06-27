@@ -15,6 +15,12 @@ namespace cirrus {
   }
 
   void S3Client::s3_put_object(uint64_t id, const std::string& bucket_name, const std::string& object) {
+    std::string key_name = "CIRRUS" + std::to_string(id);
+    s3_put_object(key_name, bucket_name, object);
+  }
+
+  void S3Client::s3_put_object(const std::string& id,
+                         const std::string& bucket_name, const std::string& object) {
     Model::PutObjectRequest putObjectRequest;
   #ifdef DEBUG
     std::cout << "putObjectRequest building" << std::endl;
@@ -49,12 +55,6 @@ namespace cirrus {
             put_object_outcome.GetError().GetExceptionName() << " " <<
             put_object_outcome.GetError().GetMessage() << std::endl;
     }
-  }
-
-  void S3Client::s3_put_object(const std::string& id,
-                         const std::string& bucket_name, const std::string& object) {
-    std::string key_name = "CIRRUS" + std::to_string(id);
-    s3_put_object(key_name, bucket_name, object);                       
   }
 
   std::string S3Client::s3_get_object_value(uint64_t id,

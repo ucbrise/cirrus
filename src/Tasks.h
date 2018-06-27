@@ -209,20 +209,20 @@ class LoadingNetflixTask : public MLTask {
                      uint64_t worker_id,
                      const std::string& ps_ip,
                      uint64_t ps_port)
-    : MLTask(model_size,
-             batch_size,
-             samples_per_batch,
-             features_per_sample,
-             nworkers,
-             worker_id,
-             ps_ip,
-             ps_port) {}
+      : MLTask(model_size,
+               batch_size,
+               samples_per_batch,
+               features_per_sample,
+               nworkers,
+               worker_id,
+               ps_ip,
+               ps_port) {}
   void run(const Configuration& config);
   SparseDataset read_dataset(const Configuration& config, int&, int&);
   void check_loading(const Configuration&,
                      std::unique_ptr<S3Client>& s3_client);
 
-  private:
+ private:
 };
 
 class PSSparseServerTask : public MLTask {

@@ -17,17 +17,17 @@ namespace cirrus {
   class S3Client {
     public:
       S3Client();
-      void s3_put_object(uint64_t id, Aws::S3::S3Client& s3_client,
+      void s3_put_object(uint64_t id,
                          const std::string& bucket_name, const std::string& object);
-      std::string s3_get_object_value(uint64_t id, Aws::S3::S3Client& s3_client,
+      std::string s3_get_object_value(uint64_t id,
                                       const std::string& bucket_name);
-      std::ostringstream* s3_get_object_ptr(uint64_t id, Aws::S3::S3Client& s3_client,
+      std::ostringstream* s3_get_object_ptr(uint64_t id,
                                             const std::string& bucket_name);
-      void s3_put_object(const std::string& id, Aws::S3::S3Client& s3_client,
+      void s3_put_object(const std::string& id,
                          const std::string& bucket_name, const std::string& object);
-      std::string s3_get_object_value(const std::string& id, Aws::S3::S3Client& s3_client,
+      std::string s3_get_object_value(const std::string& id,
                                       const std::string& bucket_name);
-      std::ostringstream* s3_get_object_ptr(const std::string& id, Aws::S3::S3Client& s3_client,
+      std::ostringstream* s3_get_object_ptr(const std::string& id,
                                             const std::string& bucket_name);
     private:
       Aws::S3::S3Client* s3_client;	

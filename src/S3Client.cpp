@@ -11,7 +11,7 @@ namespace cirrus {
     clientConfig.connectTimeoutMs = 30000;
     clientConfig.requestTimeoutMs = 60000;
 
-    s3_client = Aws::S3::S3Client(clientConfig);
+    s3_client = new Aws::S3::S3Client(clientConfig);
   }
 
   void S3Client::s3_put_object(uint64_t id, const std::string& bucket_name, const std::string& object) {

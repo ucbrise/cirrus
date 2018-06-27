@@ -1,12 +1,13 @@
 
 #include "S3.h"
+#include "S3Client.h"
 #include <iostream>
 
 int main() {
   s3_initialize_aws();
-  auto client = s3_create_client();
-  s3_put_object(0, client, S3_BUCKET, "JOAO");
-  auto res = s3_get_object(0, client, S3_BUCKET);
+  auto client = new cirrus::S3Client();
+  client->s3_put_object(0, S3_BUCKET, "JOAO");
+  auto res = client->s3_get_object(0, S3_BUCKET);
 
   std::cout << "Received: " << res << std::endl;
 

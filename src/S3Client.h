@@ -27,10 +27,10 @@ namespace cirrus {
                          const std::string& bucket_name, const std::string& object);
       std::string s3_get_object_value(const std::string& key_name,
                                       const std::string& bucket_name);
-      std::ostringstream* s3_get_object_ptr(const std::string& key_name,
+      std::unique_ptr<std::ostringstream> s3_get_object_ptr(const std::string& key_name,
                                             const std::string& bucket_name);
     private:
-      Aws::S3::S3Client* s3_client;	
+      std::unique_ptr<Aws::S3::S3Client> s3_client;	
   };
 }
 

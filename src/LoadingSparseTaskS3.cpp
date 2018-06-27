@@ -3,6 +3,7 @@
 #include "Serializers.h"
 #include "InputReader.h"
 #include "S3.h"
+#include "S3Client.h"
 #include "Utils.h"
 #include "config.h"
 
@@ -42,11 +43,11 @@ void LoadingSparseTaskS3::check_label(FEATURE_TYPE label) {
   */
 void LoadingSparseTaskS3::check_loading(
     const Configuration& config,
-    Aws::S3::S3Client& s3_client) {
+    std::unique_ptr<S3Client>& s3_client) {
   std::cout << "[LOADER] Trying to get sample with id: " << 0 << std::endl;
 
   std::string obj_id = std::to_string(hash_f(std::to_string(SAMPLE_BASE).c_str())) + "-CRITEO";
-  std::string data = s3_get_object_value(obj_id, s3_client, config.get_s3_bucket());
+  std::string data = s3_client->s3_get_object_value(obj_id, config.get_s3_bucket());
   
   SparseDataset dataset(data.data(), true);
   dataset.check();
@@ -82,7 +83,7 @@ void LoadingSparseTaskS3::run(const Configuration& config) {
 
   uint64_t s3_obj_num_samples = config.get_s3_size();
   s3_initialize_aws();
-  auto s3_client = s3_create_client();
+  auto s3_client = new S3Client();
 
   SparseDataset dataset = read_dataset(config);
   dataset.check();
@@ -108,7 +109,7 @@ void LoadingSparseTaskS3::run(const Configuration& config) {
 
     std::cout << "Putting object in S3 with size: " << len << std::endl;
     std::string obj_id = std::to_string(hash_f(std::to_string(SAMPLE_BASE + i).c_str())) + "-CRITEO";
-    s3_put_object(obj_id, s3_client, config.get_s3_bucket(),
+    s3_client->s3_put_object(obj_id, config.get_s3_bucket(),
         std::string(s3_obj.get(), len));
   }
   check_loading(config, s3_client);

@@ -39,7 +39,7 @@ S3SparseIterator::S3SparseIterator(
 
   // initialize s3
   s3_initialize_aws();
-  s3_client.reset(s3_create_client_ptr());
+  s3_client.reset(new S3Client());
 
   for (uint64_t i = 0; i < read_ahead; ++i) {
     pref_sem.signal();
@@ -244,7 +244,7 @@ try_start:
     try {
       std::cout << "S3SparseIterator: getting object " << obj_id_str << std::endl;
       uint64_t start = get_time_us();
-      s3_obj = s3_get_object_ptr(obj_id_str, *s3_client, config.get_s3_bucket());
+      s3_obj = s3_client->s3_get_object_ptr(obj_id_str, config.get_s3_bucket());
       uint64_t elapsed_us = (get_time_us() - start);
       double mb_s = sstream_size(*s3_obj) / elapsed_us
         * 1000.0 * 1000 / 1024 / 1024;

@@ -128,7 +128,7 @@ try_start:
       std::cout << "S3Iterator: getting object" << std::endl;
       std::chrono::steady_clock::time_point start =
         std::chrono::steady_clock::now();
-      s3_obj = s3_get_object_ptr(last, *s3_client, s3_bucket_name);
+      s3_obj = s3_client->s3_get_object_ptr(last, s3_bucket_name);
       std::chrono::steady_clock::time_point finish =
         std::chrono::steady_clock::now();
       uint64_t elapsed_ns =

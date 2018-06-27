@@ -83,7 +83,8 @@ void LoadingSparseTaskS3::run(const Configuration& config) {
 
   uint64_t s3_obj_num_samples = config.get_s3_size();
   s3_initialize_aws();
-  auto s3_client = new S3Client();
+  std::unique_ptr<S3Client> s3_client;
+  s3_client.reset(new S3Client);
 
   SparseDataset dataset = read_dataset(config);
   dataset.check();

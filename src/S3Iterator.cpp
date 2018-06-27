@@ -28,7 +28,8 @@ S3Iterator::S3Iterator(
 
   // initialize s3
   s3_initialize_aws();
-  s3_client.reset(s3_create_client_ptr());
+  std::unique_ptr<S3Client> s3_client;
+  s3_client.reset(new S3Client);
 
   last = left_id;  // last is exclusive
 

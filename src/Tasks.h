@@ -192,7 +192,7 @@ class LoadingSparseTaskS3 : public MLTask {
   {}
     void run(const Configuration& config);
     SparseDataset read_dataset(const Configuration& config);
-    void check_loading(const Configuration&, Aws::S3::S3Client& s3_client);
+    void check_loading(const Configuration&, std::unique_ptr<S3Client>& s3_client);
     void check_label(FEATURE_TYPE label);
 
   private:
@@ -212,7 +212,7 @@ class LoadingNetflixTask : public MLTask {
   {}
     void run(const Configuration& config);
     SparseDataset read_dataset(const Configuration& config, int&, int&);
-    void check_loading(const Configuration&, Aws::S3::S3Client& s3_client);
+    void check_loading(const Configuration&, std::unique_ptr<S3Client>& s3_client);
 
   private:
 };

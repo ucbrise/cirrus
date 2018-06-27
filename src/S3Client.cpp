@@ -11,7 +11,7 @@ namespace cirrus {
     clientConfig.connectTimeoutMs = 30000;
     clientConfig.requestTimeoutMs = 60000;
 
-    s3_client = new Aws::S3::S3Client(clientConfig);
+    s3_client.reset(new Aws::S3::S3Client(clientConfig));
   }
 
   void S3Client::s3_put_object(uint64_t id, const std::string& bucket_name, const std::string& object) {
@@ -67,17 +67,16 @@ namespace cirrus {
                                       const std::string& bucket_name){
     auto ret = s3_get_object_ptr(key_name, bucket_name);
     std::string value = ret->str();
-    delete ret;
     return std::move(value);
   }
 
-  std::unique_ptr<std::ostringstream> S3Client::s3_get_object_ptr(uint64_t id,
+  std::ostringstream* S3Client::s3_get_object_ptr(uint64_t id,
                                             const std::string& bucket_name) {
     std::string key_name = "CIRRUS" + std::to_string(id);
     return s3_get_object_ptr(key_name, bucket_name);
   }
 
-  std::unique_ptr<std::ostringstream> S3Client::s3_get_object_ptr(const std::string& key_name,
+  std::ostringstream* S3Client::s3_get_object_ptr(const std::string& key_name,
                                             const std::string& bucket_name) {
     Aws::S3::Model::GetObjectRequest object_request;
     object_request.WithBucket(bucket_name.c_str()).WithKey(key_name.c_str());
@@ -85,7 +84,7 @@ namespace cirrus {
     auto get_object_outcome = s3_client->GetObject(object_request);
 
     if (get_object_outcome.IsSuccess()) {
-      std::unique_ptr<std::ostringstream> ss = new std::ostringstream;
+      std::ostringstream* ss = new std::ostringstream;
       *ss << get_object_outcome.GetResult().GetBody().rdbuf();
       return ss;
     } else {

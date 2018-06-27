@@ -27,7 +27,7 @@ S3Iterator::S3Iterator(
     << std::endl;
 
   // initialize s3
-  s3_initialize_aws();
+  cirrus::s3_initialize_aws();
   std::unique_ptr<S3Client> s3_client;
   s3_client.reset(new S3Client);
 

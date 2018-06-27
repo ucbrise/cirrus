@@ -38,7 +38,7 @@ S3SparseIterator::S3SparseIterator(
     << std::endl;
 
   // initialize s3
-  s3_initialize_aws();
+  cirrus::s3_initialize_aws();
   s3_client.reset(new S3Client());
 
   for (uint64_t i = 0; i < read_ahead; ++i) {

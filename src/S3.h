@@ -15,7 +15,9 @@
 
 using namespace Aws::S3;
 
+namespace cirrus {
 void s3_initialize_aws();
 void s3_shutdown_aws();
+}
 
 #endif  // _CIRRUS_S3_H

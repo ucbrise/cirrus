@@ -27,9 +27,8 @@ S3Iterator::S3Iterator(
     << std::endl;
 
   // initialize s3
-  cirrus::s3_initialize_aws();
-  std::unique_ptr<S3Client> s3_client;
-  s3_client.reset(new S3Client);
+  s3_initialize_aws();
+  std::unique_ptr<S3Client> s3_client = std::make_unique<S3Client>();
 
   last = left_id;  // last is exclusive
 

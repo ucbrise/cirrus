@@ -38,8 +38,8 @@ S3SparseIterator::S3SparseIterator(
     << std::endl;
 
   // initialize s3
-  cirrus::s3_initialize_aws();
-  s3_client.reset(new S3Client());
+  s3_initialize_aws();
+  s3_client = std::make_shared<S3Client>();
 
   for (uint64_t i = 0; i < read_ahead; ++i) {
     pref_sem.signal();

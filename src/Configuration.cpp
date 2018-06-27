@@ -214,11 +214,12 @@ void Configuration::parse_line(const std::string& line) {
       use_grad_threshold = string_to<bool>(b);
     } else if (s == "grad_threshold:") {
       iss >> grad_threshold;
+    } else if (s.find_first_not_of("\t\n\v\f\r") == std::string::npos) {
     } else {
-      std::cout << ("Unrecognized option: " + line) << std::endl;
+      throw std::runtime_error("Unrecognized option: " + line);
     }
 
-    if (iss.fail()) {
+    if (iss.fail() and s.find_first_not_of("\t\n\v\f\r") != std::string::npos) {
         throw std::runtime_error("Error parsing configuration file");
     }
 }

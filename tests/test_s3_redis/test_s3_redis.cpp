@@ -60,7 +60,7 @@ int test_redis() {
 
 void test_s3() {
     std::cout << "Initializing aws" << std::endl;
-    s3_initialize_aws();
+    cirrus::s3_initialize_aws();
 
     std::cout << "Creating client" << std::endl;
     auto client = new cirrus::S3Client();
@@ -70,7 +70,7 @@ void test_s3() {
     auto res = client->s3_get_object(0, S3_BUCKET);
     std::cout << "Received: " << res << std::endl;
 
-    s3_shutdown_aws();
+    cirrus::s3_shutdown_aws();
 }
 
 int main() {

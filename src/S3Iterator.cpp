@@ -28,7 +28,7 @@ S3Iterator::S3Iterator(
 
   // initialize s3
   s3_initialize_aws();
-  std::unique_ptr<S3Client> s3_client = std::make_unique<S3Client>();
+  s3_client = std::make_shared<S3Client>();
 
   last = left_id;  // last is exclusive
 

@@ -32,7 +32,7 @@ void LoadingNetflixTask::check_loading(const Configuration& config,
 
   std::string data =
       s3_client->s3_get_object_value(SAMPLE_BASE, config.get_s3_bucket());
-  
+
   SparseDataset dataset(data.data(), true, false);
   dataset.check();
   dataset.check_labels();

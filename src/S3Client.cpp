@@ -15,7 +15,7 @@ S3Client::S3Client() {
 }
 
 void S3Client::s3_put_object(uint64_t id,
-                             const std::string& bucket_name, 
+                             const std::string& bucket_name,
                              const std::string& object) {
   std::string key_name = "CIRRUS" + std::to_string(id);
   s3_put_object(key_name, bucket_name, object);
@@ -62,7 +62,7 @@ void S3Client::s3_put_object(const std::string& key_name,
 std::string S3Client::s3_get_object_value(uint64_t id,
                                           const std::string& bucket_name) {
   std::string key_name = "cirrus" + std::to_string(id);
-  return s3_get_object_value(key_name, bucket_name);                                
+  return s3_get_object_value(key_name, bucket_name);                               
 }
 
 std::string S3Client::s3_get_object_value(const std::string& key_name,
@@ -93,8 +93,8 @@ std::ostringstream* S3Client::s3_get_object_ptr(
     *ss << get_object_outcome.GetResult().GetBody().rdbuf();
     return ss;
   } else {
-    std::cout << "GetObject error: " 
-              << get_object_outcome.GetError().GetExceptionName() << " " 
+    std::cout << "GetObject error: "
+              << get_object_outcome.GetError().GetExceptionName() << " "
               << get_object_outcome.GetError().GetMessage() << std::endl;
     throw std::runtime_error("Error");
   }

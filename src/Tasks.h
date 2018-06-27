@@ -192,14 +192,15 @@ class LoadingSparseTaskS3 : public MLTask {
   {}
     void run(const Configuration& config);
     SparseDataset read_dataset(const Configuration& config);
-    void check_loading(const Configuration&, std::unique_ptr<S3Client>& s3_client);
+    void check_loading(const Configuration&,
+                       std::unique_ptr<S3Client>& s3_client);
     void check_label(FEATURE_TYPE label);
 
   private:
 };
 
 class LoadingNetflixTask : public MLTask {
-  public:
+   public:
     LoadingNetflixTask(
         uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
@@ -212,9 +213,10 @@ class LoadingNetflixTask : public MLTask {
   {}
     void run(const Configuration& config);
     SparseDataset read_dataset(const Configuration& config, int&, int&);
-    void check_loading(const Configuration&, std::unique_ptr<S3Client>& s3_client);
+    void check_loading(const Configuration&,
+                       std::unique_ptr<S3Client>& s3_client);
 
-  private:
+   private:
 };
 
 class PSSparseServerTask : public MLTask {

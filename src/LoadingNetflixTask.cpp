@@ -26,12 +26,12 @@ SparseDataset LoadingNetflixTask::read_dataset(
 /**
   * Check if loading was well done
   */
-void LoadingNetflixTask::check_loading(
-    const Configuration& config,
-    std::unique_ptr<S3Client>& s3_client) {
+void LoadingNetflixTask::check_loading(const Configuration& config,
+                                       std::unique_ptr<S3Client>& s3_client) {
   std::cout << "[LOADER] Trying to get sample with id: " << 0 << std::endl;
 
-  std::string data = s3_client->s3_get_object_value(SAMPLE_BASE, config.get_s3_bucket());
+  std::string data = 
+      s3_client->s3_get_object_value(SAMPLE_BASE, config.get_s3_bucket());
   
   SparseDataset dataset(data.data(), true, false);
   dataset.check();
@@ -86,7 +86,7 @@ void LoadingNetflixTask::run(const Configuration& config) {
       << "Putting object in S3 with size: " << len
       << std::endl;
     s3_client->s3_put_object(SAMPLE_BASE + i, config.get_s3_bucket(),
-        std::string(s3_obj.get(), len));
+                             std::string(s3_obj.get(), len));
   }
   check_loading(config, s3_client);
   std::cout << "LOADER-SPARSE terminated successfully" << std::endl;

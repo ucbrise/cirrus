@@ -220,7 +220,7 @@ void Configuration::parse_line(const std::string& line) {
     }
 
     if (iss.fail() and s.find_first_not_of("\t\n\v\f\r") != std::string::npos) {
-        throw std::runtime_error("Error parsing configuration file");
+      throw std::runtime_error("Error parsing configuration file");
     }
 }
 

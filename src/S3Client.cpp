@@ -67,6 +67,7 @@ namespace cirrus {
                                       const std::string& bucket_name){
     auto ret = s3_get_object_ptr(key_name, bucket_name);
     std::string value = ret->str();
+    delete ret;
     return std::move(value);
   }
 

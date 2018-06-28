@@ -220,7 +220,7 @@ void Configuration::parse_line(const std::string& line) {
       throw std::runtime_error("Unrecognized option: " + line);
     }
 
-    if (iss.fail() and
+    if (iss.fail() &&
         s.find_first_not_of("\t\n\v\f\r") !=
             std::string::npos) {  // Don't error on whitespace lines
       throw std::runtime_error("Error parsing configuration file");

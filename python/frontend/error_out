@@ -1,2 +1,156 @@
 Starting parameter server
-./parameter_server config_file nworkers rank
+MPI multi task test running on hostname: ip-172-31-4-91
+Running parameter server with: 10 workers
+Running parameter server with: 2 rank
+Loading configuration
+Parsing line: input_path: /mnt/efs/criteo_kaggle/train.csv 
+Parsing line: input_type: csv
+Parsing line: num_classes: 2 
+Parsing line: num_features: 13 
+Parsing line: limit_cols: 14 
+Parsing line: normalize: 1 
+Parsing line: limit_samples: 50000000 
+Parsing line: s3_size: 50000 
+Parsing line: use_bias: 1 
+Parsing line: model_type: LogisticRegression 
+Parsing line: minibatch_size: 20 
+Parsing line: learning_rate: 0.010000 
+Parsing line: epsilon: 0.000100 
+Parsing line: model_bits: 19 
+Parsing line: s3_bucket: cirrus-criteo-kaggle-19b-random 
+Parsing line: use_grad_threshold: 0 
+Parsing line: grad_threshold: 0.001000 
+Parsing line: train_set: 0-824 
+Parsing line: test_set: 835-840
+Printing configuration: 
+input_path: /mnt/efs/criteo_kaggle/train.csv
+Minibatch size: 20
+S3 size: 50000
+learning rate: 0.01
+limit_samples: 50000000
+epsilon: 0.0001
+s3_bucket_name: cirrus-criteo-kaggle-19b-random
+use_bias: 1
+use_grad_threshold: 0
+use_adagrad: 1
+grad_threshold: 0.001
+model_bits: 19
+netflix_workers: 0
+train_set: 0-824
+test_set: 835-840
+Configuration read
+Printing configuration: 
+input_path: /mnt/efs/criteo_kaggle/train.csv
+Minibatch size: 20
+S3 size: 50000
+learning rate: 0.01
+limit_samples: 50000000
+epsilon: 0.0001
+s3_bucket_name: cirrus-criteo-kaggle-19b-random
+use_bias: 1
+use_grad_threshold: 0
+use_adagrad: 1
+grad_threshold: 0.001
+model_bits: 19
+netflix_workers: 0
+train_set: 0-824
+test_set: 835-840
+samples_per_batch: 20 features_per_sample: 13 batch_size: 20
+Running task
+Run tasks rank: 2
+Compute error task connecting to store
+Creating sequential S3Iterator
+S3SparseIterator::Creating S3SparseIterator left_id: 835 right_id: 840 use_label: 1
+[ERROR_TASK] getting minibatches from 0 to 824
+Building S3 deser. with size: 
+Waiting for pref_sem
+S3SparseIterator: getting object 374485281978704066-CRITEO
+received s3 obj elapsed: 298697 size: 13449000 BW (MB/s): 42.9153
+Getting object count: 1 s3 e2e bw (MB/s): inf
+Waiting for pref_sem
+S3SparseIterator: getting object 7513616360469247197-CRITEO
+received s3 obj elapsed: 270595 size: 13474272 BW (MB/s): 46.73
+Getting object count: 2 s3 e2e bw (MB/s): 93.2934
+Waiting for pref_sem
+S3SparseIterator: getting object 10340848903487729595-CRITEO
+received s3 obj elapsed: 389011 size: 13510968 BW (MB/s): 32.4249
+Getting object count: 3 s3 e2e bw (MB/s): 57.5821
+Waiting for pref_sem
+S3SparseIterator: getting object 15326980863993035739-CRITEO
+received s3 obj elapsed: 291493 size: 13517336 BW (MB/s): 43.869
+Getting object count: 4 s3 e2e bw (MB/s): 53.2625
+Waiting for pref_sem
+S3SparseIterator: getting object 15871924835356938230-CRITEO
+received s3 obj elapsed: 418931 size: 13520776 BW (MB/s): 30.5176
+Getting object count: 5 s3 e2e bw (MB/s): 46.3249
+Waiting for pref_sem
+S3SparseIterator: getting object 374485281978704066-CRITEO
+[ERROR_TASK] Got 12500 minibatches
+[ERROR_TASK] Building dataset
+[ERROR_TASK] Computing accuracies
+[ERROR_TASK] getting the full model
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+received s3 obj elapsed: 264523 size: 13449000 BW (MB/s): 47.6837
+Getting object count: 6 s3 e2e bw (MB/s): 46.5501
+Waiting for pref_sem
+S3SparseIterator: getting object 7513616360469247197-CRITEO
+received s3 obj elapsed: 251802 size: 13474272 BW (MB/s): 50.5447
+Getting object count: 7 s3 e2e bw (MB/s): 47.0372
+Waiting for pref_sem
+[ERROR_TASK] Loss (Total/Avg): 173260/0.693042 Accuracy: 0.74354 time(us): 1529651599478699 time from start (sec): 2.31813
+[ERROR_TASK] getting the full model
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] Loss (Total/Avg): 173260/0.693042 Accuracy: 0.74354 time(us): 1529651601563172 time from start (sec): 4.4026
+[ERROR_TASK] getting the full model
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] Loss (Total/Avg): 173260/0.693042 Accuracy: 0.74354 time(us): 1529651603755119 time from start (sec): 6.59455
+[ERROR_TASK] getting the full model
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] Loss (Total/Avg): 173260/0.693042 Accuracy: 0.74354 time(us): 1529651605927011 time from start (sec): 8.76644
+[ERROR_TASK] getting the full model
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] Loss (Total/Avg): 173260/0.693042 Accuracy: 0.74354 time(us): 1529651608073254 time from start (sec): 10.9127
+[ERROR_TASK] getting the full model
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] Loss (Total/Avg): 173260/0.693042 Accuracy: 0.74354 time(us): 1529651610220750 time from start (sec): 13.0602
+[ERROR_TASK] getting the full model
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] Loss (Total/Avg): 173260/0.693042 Accuracy: 0.74354 time(us): 1529651612293985 time from start (sec): 15.1334
+[ERROR_TASK] getting the full model
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] Loss (Total/Avg): 173260/0.693042 Accuracy: 0.74354 time(us): 1529651614401233 time from start (sec): 17.2407
+[ERROR_TASK] getting the full model
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] Loss (Total/Avg): 173260/0.693042 Accuracy: 0.74354 time(us): 1529651616541390 time from start (sec): 19.3808
+[ERROR_TASK] getting the full model
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] Loss (Total/Avg): 173260/0.693042 Accuracy: 0.74354 time(us): 1529651618625120 time from start (sec): 21.4646
+[ERROR_TASK] getting the full model
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] Loss (Total/Avg): 173260/0.693042 Accuracy: 0.74354 time(us): 1529651620732351 time from start (sec): 23.5718
+[ERROR_TASK] getting the full model
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] Loss (Total/Avg): 173260/0.693042 Accuracy: 0.74354 time(us): 1529651622791557 time from start (sec): 25.631
+[ERROR_TASK] getting the full model
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] Loss (Total/Avg): 173260/0.693042 Accuracy: 0.74354 time(us): 1529651624906562 time from start (sec): 27.746
+[ERROR_TASK] getting the full model
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.
+[ERROR_TASK] Loss (Total/Avg): 173260/0.693042 Accuracy: 0.74354 time(us): 1529651627007449 time from start (sec): 29.8469
+[ERROR_TASK] getting the full model
+[ERROR_TASK] received the model
+[ERROR_TASK] computing loss.

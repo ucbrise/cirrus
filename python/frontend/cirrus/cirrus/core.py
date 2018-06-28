@@ -11,6 +11,7 @@ from CostModel import CostModel
 
 class BaseTask:
     __metaclass__ = ABCMeta
+    time_loss_lst = []
 
     def __init__(self,
             n_workers,
@@ -208,6 +209,7 @@ class BaseTask:
                     self.progress_callback((float(t), float(loss)), \
                             cost_model.get_cost(elapsed_time), \
                             "task1")
+                    time_loss_lst.append((t, loss))
 
                     if self.timeout > 0 and float(t) > self.timeout:
                         print("error is timing out")
@@ -223,6 +225,12 @@ class BaseTask:
         self.error_task.start()
 
         print "Lambdas have been launched"
+
+    def get_time_loss(self):
+        return time_loss_lst
+
+    def get_name(self):
+        return "no name"
 
     def run(self):
         if self.ps_ip_public == "" or self.ps_ip_private == "":

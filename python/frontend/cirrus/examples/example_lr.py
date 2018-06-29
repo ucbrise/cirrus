@@ -31,8 +31,8 @@ lr_task = cirrus.LogisticRegression(
              # path to aws key
              key_path='/home/camus/Downloads/mykey.pem',
              # ip where ps lives
-             ps_ip_public='ec2-54-202-107-137.us-west-2.compute.amazonaws.com',
-             ps_ip_private='172.31.4.91',
+             ps_ip_public= 'ec2-54-71-177-228.us-west-2.compute.amazonaws.com',
+             ps_ip_private= '172.31.9.205',
              # username of VM
              ps_username='ubuntu',
              # choose between adagrad, sgd, nesterov, momentum

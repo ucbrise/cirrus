@@ -10,31 +10,9 @@ from CostModel import CostModel
 from core import BaseTask
 
 class LogisticRegressionTask(BaseTask):
-    def __init__(self,
-            n_workers,
-            n_ps,
-            worker_size,
-            dataset,
-            learning_rate,
-            epsilon,
-            key_name, key_path, # aws key
-            ps_ip_public, # public parameter server ip
-            ps_ip_private, # private parameter server ip
-            ps_username, # parameter server VM username
-            opt_method, # adagrad, sgd, nesterov, momentum
-            checkpoint_model, # checkpoint model every x seconds
-            train_set,
-            test_set,
-            minibatch_size,
-            model_bits,
-            use_grad_threshold,
-            grad_threshold,
-            timeout,
-            threshold_loss,
-            progress_callback
-            ):
+    def __init__(self, *args, **kwargs):
         # pass all arguments of init to parent class
-        super(self).__init__(**locals())
+        super(LogisticRegressionTask, self).__init__(*args, **kwargs)
         print("Starting LogisticRegressionTask")
 
     def __del__(self):

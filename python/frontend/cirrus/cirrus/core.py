@@ -9,7 +9,7 @@ import boto3
 from threading import Thread
 from CostModel import CostModel
 
-class BaseTask:
+class BaseTask(object):
     __metaclass__ = ABCMeta
     time_loss_lst = []
 
@@ -59,7 +59,9 @@ class BaseTask:
         self.timeout=timeout
         self.threshold_loss=threshold_loss
         self.progress_callback=progress_callback
-        super().__init__()
+        self.time_loss_lst = []
+
+        self.dead = False
 
 
     def copy_ps_to_vm(self, ip):
@@ -105,23 +107,11 @@ class BaseTask:
         time.sleep(2)
 
     def fetch_num_lambdas(self):
-        key = paramiko.RSAKey.from_private_key_file(self.key_path)
-        ssh_client = paramiko.SSHClient()
-        ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh_client.connect(hostname=self.ps_ip_public, username=self.ps_username, pkey=key)
-        sftp_client = ssh_client.open_sftp()
-        remote_file = sftp_client.open('ps_output')
-
-        num_connections = 0
-        try:
-            for line in remote_file:
-                if "conns: " in line:
-                    s = line.split(" ")
-                    num_connections = int(s[10])
-        finally:
-            remote_file.close()
-
-        return num_connections
+        clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        clientsocket.connect((self.ps_ip_public, 1337))
+        clientsocket.send('\x08\x00\x00\x00')
+        s = clientsocket.recv(32)
+        return struct.unpack("HH", s)[0]
 
     # if timeout is 0 we run lambdas indefinitely
     # otherwise we stop invoking them after timeout secs
@@ -209,7 +199,7 @@ class BaseTask:
                     self.progress_callback((float(t), float(loss)), \
                             cost_model.get_cost(elapsed_time), \
                             "task1")
-                    time_loss_lst.append((t, loss))
+                    self.time_loss_lst.append((t, loss))
 
                     if self.timeout > 0 and float(t) > self.timeout:
                         print("error is timing out")
@@ -227,7 +217,7 @@ class BaseTask:
         print "Lambdas have been launched"
 
     def get_time_loss(self):
-        return time_loss_lst
+        return self.time_loss_lst
 
     def get_name(self):
         return "no name"
@@ -262,10 +252,10 @@ class BaseTask:
         self.lambda_launcher.join()
         self.error_task.join()
         print "Everyone is dead"
+        self.dead = True
 
-    def wait(self):
-        print "waiting"
-        return 1,2
+    def is_dead(self):
+        return self.dead
 
     @abstractmethod
     def define_config(self, ip):

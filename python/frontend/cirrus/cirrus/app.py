@@ -44,7 +44,7 @@ def div_graph(name):
             id='logloss',
         ),
 
-        dcc.Interval(id='logloss-update', interval=3000, n_intervals=0)
+        dcc.Interval(id='logloss-update', interval=1000, n_intervals=0)
     ], style={'width':'80%', 'display': 'inline-block', 'vertical-align':'middle'})
 
 app.layout = html.Div([
@@ -100,7 +100,20 @@ app.layout = html.Div([
 ])
 
 
+# helper functions
 
+cost = 0
+def get_cost():
+    global cost
+    cost += random.random()
+    return cost
+
+def get_num_lambdas():
+    return "Not implemented"
+
+def get_mem_usage():
+    global process
+    return process.memory_info().rss / 1000000
 
 def get_traces(num):
     trace_lst = []
@@ -133,26 +146,10 @@ def get_traces(num):
     return trace_lst
 
 
-cb = None
-
-# helper functions
-
-cost = 0
-def get_cost():
-    global cost
-    cost += random.random()
-    return cost
-
-def get_num_lambdas():
-    return sum([c.get_num_lambdas() for c in cirrus_bundle])
-
-
-def get_mem_usage():
-    global process
-    return process.memory_info().rss / 1000000
+bundle = []
 
 def get_num_experiments():
-    return cb.get_num_experiments();
+    return len(bundle)
 
 def get_xs_for(i):
     item = bundle[i]
@@ -163,11 +160,11 @@ def get_ys_for(i):
     return [tl[1] for tl in item.get_time_loss()]
 
 def get_name_for(i):
-    item = cb.get_info(i, "name")
-    return item
+    item = bundle[i]
+    return item.get_name()
 
 def kill(i):
-     cb.kill(i)
+    bundle[i].kill()
 
 
 
@@ -296,7 +293,7 @@ def gen_loss(interval, menu, oldfig, relayoutData, lockCamera):
                 range=r1
             ),
             yaxis=dict(
-                title="Loss"
+                title="Loss",
                 range=r2
             ),
             margin=Margin(

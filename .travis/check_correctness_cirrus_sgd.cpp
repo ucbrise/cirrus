@@ -70,11 +70,13 @@ int main() {
     model_lock.lock();
     auto avg_loss = check_error(model.get(), dataset);
     model_lock.unlock();
-    if (avg_loss <= 0.1) {
+    if (avg_loss <= 0.15) {
       break;
     }
   }
-
+  for (uint64_t i = 0; i < num_threads; ++i) {
+    (*threads[i]).detach();
+  }
 
   return 0;
 }

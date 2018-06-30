@@ -214,12 +214,16 @@ void Configuration::parse_line(const std::string& line) {
       use_grad_threshold = string_to<bool>(b);
     } else if (s == "grad_threshold:") {
       iss >> grad_threshold;
+    } else if (s.find_first_not_of("\t\n\v\f\r") ==
+               std::string::npos) {  // Ignore lines with whitespace
     } else {
-        throw std::runtime_error("Unrecognized option: " + line);
+      throw std::runtime_error("Unrecognized option: " + line);
     }
 
-    if (iss.fail()) {
-        throw std::runtime_error("Error parsing configuration file");
+    if (iss.fail() &&
+        s.find_first_not_of("\t\n\v\f\r") !=
+            std::string::npos) {  // Don't error on whitespace lines
+      throw std::runtime_error("Error parsing configuration file");
     }
 }
 

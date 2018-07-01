@@ -63,19 +63,26 @@ int main() {
     threads.push_back(
         std::make_shared<std::thread>(learning_function, dataset));
   }
-
+  int iterations = 0;
+  bool success = false;
   while (1) {
     usleep(100000);  // 100ms
+    if (iterations == 300) {
+      break;
+    }
     model_lock.lock();
     auto avg_loss = check_error(model.get(), dataset);
     model_lock.unlock();
     if (avg_loss <= 0.15) {
+      success = true;
       break;
     }
   }
   for (uint64_t i = 0; i < num_threads; ++i) {
     (*threads[i]).detach();
   }
-
-  return 0;
+  if (success) {
+    return 1;
+  }
+  throw std::runtime_error("Logistic Regression test failed.");
 }

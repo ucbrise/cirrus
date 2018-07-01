@@ -82,7 +82,7 @@ int main() {
     (*threads[i]).detach();
   }
   if (success) {
-    return 1;
+    return 0;
   }
   throw std::runtime_error("Logistic Regression test failed.");
 }

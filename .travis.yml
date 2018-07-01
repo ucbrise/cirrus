@@ -24,6 +24,8 @@ script:
    - gcc --version
    - g++ --version
    - make -j 10
+   - cd src
+   - ./test_logistic_regression
 
 env:
   global:
@@ -54,10 +56,6 @@ install:
   - which g++
   - which g++-6
   - g++-6 --version
-
-script:
-  - cd src
-  - ./test_logistic_regression
 
 addons:
   coverity_scan:

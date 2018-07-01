@@ -55,6 +55,10 @@ install:
   - which g++-6
   - g++-6 --version
 
+script:
+  - cd src
+  - ./test_logistic_regression
+
 addons:
   coverity_scan:
     project:

@@ -33,7 +33,7 @@ cirrus::Configuration config = cirrus::Configuration("../configs/criteo_kaggle.c
 std::mutex model_lock;
 std::unique_ptr<SparseLRModel> model;
 double epsilon = 0.00001;
-double learning_rate = 0.1;
+double learning_rate = 0.01;
 std::unique_ptr<OptimizationMethod> opt_method = std::make_unique<SGD>(learning_rate);
 
 void learning_function(const SparseDataset& dataset) {
@@ -51,7 +51,7 @@ void learning_function(const SparseDataset& dataset) {
 int main() {
   InputReader input;
   SparseDataset dataset = input.read_input_criteo_kaggle_sparse(
-      config.get_input_path(),
+      "test_data/train_lr.csv",
       ",", config); // normalize=true
   dataset.check();
   dataset.print_info();

@@ -24,6 +24,8 @@ script:
    - gcc --version
    - g++ --version
    - make -j 10
+
+after_script:
    - cd src
    - ./test_logistic_regression
 

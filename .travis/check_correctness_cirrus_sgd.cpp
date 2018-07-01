@@ -28,7 +28,7 @@ double check_error(auto model, auto dataset) {
 }
 
 cirrus::Configuration config =
-    cirrus::Configuration("../configs/criteo_kaggle.cfg"); 
+    cirrus::Configuration("../configs/criteo_kaggle.cfg");
 std::mutex model_lock;
 std::unique_ptr<SparseLRModel> model;
 double epsilon = 0.00001;
@@ -51,7 +51,7 @@ void learning_function(const SparseDataset& dataset) {
 int main() {
   InputReader input;
   SparseDataset dataset = input.read_input_criteo_kaggle_sparse(
-      "test_data/train_lr.csv", ",", config); // normalize=true
+      "test_data/train_lr.csv", ",", config);  // normalize=true
   dataset.check();
   dataset.print_info();
 

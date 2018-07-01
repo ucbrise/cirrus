@@ -23,18 +23,18 @@ double check_error(auto model, auto dataset) {
   auto ret = model->calc_loss(dataset, 0);
   auto loss = ret.first;
   auto avg_loss = loss / dataset.num_samples();
-  std::cout << "total loss: " << loss
-    << " avg loss: " << avg_loss
-    << std::endl;
+  std::cout << "total loss: " << loss << " avg loss: " << avg_loss << std::endl;
   return avg_loss;
 }
 
-cirrus::Configuration config = cirrus::Configuration("../configs/criteo_kaggle.cfg"); 
+cirrus::Configuration config =
+    cirrus::Configuration("../configs/criteo_kaggle.cfg"); 
 std::mutex model_lock;
 std::unique_ptr<SparseLRModel> model;
 double epsilon = 0.00001;
 double learning_rate = 0.01;
-std::unique_ptr<OptimizationMethod> opt_method = std::make_unique<SGD>(learning_rate);
+std::unique_ptr<OptimizationMethod> opt_method =
+    std::make_unique<SGD>(learning_rate);
 
 void learning_function(const SparseDataset& dataset) {
   for (uint64_t i = 0; 20; ++i) {
@@ -51,8 +51,7 @@ void learning_function(const SparseDataset& dataset) {
 int main() {
   InputReader input;
   SparseDataset dataset = input.read_input_criteo_kaggle_sparse(
-      "test_data/train_lr.csv",
-      ",", config); // normalize=true
+      "test_data/train_lr.csv", ",", config); // normalize=true
   dataset.check();
   dataset.print_info();
 
@@ -61,12 +60,12 @@ int main() {
   uint64_t num_threads = 20;
   std::vector<std::shared_ptr<std::thread>> threads;
   for (uint64_t i = 0; i < num_threads; ++i) {
-    threads.push_back(std::make_shared<std::thread>(
-          learning_function, dataset));
+    threads.push_back(
+        std::make_shared<std::thread>(learning_function, dataset));
   }
 
   while (1) {
-    usleep(100000); // 100ms
+    usleep(100000);  // 100ms
     model_lock.lock();
     auto avg_loss = check_error(model.get(), dataset);
     model_lock.unlock();

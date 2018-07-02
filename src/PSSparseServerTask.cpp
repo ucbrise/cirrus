@@ -369,6 +369,9 @@ void PSSparseServerTask::gradient_f() {
 #endif
       task_to_status[data[0]] = data[1];
     
+    } else if (operation == GET_NUM_CONNS) {
+      std::cout << "Retreive num conections: " << num_connections << std::endl; 
+      send(sock, &num_connections, sizeof(uint32_t), 0);
     } else {
       throw std::runtime_error("gradient_f: Unknown operation");
     }

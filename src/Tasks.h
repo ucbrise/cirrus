@@ -155,11 +155,9 @@ class ErrorSparseTask : public MLTask {
     void run(const Configuration& config);
     void error_response();
 
-  private:
+   private:
     double last_time = 0.0;
     double last_error = 0.0;
-
-
 };
 
 class PerformanceLambdaTask : public MLTask {

@@ -104,12 +104,10 @@ app.layout = html.Div([
 
 cost = 0
 def get_cost():
-    global cost
-    cost += random.random()
-    return cost
+    return sum([item.total_cost for item in bundle])
 
 def get_num_lambdas():
-    return "Not implemented"
+    return str(sum([item.total_lambda for item in bundle]))
 
 def get_mem_usage():
     global process
@@ -119,7 +117,7 @@ def get_traces(num):
     trace_lst = []
     if num == 0:
         # Get all
-        for i in range(get_num_experiments()):
+        for i in range(2):
             trace = Scatter(
                 x=get_xs_for(i),
                 y=get_ys_for(i),
@@ -268,9 +266,9 @@ def gen_cost(interval):
     State('mapControls', 'values')])
 def gen_loss(interval, menu, oldfig, relayoutData, lockCamera):
     if menu=="top_ten":
-        how_many = 2
+        how_many = 1
     elif menu == 'last_ten':
-        how_many = -2
+        how_many = -1
     else:
         how_many = 0
 
@@ -323,6 +321,3 @@ def gen_loss(interval, menu, oldfig, relayoutData, lockCamera):
 
 
     return Figure(data=trace_lst, layout=layout)
-
-if __name__ == '__main__':
-    app.run_server(debug=True)

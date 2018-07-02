@@ -10,25 +10,22 @@ class cirrus_bundle:
     def __init__(self):
         self.cirrus_objs = []
         self.infos = []
+        self.param_lst = []
+        self.num_jobs = 1
         pass
 
-    def set_parameters(param):
-        pass
+    def set_task_parameters(task, param_dict_lst):
+        self.param_lst = param_dict_lst
+
+        for param in param_dict_lst:
+            c = task(**param)
+            self.cirrus_obj.append(c)
 
     def set_jobs(n):
+        self.num_jobs = n
+
+    def set_existing_machines():
         pass
-
-    def get_num_experiments(self):
-        return len(cirrus_objs)
-
-    def add_experiments(lst):
-        self.cirrus_objs.extend(lst)
-        graph_info = {}
-
-        # Assign a uniue color to each graph
-        graph_info['color'] = get_random_color()
-
-        self.infos.append(graph_info)
 
     # Get data regarding experiment i.
     def get_info(i, param=None):
@@ -42,7 +39,7 @@ class cirrus_bundle:
     def get_top(n):
         index = 0
         lst = []
-        for cirrus_obj in cirrus_objs:
+        for cirrus_obj in self.cirrus_objs:
             loss = cirrus_obj.get_last_loss()
             lst.append((index, loss))
             index += 1
@@ -51,4 +48,4 @@ class cirrus_bundle:
         return [cirrus_obj.get_time_loss() for cirrus_obj in top]
 
     def kill(i):
-        cirrus_objs[i].kill()
+        self.cirrus_objs[i].kill()

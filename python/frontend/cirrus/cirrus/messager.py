@@ -18,5 +18,5 @@ def get_time_error(ip, port):
 
 
 if __name__ == "__main__":
-     
+    get_num_lambdas((     
 

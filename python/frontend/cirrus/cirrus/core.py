@@ -8,6 +8,10 @@ import os
 import boto3
 from threading import Thread
 from CostModel import CostModel
+import socket
+import struct
+import time
+import random
 
 class BaseTask(object):
     __metaclass__ = ABCMeta
@@ -60,8 +64,12 @@ class BaseTask(object):
         self.threshold_loss=threshold_loss
         self.progress_callback=progress_callback
         self.time_loss_lst = []
-
         self.dead = False
+        self.cost_model = None
+        self.total_cost = 0
+        self.total_lambda = 0
+        self.id = 0
+
 
 
     def copy_ps_to_vm(self, ip):
@@ -107,11 +115,23 @@ class BaseTask(object):
         time.sleep(2)
 
     def fetch_num_lambdas(self):
-        clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        clientsocket.connect((self.ps_ip_public, 1337))
-        clientsocket.send('\x08\x00\x00\x00')
-        s = clientsocket.recv(32)
-        return struct.unpack("HH", s)[0]
+        key = paramiko.RSAKey.from_private_key_file(self.key_path)
+        ssh_client = paramiko.SSHClient()
+        ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh_client.connect(hostname=self.ps_ip_public, username=self.ps_username, pkey=key)
+        sftp_client = ssh_client.open_sftp()
+        remote_file = sftp_client.open('ps_output')
+
+        num_connections = 0
+        try:
+            for line in remote_file:
+                if "conns: " in line:
+                    s = line.split(" ")
+                    num_connections = int(s[10])
+        finally:
+            remote_file.close()
+        self.total_lambda = num_connections
+        return num_connections
 
     # if timeout is 0 we run lambdas indefinitely
     # otherwise we stop invoking them after timeout secs
@@ -122,7 +142,7 @@ class BaseTask(object):
         def launch():
 
             # if 0 run indefinitely
-            while (timeout == 0) or (time.time() - start_time < timeout):
+            while ((timeout == 0) or (time.time() - start_time < timeout)) and not self.kill_signal.is_set():
                 time.sleep(2)
 
                 if self.kill_signal.is_set():
@@ -131,7 +151,8 @@ class BaseTask(object):
 
                 # TODO: Make this grab the number of lambdas from PS log
                 num_lambdas = self.fetch_num_lambdas();
-                print "PS has %d lambdas" % num_lambdas
+                print "PS has %d lambdas and " % num_lambdas
+                print self.learning_rate
                 # FIXME: Rename num_workers
                 num_task = 3
                 if num_lambdas < num_workers:
@@ -156,14 +177,13 @@ class BaseTask(object):
             print "Starting error task"
             cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' \
                     % (self.key_path, self.ps_username, self.ps_ip_public) + \
-    		  '"./parameter_server --config config.txt --nworkers 10 --rank 2 --ps_ip \"%s\"" > error_out &' \
-                  % self.ps_ip_private
+    		  '"./parameter_server --config config.txt --nworkers 10 --rank 2 --ps_ip \"%s\"" > error_out_%d &' % (self.ps_ip_private, self.id)
             print('cmd', cmd)
             os.system(cmd)
 
             while True:
                 try:
-                    file = open('error_out')
+                    file = open('error_out_%d' % self.id)
                     break
                 except Exception, e:
                     print "Waiting for error task to start"
@@ -188,6 +208,7 @@ class BaseTask(object):
                     0,
                     num_workers,
                     self.worker_size)
+            self.cost_model = cost_model
 
             for line in tail(file):
                 if "Loss" in line:
@@ -196,10 +217,12 @@ class BaseTask(object):
                     t = s[-1][:-2] # get time and get rid of newline
 
                     elapsed_time = time.time() - start_time
+                    self.total_cost = cost_model.get_cost(elapsed_time)
                     self.progress_callback((float(t), float(loss)), \
                             cost_model.get_cost(elapsed_time), \
                             "task1")
                     self.time_loss_lst.append((t, loss))
+                    print((t, loss, self.learning_rate))
 
                     if self.timeout > 0 and float(t) > self.timeout:
                         print("error is timing out")
@@ -217,10 +240,11 @@ class BaseTask(object):
         print "Lambdas have been launched"
 
     def get_time_loss(self):
+        print("Get time loss", self.id)
         return self.time_loss_lst
 
     def get_name(self):
-        return "no name"
+        return str(self.learning_rate)
 
     def run(self):
         if self.ps_ip_public == "" or self.ps_ip_private == "":

@@ -153,8 +153,13 @@ class ErrorSparseTask : public MLTask {
           nworkers, worker_id, ps_ip, ps_port)
   {}
     void run(const Configuration& config);
+    void error_response();
 
   private:
+    double last_time = 0.0;
+    double last_error = 0.0;
+
+
 };
 
 class PerformanceLambdaTask : public MLTask {

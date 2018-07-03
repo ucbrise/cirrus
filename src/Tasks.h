@@ -9,6 +9,7 @@
 #include "SparseLRModel.h"
 #include "PSSparseServerInterface.h"
 #include "S3SparseIterator.h"
+#include "OptimizationMethod.h"
 
 #include <string>
 #include <vector>
@@ -156,12 +157,11 @@ class ErrorSparseTask : public MLTask {
 
   }
     void run(const Configuration& config);
-    void time_error_thread();
-    double last_time;
-    double last_loss;
+    void error_response();
 
-  private:
-  int server_sock_;
+   private:
+    double last_time = 0.0;
+    double last_error = 0.0;
 };
 
 class PerformanceLambdaTask : public MLTask {
@@ -261,20 +261,26 @@ class PSSparseServerTask : public MLTask {
 
     // Model/ML related methods
     void checkpoint_model_file(const std::string&) const;
-    std::shared_ptr<char> serialize_lr_model(const SparseLRModel&, uint64_t* model_size) const;
+    std::shared_ptr<char> serialize_lr_model(
+        const SparseLRModel&, uint64_t* model_size) const;
     void gradient_f();
 
     // message handling
     bool process_get_lr_sparse_model(const Request& req, std::vector<char>&);
     bool process_send_lr_gradient(const Request& req, std::vector<char>&);
-    bool process_get_mf_sparse_model(const Request& req, std::vector<char>&, int tn);
-    bool process_get_lr_full_model(const Request& req, std::vector<char>& thread_buffer);
-    bool process_send_mf_gradient(const Request& req, std::vector<char>& thread_buffer);
-    bool process_get_mf_full_model(const Request& req, std::vector<char>& thread_buffer);
+    bool process_get_mf_sparse_model(
+        const Request& req, std::vector<char>&, int tn);
+    bool process_get_lr_full_model(
+        const Request& req, std::vector<char>& thread_buffer);
+    bool process_send_mf_gradient(
+        const Request& req, std::vector<char>& thread_buffer);
+    bool process_get_mf_full_model(
+        const Request& req, std::vector<char>& thread_buffer);
 
     /**
       * Attributes
       */
+    std::unique_ptr<OptimizationMethod> opt_method;
 
     std::vector<uint64_t> curr_indexes = std::vector<uint64_t>(NUM_POLL_THREADS);
 #if 0

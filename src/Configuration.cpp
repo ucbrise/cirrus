@@ -91,7 +91,7 @@ void Configuration::check() const {
   if (opt_method != "adagrad" && opt_method != "nesterov"
           && opt_method != "momentum" && opt_method != "sgd") {
       throw std::runtime_error(
-              "Choose a valid update rule: adagrad, nesterov, momentum, or sgd");
+             "Choose a valid update rule: adagrad, nesterov, momentum, or sgd");
   }
   if (checkpoint_frequency > 0
           && (checkpoint_s3_bucket == "" || checkpoint_s3_keyname == "")) {
@@ -132,7 +132,7 @@ void Configuration::parse_line(const std::string& line) {
     } else if (s == "n_workers:") {
         iss >> n_workers;
     } else if (s == "opt_method:") {
-        iss >> opt_method; 
+        iss >> opt_method;
     }  else if (s == "epsilon:") {
         iss >> epsilon;
     } else if (s == "input_type:") {
@@ -214,12 +214,16 @@ void Configuration::parse_line(const std::string& line) {
       use_grad_threshold = string_to<bool>(b);
     } else if (s == "grad_threshold:") {
       iss >> grad_threshold;
+    } else if (s.find_first_not_of("\t\n\v\f\r") ==
+               std::string::npos) {  // Ignore lines with whitespace
     } else {
-        throw std::runtime_error("Unrecognized option: " + line);
+      throw std::runtime_error("Unrecognized option: " + line);
     }
 
-    if (iss.fail()) {
-        throw std::runtime_error("Error parsing configuration file");
+    if (iss.fail() &&
+        s.find_first_not_of("\t\n\v\f\r") !=
+            std::string::npos) {  // Don't error on whitespace lines
+      throw std::runtime_error("Error parsing configuration file");
     }
 }
 

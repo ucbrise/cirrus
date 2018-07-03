@@ -91,6 +91,12 @@ void print_arguments() {
   // rank starts at 0
   std::cout << "./parameter_server --config config_file "
       << "--nworkers nworkers --rank rank [--ps_ip ps_ip] [--ps_port ps_port]"
+      << std::endl
+      << " RANKS:" << std::endl
+      << "0: load task" << std::endl
+      << "1: parameter server" << std::endl
+      << "2: error task" << std::endl
+      << "3: worker task" << std::endl
       << std::endl;
 }
 

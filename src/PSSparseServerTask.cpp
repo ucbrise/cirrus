@@ -5,6 +5,11 @@
 #include "Constants.h"
 #include "Checksum.h"
 #include <signal.h>
+#include "OptimizationMethod.h"
+#include "AdaGrad.h"
+#include "Momentum.h"
+#include "SGD.h"
+#include "Nesterov.h"
 
 #undef DEBUG
 
@@ -35,10 +40,11 @@ PSSparseServerTask::PSSparseServerTask(
     operation_to_name[6] = "SET_TASK_STATUS";
     operation_to_name[7] = "GET_TASK_STATUS";
 
-    for (int i = 0; i < NUM_PS_WORK_THREADS; i++)
+    for (int i = 0; i < NUM_PS_WORK_THREADS; i++) {
       thread_msg_buffer[i] =
           new char[THREAD_MSG_BUFFER_SIZE]; // per-thread buffer
-  }
+    }
+}
 
 std::shared_ptr<char> PSSparseServerTask::serialize_lr_model(
     const SparseLRModel& lr_model, uint64_t* model_size) const {
@@ -111,17 +117,8 @@ bool PSSparseServerTask::process_send_lr_gradient(const Request& req, std::vecto
   gradient.loadSerialized(thread_buffer.data());
 
   model_lock.lock();
-  std::string opt_method = task_config.get_opt_method();
-  if (opt_method == "nesterov" || opt_method == "momentum") {
-    lr_model->sgd_update_momentum(
-        task_config.get_learning_rate(), task_config.get_momentum_beta(), &gradient);
-  } else if (opt_method == "sgd") {
-    lr_model->sgd_update(
-        task_config.get_learning_rate(), &gradient);  
-  } else if (opt_method == "adagrad") {
-    lr_model->sgd_update_adagrad(
-        task_config.get_learning_rate(), &gradient);
-  } else assert(0);
+  opt_method->sgd_update(
+      lr_model, &gradient);
   model_lock.unlock();
   gradientUpdatesCount++;
   return true;
@@ -205,16 +202,11 @@ bool PSSparseServerTask::process_get_lr_sparse_model(
 #endif
   for (uint32_t i = 0; i < num_entries; ++i) {
     uint32_t entry_index = load_value<uint32_t>(data);
-    std::string method = task_config.get_opt_method();
-    if (method == "nesterov") {
-        store_value<FEATURE_TYPE>(
-            data_to_send_ptr,
-            lr_model->get_nth_weight_nesterov(entry_index, task_config.get_momentum_beta()));
-    } else {
-        store_value<FEATURE_TYPE>(
-            data_to_send_ptr,
-            lr_model->get_nth_weight(entry_index));
-    }
+    double weight = lr_model->get_nth_weight(entry_index);
+    opt_method->edit_weight(weight);
+    store_value<FEATURE_TYPE>(
+        data_to_send_ptr,
+        weight);
   }
   if (send_all(req.sock, data_to_send, to_send_size) == -1) {
     return false;
@@ -376,7 +368,10 @@ void PSSparseServerTask::gradient_f() {
       std::cout << "Set status task id: " << data[0] << " status: " << data[1] << std::endl;
 #endif
       task_to_status[data[0]] = data[1];
-    
+
+    } else if (operation == GET_NUM_CONNS) {
+      std::cout << "Retreive num conections: " << num_connections << std::endl;
+      send(sock, &num_connections, sizeof(uint32_t), 0);
     } else {
       throw std::runtime_error("gradient_f: Unknown operation");
     }
@@ -634,6 +629,22 @@ void PSSparseServerTask::run(const Configuration& config) {
   }
 
   task_config = config;
+
+  auto learning_rate = config.get_learning_rate();
+  auto epsilon = config.get_epsilon();
+  auto momentum_beta = config.get_momentum_beta();
+  if (config.get_opt_method() == "sgd") {
+    opt_method.reset(new SGD(learning_rate));
+  } else if (config.get_opt_method() == "nesterov") {
+    opt_method.reset(new Nesterov(learning_rate, momentum_beta));
+  } else if (config.get_opt_method() == "momentum") {
+    opt_method.reset(new Momentum(learning_rate, momentum_beta));
+  } else if (config.get_opt_method() == "adagrad") {
+    opt_method.reset(new AdaGrad(learning_rate, epsilon));
+  } else {
+    throw std::runtime_error("Unknown opt method");
+  }
+
   start_server();
 
   //wait_for_start(PS_SPARSE_SERVER_TASK_RANK, redis_con, nworkers);

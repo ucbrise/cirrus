@@ -61,4 +61,4 @@ ps_test_SOURCES = PSSparseServerTaskTest.cpp $(CPP_SOURCES)
 
 csv_to_libsvm_SOURCES = CriteoCsvToLibSVM.cpp $(CPP_SOURCES)
 
-test_test_logistic_regression_SOURCES = ../.travis/check_correctness_cirrus_sgd.cpp $(CPP_SOURCES)
+test_test_logistic_regression_SOURCES = test/check_correctness_cirrus_sgd.cpp $(CPP_SOURCES)

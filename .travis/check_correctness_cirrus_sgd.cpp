@@ -76,7 +76,7 @@ int main() {
     model_lock.lock();
     auto avg_loss = check_error(model.get(), test_dataset);
     model_lock.unlock();
-    if (avg_loss <= 0.53) {
+    if (avg_loss <= 0.54) {
       success = true;
       break;
     }

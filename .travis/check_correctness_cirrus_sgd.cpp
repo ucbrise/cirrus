@@ -32,7 +32,7 @@ cirrus::Configuration config =
 std::mutex model_lock;
 std::unique_ptr<SparseLRModel> model;
 double epsilon = 0.00001;
-double learning_rate = 0.01;
+double learning_rate = 0.00001;
 std::unique_ptr<OptimizationMethod> opt_method =
     std::make_unique<SGD>(learning_rate);
 
@@ -52,7 +52,10 @@ int main() {
   InputReader input;
   SparseDataset dataset = input.read_input_criteo_kaggle_sparse(
       "src/test_data/train_lr.csv", ",", config);  // normalize=true
+  SparseDataset test_dataset = input.read_input_criteo_kaggle_sparse(
+      "src/test_data/test_lr.csv", ",", config);
   dataset.check();
+  test_dataset.check();
   dataset.print_info();
 
   model.reset(new SparseLRModel((1 << config.get_model_bits()) + 1));
@@ -71,9 +74,9 @@ int main() {
       break;
     }
     model_lock.lock();
-    auto avg_loss = check_error(model.get(), dataset);
+    auto avg_loss = check_error(model.get(), test_dataset);
     model_lock.unlock();
-    if (avg_loss <= 0.15) {
+    if (avg_loss <= 0.53) {
       success = true;
       break;
     }

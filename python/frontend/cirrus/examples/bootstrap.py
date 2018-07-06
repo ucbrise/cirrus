@@ -10,8 +10,8 @@ def progress_callback(time_loss, cost, task):
         "current cost ($): ", cost)
 
 ps_servers = [
-    ('ec2-34-210-71-81.us-west-2.compute.amazonaws.com', '172.31.36.46', 0.0001),
-    ('ec2-34-220-36-27.us-west-2.compute.amazonaws.com', '172.31.40.139', 0.1)
+    ('ec2-34-210-71-81.us-west-2.compute.amazonaws.com', '172.31.36.46', 0.0001)
+    #('ec2-34-210-71-81.us-west-2.compute.amazonaws.com', '172.31.36.46', 0.1)
 ]
 
 data_bucket = 'cirrus-criteo-kaggle-19b-random'
@@ -46,10 +46,12 @@ basic_params = {
 if __name__ == "__main__":
     batch = []
     index = 0
+    base_port = 1339
     for ps in ps_servers:
         config = basic_params.copy()
         config['ps_ip_public'] = ps[0]
         config['ps_ip_private'] = ps[1]
+        config['ps_ip_port'] = base_port + (index * 2)
         config['learning_rate'] = ps[2]
         batch.append(config)
         index += 1

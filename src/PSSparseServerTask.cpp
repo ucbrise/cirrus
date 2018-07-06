@@ -478,17 +478,17 @@ void PSSparseServerTask::main_poll_thread_fn(int poll_id) {
     struct sockaddr_in serv_addr;
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
-    serv_addr.sin_port = htons(port_);
+    serv_addr.sin_port = htons(ps_port);
     std::memset(serv_addr.sin_zero, 0, sizeof(serv_addr.sin_zero));
 
     int ret = bind(server_sock_,
             reinterpret_cast<sockaddr*> (&serv_addr), sizeof(serv_addr));
     if (ret < 0) {
-      throw std::runtime_error("Error binding in port " + to_string(port_));
+      throw std::runtime_error("Error binding in port " + to_string(ps_port));
     }
 
     if (listen(server_sock_, SOMAXCONN) == -1) {
-      throw std::runtime_error("Error listening on port " + to_string(port_));
+      throw std::runtime_error("Error listening on port " + to_string(ps_port));
     }
     fdses[0].at(0).fd = server_sock_;
     fdses[0].at(0).events = POLLIN;

@@ -30,6 +30,7 @@ class CirrusBundle:
         pass
 
     def run(self):
+        self.cirrus_objs[0].kill_all()
         for cirrus_ob in self.cirrus_objs:
             cirrus_ob.run()
 

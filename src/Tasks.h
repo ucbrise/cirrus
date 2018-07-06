@@ -152,12 +152,13 @@ class ErrorSparseTask : public MLTask {
           batch_size, samples_per_batch, features_per_sample,
           nworkers, worker_id, ps_ip, ps_port)
   {
-
+    this->ps_port = ps_port;
   }
     void run(const Configuration& config);
     void error_response();
 
    private:
+    int ps_port = 1337;
     double last_time = 0.0;
     double last_error = 0.0;
 };
@@ -297,7 +298,6 @@ class PSSparseServerTask : public MLTask {
 
     int pipefds[NUM_POLL_THREADS][2] = { {0} };
 
-    int port_ = 1337;
     int server_sock_ = 0;
     const uint64_t max_fds = 1000;
     int timeout = 1; // 1 ms

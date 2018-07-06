@@ -28,6 +28,7 @@ class BaseTask(object):
             key_name, key_path, # aws key
             ps_ip_public, # public parameter server ip
             ps_ip_private, # private parameter server ip
+            ps_ip_port,
             ps_username, # parameter server VM username
             opt_method, # adagrad, sgd, nesterov, momentum
             checkpoint_model, # checkpoint model every x seconds
@@ -52,6 +53,7 @@ class BaseTask(object):
         self.key_path = key_path
         self.ps_ip_public = ps_ip_public
         self.ps_ip_private = ps_ip_private
+        self.ps_ip_port = ps_ip_port
         self.ps_username = ps_username
         self.opt_method = opt_method
         self.checkpoint_model = checkpoint_model
@@ -110,14 +112,23 @@ class BaseTask(object):
 
         cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' \
                 % (self.key_path, self.ps_username, self.ps_ip_public) + \
-		'"nohup ./parameter_server --config config.txt --nworkers 10000 --rank 1 &> ps_output &"'
+		'"nohup ./parameter_server --config config.txt --nworkers 10000 --rank 1 --ps_port %d &> ps_output &"' % self.ps_ip_port
         print("cmd:", cmd)
-        client.exec_command("killall parameter_server")
         os.system(cmd)
         time.sleep(2)
 
+    def kill_all(self):
+        print "Launching ps"
+        key = paramiko.RSAKey.from_private_key_file(self.key_path)
+
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(hostname=self.ps_ip_public, username=self.ps_username, pkey=key)
+        client.exec_command("killall parameter_server")
+        time.sleep(2)
+
     def get_num_lambdas(self):
-        return messenger.get_num_lambdas(self.ps_ip_public, 1337)
+        return messenger.get_num_lambdas(self.ps_ip_public, self.ps_ip_port)
 
     # if timeout is 0 we run lambdas indefinitely
     # otherwise we stop invoking them after timeout secs
@@ -144,8 +155,8 @@ class BaseTask(object):
                     #print "Launching more lambdas"
                     # Launch more lambdas
 
-                    payload = '{"num_task": %d, "num_workers": %d, "ps_ip": \"%s\"}' \
-                                % (num_task, num_workers, self.ps_ip_private)
+                    payload = '{"num_task": %d, "num_workers": %d, "ps_ip": \"%s\", "ps_port": %d}' \
+                                % (num_task, num_workers, self.ps_ip_private, self.ps_ip_port)
                     #print "payload:", payload
 
                     try:
@@ -162,7 +173,7 @@ class BaseTask(object):
             print "Starting error task"
             cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' \
                     % (self.key_path, self.ps_username, self.ps_ip_public) + \
-    		  '"./parameter_server --config config.txt --nworkers 10 --rank 2 --ps_ip \"%s\"" > error_out_%d &' % (self.ps_ip_private, self.id)
+    		  '"./parameter_server --config config.txt --nworkers 10 --rank 2 --ps_ip \"%s\" --ps_port %d " > error_out_%d &' % (self.ps_ip_private,  self.ps_ip_port, self.id)
             print('cmd', cmd)
             os.system(cmd)
 
@@ -190,7 +201,7 @@ class BaseTask(object):
                 self.total_cost = cost_model.get_cost(elapsed_time)
                 self.cost_per_second = cost_model.get_cost_per_second()
 
-                t, loss = messenger.get_last_time_error(self.ps_ip_public)
+                t, loss = messenger.get_last_time_error(self.ps_ip_public, self.ps_ip_port +1)
                 self.progress_callback((float(t), float(loss)), \
                         cost_model.get_cost(elapsed_time), \
                         "task1")

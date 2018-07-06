@@ -31,6 +31,5 @@ if __name__ == "__main__":
 
     while True:
         time.sleep(1)
-        print(get_num_lambdas())
-        print(get_last_time_error()) 
-
+        print(get_num_lambdas("127.0.0.1", 1339))
+        #print(get_last_time_error())

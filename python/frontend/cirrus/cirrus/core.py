@@ -12,6 +12,7 @@ import socket
 import struct
 import time
 import random
+import messenger
 
 class BaseTask(object):
     __metaclass__ = ABCMeta
@@ -67,6 +68,7 @@ class BaseTask(object):
         self.dead = False
         self.cost_model = None
         self.total_cost = 0
+        self.cost_per_second = 0
         self.total_lambda = 0
         self.id = 0
 
@@ -84,11 +86,11 @@ class BaseTask(object):
             # Set up ssm (if we choose to use that, and get the binary)
             # FIXME: make wget replace old copies of parameter_server and not make a new one.
             print("Done waiting... Attempting to copy over binary")
-            stdin, stdout, stderr = client.exec_command(\
-                "rm -rf parameter_server && " \
-                + "wget -q https://s3-us-west-2.amazonaws.com/" \
-                + "cirrus-parameter-server/parameter_server && "\
-                + "chmod +x parameter_server")
+            #stdin, stdout, stderr = client.exec_command(\
+            #    "rm -rf parameter_server && " \
+            #    + "wget -q https://s3-us-west-2.amazonaws.com/" \
+            #    + "cirrus-parameter-server/parameter_server && "\
+            #    + "chmod +x parameter_server")
         except Exception, e:
             print "Got an exception in copy_ps_to_vm..."
             print e
@@ -114,24 +116,8 @@ class BaseTask(object):
         os.system(cmd)
         time.sleep(2)
 
-    def fetch_num_lambdas(self):
-        key = paramiko.RSAKey.from_private_key_file(self.key_path)
-        ssh_client = paramiko.SSHClient()
-        ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh_client.connect(hostname=self.ps_ip_public, username=self.ps_username, pkey=key)
-        sftp_client = ssh_client.open_sftp()
-        remote_file = sftp_client.open('ps_output')
-
-        num_connections = 0
-        try:
-            for line in remote_file:
-                if "conns: " in line:
-                    s = line.split(" ")
-                    num_connections = int(s[10])
-        finally:
-            remote_file.close()
-        self.total_lambda = num_connections
-        return num_connections
+    def get_num_lambdas(self):
+        return messenger.get_num_lambdas(self.ps_ip_public, 1337)
 
     # if timeout is 0 we run lambdas indefinitely
     # otherwise we stop invoking them after timeout secs
@@ -150,18 +136,17 @@ class BaseTask(object):
                     return;
 
                 # TODO: Make this grab the number of lambdas from PS log
-                num_lambdas = self.fetch_num_lambdas();
-                print "PS has %d lambdas and " % num_lambdas
-                print self.learning_rate
+                num_lambdas = self.get_num_lambdas();
+                #print "PS has %d lambdas and " % num_lambdas
                 # FIXME: Rename num_workers
                 num_task = 3
                 if num_lambdas < num_workers:
-                    print "Launching more lambdas"
+                    #print "Launching more lambdas"
                     # Launch more lambdas
 
                     payload = '{"num_task": %d, "num_workers": %d, "ps_ip": \"%s\"}' \
                                 % (num_task, num_workers, self.ps_ip_private)
-                    print "payload:", payload
+                    #print "payload:", payload
 
                     try:
                         response = client.invoke(
@@ -181,25 +166,14 @@ class BaseTask(object):
             print('cmd', cmd)
             os.system(cmd)
 
-            while True:
+            while not self.kill_signal.is_set():
                 try:
                     file = open('error_out_%d' % self.id)
+                    file.close()
                     break
                 except Exception, e:
                     print "Waiting for error task to start"
                     time.sleep(2)
-
-
-            def tail(file):
-                file.seek(0, 2)
-                while not file.closed:
-                    line = file.readline()
-                    if not line:
-                        time.sleep(2)
-                        continue
-                    if self.kill_signal.is_set():
-                        yield "END"
-                    yield line
 
             start_time = time.time()
             cost_model = CostModel(
@@ -210,25 +184,19 @@ class BaseTask(object):
                     self.worker_size)
             self.cost_model = cost_model
 
-            for line in tail(file):
-                if "Loss" in line:
-                    s = line.split(" ")
-                    loss = s[3].split("/")[1]
-                    t = s[-1][:-2] # get time and get rid of newline
+            while not self.kill_signal.is_set():
+                time.sleep(1)
+                elapsed_time = time.time() - start_time
+                self.total_cost = cost_model.get_cost(elapsed_time)
+                self.cost_per_second = cost_model.get_cost_per_second()
 
-                    elapsed_time = time.time() - start_time
-                    self.total_cost = cost_model.get_cost(elapsed_time)
-                    self.progress_callback((float(t), float(loss)), \
-                            cost_model.get_cost(elapsed_time), \
-                            "task1")
-                    self.time_loss_lst.append((t, loss))
-                    print((t, loss, self.learning_rate))
+                t, loss = messenger.get_last_time_error(self.ps_ip_public)
+                self.progress_callback((float(t), float(loss)), \
+                        cost_model.get_cost(elapsed_time), \
+                        "task1")
 
-                    if self.timeout > 0 and float(t) > self.timeout:
-                        print("error is timing out")
-                        return
-                elif "END" in line:
-                    print("Error task has received kill signal")
+                if self.timeout > 0 and float(t) > self.timeout:
+                    #print("error is timing out")
                     return
 
         self.lambda_launcher = Thread(target=launch)
@@ -240,7 +208,11 @@ class BaseTask(object):
         print "Lambdas have been launched"
 
     def get_time_loss(self):
-        print("Get time loss", self.id)
+        t, loss = messenger.get_last_time_error(self.ps_ip_public)
+        if (t == 0):
+            return []
+        if len(self.time_loss_lst) == 0 or not ((t, loss) == self.time_loss_lst[-1]):
+            self.time_loss_lst.append((t, loss))
         return self.time_loss_lst
 
     def get_name(self):

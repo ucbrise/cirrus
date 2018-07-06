@@ -11,6 +11,7 @@ from plotly.graph_objs import *
 import json
 import random
 import time
+import CirrusBundle
 
 
 # Grab memory usage by process
@@ -18,10 +19,17 @@ import os
 import psutil
 process = psutil.Process(os.getpid())
 
+
+
 app = dash.Dash(__name__)
 app.css.append_css({
         "external_url": "https://codepen.io/chriddyp/pen/bWLwgP.css"
 })
+
+import logging
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
+
 server = app.server
 
 # Layout functions
@@ -44,7 +52,7 @@ def div_graph(name):
             id='logloss',
         ),
 
-        dcc.Interval(id='logloss-update', interval=1000, n_intervals=0)
+        dcc.Interval(id='logloss-update', interval=2000, n_intervals=0)
     ], style={'width':'80%', 'display': 'inline-block', 'vertical-align':'middle'})
 
 app.layout = html.Div([
@@ -102,16 +110,22 @@ app.layout = html.Div([
 
 # helper functions
 
-cost = 0
+def get_cost_per_second():
+    return sum([item.cost_per_second for item in bundle.cirrus_objs])
+
 def get_cost():
-    return sum([item.total_cost for item in bundle])
+    return sum([item.total_cost for item in bundle.cirrus_objs])
 
 def get_num_lambdas():
-    return str(sum([item.total_lambda for item in bundle]))
+    return str(sum([item.get_num_lambdas() for item in bundle.cirrus_objs]))
 
 def get_mem_usage():
     global process
     return process.memory_info().rss / 1000000
+
+def test():
+    r = lambda: random.randint(0,255)
+    return 'rgb(%d, %d, %d)' % (r(),r(),r())
 
 def get_traces(num):
     trace_lst = []
@@ -122,7 +136,8 @@ def get_traces(num):
                 x=get_xs_for(i),
                 y=get_ys_for(i),
                 name=get_name_for(i),
-                mode='markers+lines'
+                mode='markers+lines',
+                line = dict(color = bundle.get_info(i, 'color'))
             )
             trace_lst.append(trace)
     else:
@@ -136,7 +151,8 @@ def get_traces(num):
                 x=xs,
                 y=ys,
                 name=get_name_for(i),
-                mode='markers+lines'
+                mode='markers+lines',
+                line = dict(color = (bundle.get_info(i, 'color')))
             )
             q.append((ys[-1], trace))
         q.sort(reverse=(num > 0))
@@ -144,25 +160,36 @@ def get_traces(num):
     return trace_lst
 
 
-bundle = []
+bundle = None
+
+dead_lst = []
+frozen_lstx = {}
+frozen_lsty = {}
 
 def get_num_experiments():
-    return len(bundle)
+    return bundle.get_number_experiments()
 
 def get_xs_for(i):
-    item = bundle[i]
-    return [tl[0] for tl in item.get_time_loss()]
+    if i in dead_lst:
+        return frozen_lstx[i]
+
+    item = bundle.cirrus_objs[i]
+    frozen_lstx[i] = [tl[0] for tl in item.get_time_loss()]
+    return frozen_lstx[i]
 
 def get_ys_for(i):
-    item = bundle[i]
-    return [tl[1] for tl in item.get_time_loss()]
-
+    if i in dead_lst:
+        return frozen_lsty[i]
+    item = bundle.cirrus_objs[i]
+    frozen_lsty[i] = [tl[1] for tl in item.get_time_loss()]
+    return frozen_lsty[i]
 def get_name_for(i):
-    item = bundle[i]
+    item = bundle.cirrus_objs[i]
     return item.get_name()
 
 def kill(i):
-    bundle[i].kill()
+    dead_lst.append(i)
+    bundle.kill(i)
 
 
 
@@ -175,7 +202,6 @@ def kill(i):
     [Input('kill-all-button', 'n_clicks')]
 )
 def killall_clicked(n_clicks):
-    print "killall triggered!"
     if (n_clicks > 0):
         for i in range(get_num_experiments()):
             kill(i)
@@ -190,7 +216,6 @@ def show_kill_button(child):
 
 @app.callback(Output('kill-button', 'children'), [Input('data-panel', 'children')])
 def set_kill_button_text(child):
-    print child
     if not "Nothing" in child:
         num = child.split(" ")[3]
         return "Kill line: %s" % num
@@ -206,22 +231,17 @@ def set_kill_button_text(child):
 def select_or_kill(selected_points, kill_button_ts, current_info):
     if selected_points == None:
         return "Nothing selected!"
-    print selected_points
 
     if kill_button_ts == None:
         kill_button_ts = 0
     last_kill_time = (time.time() * 1000.0) - kill_button_ts
-    print(last_kill_time)
     # HACK: To see if we selected something or killed something, we check to seek
     # when the last increment occured.
     if  last_kill_time > 100:
-        print "Last action was a select"
         cnum = int(selected_points["points"][0]["curveNumber"])
         return 'Selected curve number: %d' % cnum
     else:
-        print "Last action was a kill click"
         cnum = int(current_info.split(" ")[3])
-        print "Killing line %d" % cnum
         kill(cnum)
         return "Nothing selected!"
 
@@ -251,16 +271,17 @@ def gen_cost(interval):
     Output('cost', 'children'),
     [Input('logloss-update', 'n_intervals')])
 def gen_cost(interval):
-    child = "Cost: $%0.2f" % get_cost()
+    child = "Cost: $%0.2f \n($%0.5f/sec)" % (get_cost(), get_cost_per_second())
     return child
 
 # FIXME: Need a more sophisticated way to zoom into the graph.
 @app.callback(Output('logloss', 'figure'),
     [
     Input('logloss-update', 'n_intervals'),
+    Input('showmenu', 'value')
     ],
     [
-    State('showmenu', 'value'),
+
     State('logloss', 'figure'),
     State('logloss', 'relayoutData'),
     State('mapControls', 'values')])
@@ -275,7 +296,6 @@ def gen_loss(interval, menu, oldfig, relayoutData, lockCamera):
 
     trace_lst = get_traces(how_many)
 
-    print menu
     if 'lock' in lockCamera:
         return oldfig
         r1 = None
@@ -285,14 +305,16 @@ def gen_loss(interval, menu, oldfig, relayoutData, lockCamera):
         if 'yaxis.range[0]' in relayoutData.keys():
             r2 = [relayoutData['yaxis.range[0]'], relayoutData['yaxis.range[1]']]
         layout = Layout(
-            height=450,
+            height=800,
+            width=800,
             xaxis=dict(
                 title='Time Elapsed (sec)',
                 range=r1
             ),
             yaxis=dict(
                 title="Loss",
-                range=r2
+                range=r2,
+
             ),
             margin=Margin(
                 t=45,
@@ -309,6 +331,8 @@ def gen_loss(interval, menu, oldfig, relayoutData, lockCamera):
                 title='Time Elapsed (sec)'
             ),
             yaxis=dict(
+                title="Loss"
+
             ),
             margin=Margin(
                 t=45,
@@ -321,3 +345,14 @@ def gen_loss(interval, menu, oldfig, relayoutData, lockCamera):
 
 
     return Figure(data=trace_lst, layout=layout)
+
+import threading
+def run_server():
+    def runner():
+        app.run_server(debug=False)
+    t = threading.Thread(target=runner)
+    t.start()
+
+from IPython.display import IFrame
+def display_dash():
+    return IFrame('http://localhost:8050', width=1000, height=800)

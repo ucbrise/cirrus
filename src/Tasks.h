@@ -152,8 +152,6 @@ class ErrorSparseTask : public MLTask {
           batch_size, samples_per_batch, features_per_sample,
           nworkers, worker_id, ps_ip, ps_port)
   {
-    this->last_loss = 0;
-    this->last_time = 0;
 
   }
     void run(const Configuration& config);

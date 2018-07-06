@@ -3,14 +3,15 @@ import random
 from context import cirrus
 from cirrus import LogisticRegression
 from cirrus import app
+from cirrus import CirrusBundle
 
 def progress_callback(time_loss, cost, task):
   print("Current training loss:", time_loss, \
         "current cost ($): ", cost)
 
 ps_servers = [
-    ('ec2-34-209-127-25.us-west-2.compute.amazonaws.com', '172.31.8.233', 0.0001),
-    ('ec2-34-212-176-10.us-west-2.compute.amazonaws.com', '172.31.4.18', 0.1)
+    ('ec2-34-210-71-81.us-west-2.compute.amazonaws.com', '172.31.36.46', 0.0001),
+    ('ec2-34-220-36-27.us-west-2.compute.amazonaws.com', '172.31.40.139', 0.1)
 ]
 
 data_bucket = 'cirrus-criteo-kaggle-19b-random'
@@ -50,14 +51,11 @@ if __name__ == "__main__":
         config['ps_ip_public'] = ps[0]
         config['ps_ip_private'] = ps[1]
         config['learning_rate'] = ps[2]
-        cirrus_obj = LogisticRegression(**config)
-        cirrus_obj.id = index
-        cirrus_obj.run()
-        batch.append(cirrus_obj)
+        batch.append(config)
         index += 1
-    app.bundle = batch
+    cb = CirrusBundle()
+    cb.set_task_parameters(LogisticRegression, batch)
+    app.bundle = cb
     print("Bootstrapping")
+    cb.run()
     app.app.run_server(debug=False)
-    #time.sleep(10)
-    #batch[0].kill()
-    #batch[1].kill()

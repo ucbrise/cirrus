@@ -520,10 +520,7 @@ void PSSparseServerTask::loop(int poll_id) {
     } else if (
             (poll_id == 0 && fdses[poll_id][1].revents == POLLIN)
          || (poll_id != 0 && fdses[poll_id][0].revents == POLLIN)) {
-      //std::cout << "Ignoring" << std::endl;
-      int posit = 0;
-      if (poll_id == 0)
-        posit = 1;
+      int posit = (poll_id == 0);        // =1 if main poll thread, 0 otherwise
       fdses[poll_id][posit].revents = 0; // Reset the event flags
       char a[1];
       assert(read(pipefds[poll_id][0], a, 1) >= 0);

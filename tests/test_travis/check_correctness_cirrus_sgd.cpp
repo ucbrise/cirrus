@@ -51,9 +51,9 @@ void learning_function(const SparseDataset& dataset) {
 int main() {
   InputReader input;
   SparseDataset dataset = input.read_input_criteo_kaggle_sparse(
-      "src/test/train_lr.csv", ",", config);  // normalize=true
+      "tests/test_data/train_lr.csv", ",", config);  // normalize=true
   SparseDataset test_dataset = input.read_input_criteo_kaggle_sparse(
-      "src/test/test_lr.csv", ",", config);
+      "tests/test_data/test_lr.csv", ",", config);
   dataset.check();
   test_dataset.check();
   dataset.print_info();

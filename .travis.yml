@@ -24,7 +24,7 @@ script:
    - gcc --version
    - g++ --version
    - make -j 10
-   - ./src/test/test_logistic_regression
+   - ./tests/test_travis/test_lr
 
 env:
   global:

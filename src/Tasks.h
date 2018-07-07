@@ -241,6 +241,11 @@ class PSSparseServerTask : public MLTask {
     };
 
   private:
+    /**
+      * Handle the situation when a socket read fails within worker threads
+      */
+    void handle_failed_read(struct pollfd* pfd);
+
     void thread_fn();
     void checkpoint_model_loop();
 
@@ -273,15 +278,20 @@ class PSSparseServerTask : public MLTask {
     /**
       * Attributes
       */
-    std::unique_ptr<OptimizationMethod> opt_method;
+    std::unique_ptr<OptimizationMethod> opt_method; //< SGD optimization method
 
-    std::vector<uint64_t> curr_indexes = std::vector<uint64_t>(NUM_POLL_THREADS);
-#if 0
-    uint64_t server_clock = 0;  // minimum of all worker clocks
-#endif
-    //std::unique_ptr<std::thread> thread; // worker threads
+    std::vector<uint64_t> curr_indexes =
+      std::vector<uint64_t>(NUM_POLL_THREADS);
+
+    // threads to handle connections and messages
     std::vector<std::unique_ptr<std::thread>> server_threads;
+
+    // threads to handle requests
     std::vector<std::unique_ptr<std::thread>> gradient_thread;
+
+    std::set<uint64_t> registered_tasks; //< which tasks have registered
+
+    // thread to checkpoint model
     std::vector<std::unique_ptr<std::thread>> checkpoint_thread;
     pthread_t poll_thread;
     pthread_t main_thread;
@@ -294,7 +304,7 @@ class PSSparseServerTask : public MLTask {
 
     int port_ = 1337;
     int server_sock_ = 0;
-    const uint64_t max_fds = 1000;
+    const uint64_t max_fds = 1000; //< max number of connections supported
     int timeout = 1; // 1 ms
     std::vector<std::vector<struct pollfd>> fdses =
         std::vector<std::vector<struct pollfd>>(NUM_POLL_THREADS);

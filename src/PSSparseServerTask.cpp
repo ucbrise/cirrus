@@ -39,6 +39,7 @@ PSSparseServerTask::PSSparseServerTask(
     operation_to_name[5] = "GET_MF_SPARSE_MODEL";
     operation_to_name[6] = "SET_TASK_STATUS";
     operation_to_name[7] = "GET_TASK_STATUS";
+    operation_to_name[8] = "REGISTER_TASK";
 
     for (int i = 0; i < NUM_PS_WORK_THREADS; i++) {
       thread_msg_buffer[i] =
@@ -261,6 +262,18 @@ bool PSSparseServerTask::process_get_lr_full_model(
   return true;
 }
 
+void PSSparseServerTask::handle_failed_read(struct pollfd* pfd) {
+  if (close(pfd->fd) != 0) {
+    std::cout << "Error closing socket. errno: " << errno << std::endl;
+  }
+  num_connections--;
+  std::cout
+    << "PS closing connection after process(): "
+    << num_connections << std::endl;
+  pfd->fd = -1;
+  pfd->revents = 0;
+}
+
 void PSSparseServerTask::gradient_f() {
   std::vector<char> thread_buffer;
   thread_buffer.resize(120 * 1024 * 1024); // 120 MB
@@ -276,34 +289,40 @@ void PSSparseServerTask::gradient_f() {
 
     int sock = req.poll_fd.fd;
 
+    // first read 4 bytes for operation ID
     uint32_t operation = 0;
     if (read_all(sock, &operation, sizeof(uint32_t)) == 0) {
-      if (close(req.poll_fd.fd) != 0) {
-        std::cout << "Error closing socket. errno: " << errno << std::endl;
-      }
-      num_connections--;
-      std::cout << "PS closing connection after process(): " << num_connections << std::endl;
-      req.poll_fd.fd = -1;
-      req.poll_fd.revents = 0;
+      handle_failed_read(&req.poll_fd);
       continue;
     }
 
     req.req_id = operation;
-    if (operation == SEND_LR_GRADIENT || operation == SEND_MF_GRADIENT ||
+
+    if (operation == REGISTER_TASK) {
+      // read the task id
+      uint32_t task_id = 0;
+      if (read_all(sock, &task_id, sizeof(uint32_t)) == 0) {
+        handle_failed_read(&req.poll_fd);
+        continue;
+      }
+      // check if this task has already been registered
+      uint32_t task_reg =
+        (registered_tasks.find(task_id) != registered_tasks.end());
+
+      if (task_reg == 0) {
+        registered_tasks.insert(task_id);
+      }
+      send_all(sock, &task_reg, sizeof(uint32_t));
+      continue;
+    } else if (operation == SEND_LR_GRADIENT || operation == SEND_MF_GRADIENT ||
         operation == GET_LR_SPARSE_MODEL || operation == GET_MF_SPARSE_MODEL) {
+      // read 4 bytes of the size of the remaining message
       uint32_t incoming_size = 0;
       if (read_all(sock, &incoming_size, sizeof(uint32_t)) == 0) {
-        if (close(req.poll_fd.fd) != 0) {
-          std::cout << "Error closing socket. errno: " << errno << std::endl;
-        }
-        num_connections--;
-        std::cout << "PS closing connection after process(): " << num_connections << std::endl;
-        req.poll_fd.fd = -1;
-        req.poll_fd.revents = 0;
+        handle_failed_read(&req.poll_fd);
         continue;
       }
       req.incoming_size = incoming_size;
-
     }
 
 #ifdef DEBUG
@@ -362,7 +381,8 @@ void PSSparseServerTask::gradient_f() {
     
       uint32_t data[2] = {0}; // id + status
       if (read_all(sock, data, sizeof (uint32_t) * 2) == 0) {
-        break;
+        handle_failed_read(&req.poll_fd);
+        continue;
       }
 #ifdef DEBUG
       std::cout << "Set status task id: " << data[0] << " status: " << data[1] << std::endl;
@@ -398,9 +418,6 @@ bool PSSparseServerTask::process(struct pollfd& poll_fd, int thread_id) {
 #endif
 
   uint32_t operation = 0;
-  //if (read_all(sock, &operation, sizeof(uint32_t)) == 0) { // read operation
-  //  return false;
-  //}
 #ifdef DEBUG 
   std::cout << "Operation: " << operation << " - "
       << operation_to_name[operation] << std::endl;

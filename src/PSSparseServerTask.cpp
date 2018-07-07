@@ -267,8 +267,8 @@ void PSSparseServerTask::handle_failed_read(struct pollfd* pfd) {
     std::cout << "Error closing socket. errno: " << errno << std::endl;
   }
   num_connections--;
-  std::cout << "PS closing connection after process(): "
-    << num_connections << std::endl;
+  std::cout << "PS closing connection after process(): " << num_connections
+            << std::endl;
   pfd->fd = -1;
   pfd->revents = 0;
 }

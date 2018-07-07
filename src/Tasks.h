@@ -219,26 +219,36 @@ class LoadingNetflixTask : public MLTask {
 
 class PSSparseServerTask : public MLTask {
  public:
-    PSSparseServerTask(
-        uint64_t model_size,
-        uint64_t batch_size, uint64_t samples_per_batch,
-        uint64_t features_per_sample, uint64_t nworkers,
-        uint64_t worker_id, const std::string& ps_ip,
-        uint64_t ps_port);
+  PSSparseServerTask(uint64_t model_size,
+                     uint64_t batch_size,
+                     uint64_t samples_per_batch,
+                     uint64_t features_per_sample,
+                     uint64_t nworkers,
+                     uint64_t worker_id,
+                     const std::string& ps_ip,
+                     uint64_t ps_port);
 
-    void run(const Configuration& config);
+  void run(const Configuration& config);
 
-    struct Request {
-      public:
-        Request(int req_id, int sock, int id, uint32_t incoming_size, struct pollfd& poll_fd) :
-          req_id(req_id), sock(sock), id(id), incoming_size(incoming_size), poll_fd(poll_fd){}
+  struct Request {
+   public:
+    Request(int req_id,
+            int sock,
+            int id,
+            uint32_t incoming_size,
+            struct pollfd& poll_fd)
+        : req_id(req_id),
+          sock(sock),
+          id(id),
+          incoming_size(incoming_size),
+          poll_fd(poll_fd) {}
 
-        int req_id;
-        int sock;
-        int id;
-        uint32_t incoming_size;
-        struct pollfd& poll_fd;
-    };
+    int req_id;
+    int sock;
+    int id;
+    uint32_t incoming_size;
+    struct pollfd& poll_fd;
+  };
 
  private:
   /**
@@ -259,29 +269,29 @@ class PSSparseServerTask : public MLTask {
 
   // Model/ML related methods
   void checkpoint_model_file(const std::string&) const;
-  std::shared_ptr<char> serialize_lr_model(
-      const SparseLRModel&, uint64_t* model_size) const;
+  std::shared_ptr<char> serialize_lr_model(const SparseLRModel&,
+                                           uint64_t* model_size) const;
   void gradient_f();
 
   // message handling
   bool process_get_lr_sparse_model(const Request& req, std::vector<char>&);
   bool process_send_lr_gradient(const Request& req, std::vector<char>&);
-  bool process_get_mf_sparse_model(
-      const Request& req, std::vector<char>&, int tn);
-  bool process_get_lr_full_model(
-      const Request& req, std::vector<char>& thread_buffer);
-  bool process_send_mf_gradient(
-      const Request& req, std::vector<char>& thread_buffer);
-  bool process_get_mf_full_model(
-      const Request& req, std::vector<char>& thread_buffer);
+  bool process_get_mf_sparse_model(const Request& req,
+                                   std::vector<char>&,
+                                   int tn);
+  bool process_get_lr_full_model(const Request& req,
+                                 std::vector<char>& thread_buffer);
+  bool process_send_mf_gradient(const Request& req,
+                                std::vector<char>& thread_buffer);
+  bool process_get_mf_full_model(const Request& req,
+                                 std::vector<char>& thread_buffer);
 
   /**
     * Attributes
     */
-  std::unique_ptr<OptimizationMethod> opt_method; //< SGD optimization method
+  std::unique_ptr<OptimizationMethod> opt_method;  //< SGD optimization method
 
-  std::vector<uint64_t> curr_indexes =
-    std::vector<uint64_t>(NUM_POLL_THREADS);
+  std::vector<uint64_t> curr_indexes = std::vector<uint64_t>(NUM_POLL_THREADS);
 
   // threads to handle connections and messages
   std::vector<std::unique_ptr<std::thread>> server_threads;
@@ -289,7 +299,7 @@ class PSSparseServerTask : public MLTask {
   // threads to handle requests
   std::vector<std::unique_ptr<std::thread>> gradient_thread;
 
-  std::set<uint64_t> registered_tasks; //< which tasks have registered
+  std::set<uint64_t> registered_tasks;  //< which tasks have registered
 
   // thread to checkpoint model
   std::vector<std::unique_ptr<std::thread>> checkpoint_thread;
@@ -298,23 +308,23 @@ class PSSparseServerTask : public MLTask {
   std::mutex to_process_lock;
   sem_t sem_new_req;
   std::queue<Request> to_process;
-  std::mutex model_lock; // used to coordinate access to the last computed model
+  std::mutex model_lock;  //< to coordinate access to the last computed model
 
-  int pipefds[NUM_POLL_THREADS][2] = { {0} };
+  int pipefds[NUM_POLL_THREADS][2] = {{0}};
 
   int port_ = 1337;
   int server_sock_ = 0;
-  const uint64_t max_fds = 1000; //< max number of connections supported
-  int timeout = 1; // 1 ms
+  const uint64_t max_fds = 1000;  //< max number of connections supported
+  int timeout = 1;                //< 1 ms
   std::vector<std::vector<struct pollfd>> fdses =
       std::vector<std::vector<struct pollfd>>(NUM_POLL_THREADS);
 
-  std::vector<char> buffer; // we use this buffer to hold data from workers
+  std::vector<char> buffer;  //< we use this buffer to hold data from workers
 
   volatile uint64_t gradientUpdatesCount = 0;
-  
-  std::unique_ptr<SparseLRModel> lr_model; // last computed model
-  std::unique_ptr<MFModel> mf_model; // last computed model
+
+  std::unique_ptr<SparseLRModel> lr_model;  //< last computed model
+  std::unique_ptr<MFModel> mf_model;        //< last computed model
   Configuration task_config;
   uint32_t num_connections = 0;
 

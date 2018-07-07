@@ -218,7 +218,7 @@ class LoadingNetflixTask : public MLTask {
 };
 
 class PSSparseServerTask : public MLTask {
-  public:
+ public:
     PSSparseServerTask(
         uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
@@ -240,89 +240,89 @@ class PSSparseServerTask : public MLTask {
         struct pollfd& poll_fd;
     };
 
-  private:
-    /**
-      * Handle the situation when a socket read fails within worker threads
-      */
-    void handle_failed_read(struct pollfd* pfd);
+ private:
+  /**
+    * Handle the situation when a socket read fails within worker threads
+    */
+  void handle_failed_read(struct pollfd* pfd);
 
-    void thread_fn();
-    void checkpoint_model_loop();
+  void thread_fn();
+  void checkpoint_model_loop();
 
-    // network related methods
-    void start_server();
-    void main_poll_thread_fn(int id);
+  // network related methods
+  void start_server();
+  void main_poll_thread_fn(int id);
 
-    bool testRemove(struct pollfd x, int id);
-    void loop(int id);
-    bool process(struct pollfd&, int id);
+  bool testRemove(struct pollfd x, int id);
+  void loop(int id);
+  bool process(struct pollfd&, int id);
 
-    // Model/ML related methods
-    void checkpoint_model_file(const std::string&) const;
-    std::shared_ptr<char> serialize_lr_model(
-        const SparseLRModel&, uint64_t* model_size) const;
-    void gradient_f();
+  // Model/ML related methods
+  void checkpoint_model_file(const std::string&) const;
+  std::shared_ptr<char> serialize_lr_model(
+      const SparseLRModel&, uint64_t* model_size) const;
+  void gradient_f();
 
-    // message handling
-    bool process_get_lr_sparse_model(const Request& req, std::vector<char>&);
-    bool process_send_lr_gradient(const Request& req, std::vector<char>&);
-    bool process_get_mf_sparse_model(
-        const Request& req, std::vector<char>&, int tn);
-    bool process_get_lr_full_model(
-        const Request& req, std::vector<char>& thread_buffer);
-    bool process_send_mf_gradient(
-        const Request& req, std::vector<char>& thread_buffer);
-    bool process_get_mf_full_model(
-        const Request& req, std::vector<char>& thread_buffer);
+  // message handling
+  bool process_get_lr_sparse_model(const Request& req, std::vector<char>&);
+  bool process_send_lr_gradient(const Request& req, std::vector<char>&);
+  bool process_get_mf_sparse_model(
+      const Request& req, std::vector<char>&, int tn);
+  bool process_get_lr_full_model(
+      const Request& req, std::vector<char>& thread_buffer);
+  bool process_send_mf_gradient(
+      const Request& req, std::vector<char>& thread_buffer);
+  bool process_get_mf_full_model(
+      const Request& req, std::vector<char>& thread_buffer);
 
-    /**
-      * Attributes
-      */
-    std::unique_ptr<OptimizationMethod> opt_method; //< SGD optimization method
+  /**
+    * Attributes
+    */
+  std::unique_ptr<OptimizationMethod> opt_method; //< SGD optimization method
 
-    std::vector<uint64_t> curr_indexes =
-      std::vector<uint64_t>(NUM_POLL_THREADS);
+  std::vector<uint64_t> curr_indexes =
+    std::vector<uint64_t>(NUM_POLL_THREADS);
 
-    // threads to handle connections and messages
-    std::vector<std::unique_ptr<std::thread>> server_threads;
+  // threads to handle connections and messages
+  std::vector<std::unique_ptr<std::thread>> server_threads;
 
-    // threads to handle requests
-    std::vector<std::unique_ptr<std::thread>> gradient_thread;
+  // threads to handle requests
+  std::vector<std::unique_ptr<std::thread>> gradient_thread;
 
-    std::set<uint64_t> registered_tasks; //< which tasks have registered
+  std::set<uint64_t> registered_tasks; //< which tasks have registered
 
-    // thread to checkpoint model
-    std::vector<std::unique_ptr<std::thread>> checkpoint_thread;
-    pthread_t poll_thread;
-    pthread_t main_thread;
-    std::mutex to_process_lock;
-    sem_t sem_new_req;
-    std::queue<Request> to_process;
-    std::mutex model_lock; // used to coordinate access to the last computed model
+  // thread to checkpoint model
+  std::vector<std::unique_ptr<std::thread>> checkpoint_thread;
+  pthread_t poll_thread;
+  pthread_t main_thread;
+  std::mutex to_process_lock;
+  sem_t sem_new_req;
+  std::queue<Request> to_process;
+  std::mutex model_lock; // used to coordinate access to the last computed model
 
-    int pipefds[NUM_POLL_THREADS][2] = { {0} };
+  int pipefds[NUM_POLL_THREADS][2] = { {0} };
 
-    int port_ = 1337;
-    int server_sock_ = 0;
-    const uint64_t max_fds = 1000; //< max number of connections supported
-    int timeout = 1; // 1 ms
-    std::vector<std::vector<struct pollfd>> fdses =
-        std::vector<std::vector<struct pollfd>>(NUM_POLL_THREADS);
+  int port_ = 1337;
+  int server_sock_ = 0;
+  const uint64_t max_fds = 1000; //< max number of connections supported
+  int timeout = 1; // 1 ms
+  std::vector<std::vector<struct pollfd>> fdses =
+      std::vector<std::vector<struct pollfd>>(NUM_POLL_THREADS);
 
-    std::vector<char> buffer; // we use this buffer to hold data from workers
+  std::vector<char> buffer; // we use this buffer to hold data from workers
 
-    volatile uint64_t gradientUpdatesCount = 0;
-    
-    std::unique_ptr<SparseLRModel> lr_model; // last computed model
-    std::unique_ptr<MFModel> mf_model; // last computed model
-    Configuration task_config;
-    uint32_t num_connections = 0;
+  volatile uint64_t gradientUpdatesCount = 0;
+  
+  std::unique_ptr<SparseLRModel> lr_model; // last computed model
+  std::unique_ptr<MFModel> mf_model; // last computed model
+  Configuration task_config;
+  uint32_t num_connections = 0;
 
-    std::map<int, bool> task_to_status;
-    std::map<int, std::string> operation_to_name;
+  std::map<int, bool> task_to_status;
+  std::map<int, std::string> operation_to_name;
 
-    char* thread_msg_buffer[NUM_PS_WORK_THREADS];  // per-thread buffer
-    std::atomic<int> thread_count;
+  char* thread_msg_buffer[NUM_PS_WORK_THREADS];  // per-thread buffer
+  std::atomic<int> thread_count;
 };
 
 class MFNetflixTask : public MLTask {

@@ -267,8 +267,7 @@ void PSSparseServerTask::handle_failed_read(struct pollfd* pfd) {
     std::cout << "Error closing socket. errno: " << errno << std::endl;
   }
   num_connections--;
-  std::cout
-    << "PS closing connection after process(): "
+  std::cout << "PS closing connection after process(): "
     << num_connections << std::endl;
   pfd->fd = -1;
   pfd->revents = 0;
@@ -307,7 +306,7 @@ void PSSparseServerTask::gradient_f() {
       }
       // check if this task has already been registered
       uint32_t task_reg =
-        (registered_tasks.find(task_id) != registered_tasks.end());
+          (registered_tasks.find(task_id) != registered_tasks.end());
 
       if (task_reg == 0) {
         registered_tasks.insert(task_id);
@@ -315,7 +314,8 @@ void PSSparseServerTask::gradient_f() {
       send_all(sock, &task_reg, sizeof(uint32_t));
       continue;
     } else if (operation == SEND_LR_GRADIENT || operation == SEND_MF_GRADIENT ||
-        operation == GET_LR_SPARSE_MODEL || operation == GET_MF_SPARSE_MODEL) {
+               operation == GET_LR_SPARSE_MODEL ||
+               operation == GET_MF_SPARSE_MODEL) {
       // read 4 bytes of the size of the remaining message
       uint32_t incoming_size = 0;
       if (read_all(sock, &incoming_size, sizeof(uint32_t)) == 0) {

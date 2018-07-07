@@ -6,6 +6,7 @@ using namespace Aws::S3;
 
 Aws::SDKOptions options;
 namespace cirrus {
+static bool called = false;
 void s3_initialize_aws() {
   if (called) {
     throw std::runtime_error("S3 already active");

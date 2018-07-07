@@ -35,6 +35,7 @@ CPP_SOURCES = InputReader.cpp Utils.cpp \
 	      OptimizationMethod.cpp AdaGrad.cpp \
 	      Momentum.cpp SGD.cpp Nesterov.cpp\
 	      Model.cpp LRModel.cpp SoftmaxModel.cpp SparseLRModel.cpp \
+	      S3Client.cpp \
 	      SparseMFModel.cpp MFModel.cpp\
               ModelGradient.cpp MlUtils.cpp Configuration.cpp \
               Checksum.cpp \

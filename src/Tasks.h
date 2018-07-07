@@ -192,29 +192,37 @@ class LoadingSparseTaskS3 : public MLTask {
   {}
     void run(const Configuration& config);
     SparseDataset read_dataset(const Configuration& config);
-    void check_loading(const Configuration&, Aws::S3::S3Client& s3_client);
+    void check_loading(const Configuration&,
+                       std::unique_ptr<S3Client>& s3_client);
     void check_label(FEATURE_TYPE label);
 
   private:
 };
 
 class LoadingNetflixTask : public MLTask {
-  public:
-    LoadingNetflixTask(
-        uint64_t model_size,
-        uint64_t batch_size, uint64_t samples_per_batch,
-        uint64_t features_per_sample, uint64_t nworkers,
-        uint64_t worker_id, const std::string& ps_ip,
-        uint64_t ps_port) :
-      MLTask(model_size,
-          batch_size, samples_per_batch, features_per_sample,
-          nworkers, worker_id, ps_ip, ps_port)
-  {}
-    void run(const Configuration& config);
-    SparseDataset read_dataset(const Configuration& config, int&, int&);
-    void check_loading(const Configuration&, Aws::S3::S3Client& s3_client);
+ public:
+  LoadingNetflixTask(uint64_t model_size,
+                     uint64_t batch_size,
+                     uint64_t samples_per_batch,
+                     uint64_t features_per_sample,
+                     uint64_t nworkers,
+                     uint64_t worker_id,
+                     const std::string& ps_ip,
+                     uint64_t ps_port)
+      : MLTask(model_size,
+               batch_size,
+               samples_per_batch,
+               features_per_sample,
+               nworkers,
+               worker_id,
+               ps_ip,
+               ps_port) {}
+  void run(const Configuration& config);
+  SparseDataset read_dataset(const Configuration& config, int&, int&);
+  void check_loading(const Configuration&,
+                     std::unique_ptr<S3Client>& s3_client);
 
-  private:
+ private:
 };
 
 class PSSparseServerTask : public MLTask {

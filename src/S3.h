@@ -16,6 +16,7 @@
 using namespace Aws::S3;
 
 namespace cirrus {
+static bool called = false;
 void s3_initialize_aws();
 void s3_shutdown_aws();
 }

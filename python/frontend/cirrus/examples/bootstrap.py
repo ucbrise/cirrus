@@ -6,12 +6,20 @@ from cirrus import app
 from cirrus import CirrusBundle
 
 def progress_callback(time_loss, cost, task):
-  print("Current training loss:", time_loss, \
-        "current cost ($): ", cost)
+    pass
+    #print("Current training loss:", time_loss, "current cost ($): ", cost)
 
 ps_servers = [
-    ('ec2-34-210-71-81.us-west-2.compute.amazonaws.com', '172.31.36.46', 0.0001)
-    #('ec2-34-210-71-81.us-west-2.compute.amazonaws.com', '172.31.36.46', 0.1)
+    ('ec2-54-214-110-121.us-west-2.compute.amazonaws.com', '172.31.31.58', 0.1),
+    ('ec2-54-214-110-121.us-west-2.compute.amazonaws.com', '172.31.31.58', 0.2),
+    ('ec2-54-214-110-121.us-west-2.compute.amazonaws.com', '172.31.31.58', 0.3),
+    ('ec2-54-214-110-121.us-west-2.compute.amazonaws.com', '172.31.31.58', 0.4),
+    ('ec2-54-214-110-121.us-west-2.compute.amazonaws.com', '172.31.31.58', 0.5),
+    ('ec2-54-214-110-121.us-west-2.compute.amazonaws.com', '172.31.31.58', 0.6),
+    ('ec2-54-214-110-121.us-west-2.compute.amazonaws.com', '172.31.31.58', 0.7),
+    ('ec2-54-214-110-121.us-west-2.compute.amazonaws.com', '172.31.31.58', 0.8),
+    ('ec2-54-214-110-121.us-west-2.compute.amazonaws.com', '172.31.31.58', 0.9),
+
 ]
 
 data_bucket = 'cirrus-criteo-kaggle-19b-random'
@@ -46,7 +54,7 @@ basic_params = {
 if __name__ == "__main__":
     batch = []
     index = 0
-    base_port = 1339
+    base_port = 1337
     for ps in ps_servers:
         config = basic_params.copy()
         config['ps_ip_public'] = ps[0]
@@ -60,4 +68,6 @@ if __name__ == "__main__":
     app.bundle = cb
     print("Bootstrapping")
     cb.run()
-    app.app.run_server(debug=False)
+    print("XXXXXXXXXXXXXXXXXXXXXXXXXXx")
+
+    app.app.run_server(debug=True)

@@ -101,19 +101,19 @@ class BaseTask(object):
 
     def launch_ps(self, ip):
         print "Launching ps"
-        key = paramiko.RSAKey.from_private_key_file(self.key_path)
+        #key = paramiko.RSAKey.from_private_key_file(self.key_path)
 
-        client = paramiko.SSHClient()
-        self.ssh_client = client
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(hostname=ip, username=self.ps_username, pkey=key)
+        #client = paramiko.SSHClient()
+        #self.ssh_client = client
+        #client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        #client.connect(hostname=ip, username=self.ps_username, pkey=key)
         # Set up ssm (if we choose to use that, and get the binary) XXX: replace a.pdf with the actual binary
         print "Launching parameter server"
 
         cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' \
                 % (self.key_path, self.ps_username, self.ps_ip_public) + \
-		'"nohup ./parameter_server --config config.txt --nworkers 10000 --rank 1 --ps_port %d &> ps_output &"' % self.ps_ip_port
-        print("cmd:", cmd)
+		'"nohup ./parameter_server --config config.txt --nworkers 10 --rank 1 --ps_port %d &> ps_output &"' % self.ps_ip_port
+        #print("cmd:", cmd)
         os.system(cmd)
         time.sleep(2)
 
@@ -128,6 +128,7 @@ class BaseTask(object):
         time.sleep(2)
 
     def get_num_lambdas(self):
+        #print("Lambdas: ", self.ps_ip_public, self.ps_ip_port)
         return messenger.get_num_lambdas(self.ps_ip_public, self.ps_ip_port)
 
     # if timeout is 0 we run lambdas indefinitely
@@ -168,23 +169,15 @@ class BaseTask(object):
                             Payload=payload)
                     except:
                         print "client.invoke exception caught"
-
         def error_task():
             print "Starting error task"
             cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' \
                     % (self.key_path, self.ps_username, self.ps_ip_public) + \
-    		  '"./parameter_server --config config.txt --nworkers 10 --rank 2 --ps_ip \"%s\" --ps_port %d " > error_out_%d &' % (self.ps_ip_private,  self.ps_ip_port, self.id)
+    		  '"./parameter_server --config config.txt --nworkers 10 --rank 2 --ps_ip \"%s\" --ps_port %d &> /dev/null" &' % (self.ps_ip_private,  self.ps_ip_port)
             print('cmd', cmd)
             os.system(cmd)
 
-            while not self.kill_signal.is_set():
-                try:
-                    file = open('error_out_%d' % self.id)
-                    file.close()
-                    break
-                except Exception, e:
-                    print "Waiting for error task to start"
-                    time.sleep(2)
+            time.sleep(3)
 
             start_time = time.time()
             cost_model = CostModel(
@@ -200,7 +193,6 @@ class BaseTask(object):
                 elapsed_time = time.time() - start_time
                 self.total_cost = cost_model.get_cost(elapsed_time)
                 self.cost_per_second = cost_model.get_cost_per_second()
-
                 t, loss = messenger.get_last_time_error(self.ps_ip_public, self.ps_ip_port +1)
                 self.progress_callback((float(t), float(loss)), \
                         cost_model.get_cost(elapsed_time), \
@@ -209,6 +201,7 @@ class BaseTask(object):
                 if self.timeout > 0 and float(t) > self.timeout:
                     #print("error is timing out")
                     return
+            #print("AAAAAAAAAAAAAAAAAAAAA")
 
         self.lambda_launcher = Thread(target=launch)
         self.error_task = Thread(target=error_task)
@@ -216,10 +209,10 @@ class BaseTask(object):
         self.lambda_launcher.start()
         self.error_task.start()
 
-        print "Lambdas have been launched"
+        #print "Lambdas have been launched"
 
     def get_time_loss(self):
-        t, loss = messenger.get_last_time_error(self.ps_ip_public)
+        t, loss = messenger.get_last_time_error(self.ps_ip_public, self.ps_ip_port + 1)
         if (t == 0):
             return []
         if len(self.time_loss_lst) == 0 or not ((t, loss) == self.time_loss_lst[-1]):
@@ -258,7 +251,7 @@ class BaseTask(object):
         self.kill_signal.set()
         self.lambda_launcher.join()
         self.error_task.join()
-        print "Everyone is dead"
+        #print "Everyone is dead"
         self.dead = True
 
     def is_dead(self):

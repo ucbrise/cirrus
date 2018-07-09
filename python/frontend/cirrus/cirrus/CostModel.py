@@ -18,15 +18,13 @@ class CostModel:
         self.s3_space_mb = s3_space_mb
         self.num_workers = num_workers
         self.worker_size = worker_size
-
-        print "Cost Model"
-
+        
     def get_cost_per_second(self):
         # cost of smallest lambda (128MB) per hour
         lambda_cost_base_h = 0.007488
         total_lambda_cost_h = (self.worker_size / 128.0 * lambda_cost_base_h) \
                 * self.num_workers
-        total_lambda_cost = total_lambda_cost_h / (60 * 60) 
+        total_lambda_cost = total_lambda_cost_h / (60 * 60)
 
         # vm_cost
         vm_to_cost = {

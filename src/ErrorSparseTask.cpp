@@ -42,7 +42,7 @@ void ErrorSparseTask::error_response() {
   struct sockaddr_in serveraddr;
   serveraddr.sin_family = AF_INET;
   serveraddr.sin_addr.s_addr = INADDR_ANY;
-  serveraddr.sin_port = htons(this->ps_port);
+  serveraddr.sin_port = htons(this->ps_port + 1);
   std::memset(serveraddr.sin_zero, 0, sizeof(serveraddr.sin_zero));
 
   if (bind(fd, (struct sockaddr*) &serveraddr, sizeof(serveraddr)) < 0) {

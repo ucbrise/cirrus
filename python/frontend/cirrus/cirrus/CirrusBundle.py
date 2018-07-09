@@ -10,12 +10,16 @@ class CirrusBundle:
         self.param_lst = []
         self.num_jobs = 1
 
+        self.hit = True
         pass
 
     def set_task_parameters(self, task, param_dict_lst):
         self.param_lst = param_dict_lst
-
+        index = 0
+        base_port = 1337
         for param in param_dict_lst:
+            param['ps_ip_port'] = base_port + (index * 2)
+            index += 1
             c = task(**param)
             self.cirrus_objs.append(c)
             self.infos.append({'color': get_random_color()})
@@ -58,5 +62,9 @@ class CirrusBundle:
         top = lst[:n]
         return [cirrus_obj.get_time_loss() for cirrus_obj in top]
 
-    def kill(self, i):
+    def kill(self, i, ):
+        # FIXME: Do not delete the cirrus object
         self.cirrus_objs[i].kill()
+        if self.hit:
+            del self.cirrus_objs[i]
+            self.hit = False

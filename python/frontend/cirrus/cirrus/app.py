@@ -57,16 +57,6 @@ def div_graph(name):
 
 app.layout = html.Div([
 
-    html.Div([
-        html.P("holder", id='placeholder'),
-        html.H1(
-            'Cirrus Training Viewer',
-            id='title'
-        )
-
-    ],
-        className="banner"
-    ),
 
 
     html.Div([
@@ -88,8 +78,8 @@ app.layout = html.Div([
                 id="showmenu",
                 options=[
                     {'label': 'Show All', 'value': 'all'},
-                    {'label': 'Show Top Ten', 'value': 'top_ten'},
-                    {'label': 'Show Last Ten', 'value': 'last_ten'}
+                    {'label': 'Show Top Five', 'value': 'top_ten'},
+                    {'label': 'Show Last Five', 'value': 'last_ten'}
                 ],
                 value='all'
             ),
@@ -131,32 +121,38 @@ def get_traces(num):
     trace_lst = []
     if num == 0:
         # Get all
-        for i in range(2):
+        for i in range(get_num_experiments()):
+            xs = get_xs_for(i)
+            lll = len(xs)
             trace = Scatter(
-                x=get_xs_for(i),
+                x=xs,
                 y=get_ys_for(i),
                 name=get_name_for(i),
                 mode='markers+lines',
-                line = dict(color = bundle.get_info(i, 'color'))
+                line = dict(color = bundle.get_info(i, 'color')),
+                customdata =str(i) * lll
             )
             trace_lst.append(trace)
     else:
         # Get top N
         q = []
+
         for i in range(get_num_experiments()):
 
             xs = get_xs_for(i)
             ys = get_ys_for(i)
+            lll = len(ys)
             trace = Scatter(
                 x=xs,
                 y=ys,
                 name=get_name_for(i),
                 mode='markers+lines',
-                line = dict(color = (bundle.get_info(i, 'color')))
+                line = dict(color = (bundle.get_info(i, 'color'))),
+                customdata= str(i) * lll
             )
             q.append((ys[-1], trace))
         q.sort(reverse=(num > 0))
-        trace_lst = [item[1] for item in q[:num]]
+        trace_lst = [item[1] for item in q[:abs(num)]]
     return trace_lst
 
 
@@ -171,15 +167,17 @@ def get_num_experiments():
 
 def get_xs_for(i):
     if i in dead_lst:
-        return frozen_lstx[i]
+        return []
 
     item = bundle.cirrus_objs[i]
-    frozen_lstx[i] = [tl[0] for tl in item.get_time_loss()]
+    out = item.get_time_loss()
+    #print(out)
+    frozen_lstx[i] = [tl[0] for tl in out]
     return frozen_lstx[i]
 
 def get_ys_for(i):
     if i in dead_lst:
-        return frozen_lsty[i]
+        return []
     item = bundle.cirrus_objs[i]
     frozen_lsty[i] = [tl[1] for tl in item.get_time_loss()]
     return frozen_lsty[i]
@@ -204,7 +202,7 @@ def kill(i):
 def killall_clicked(n_clicks):
     if (n_clicks > 0):
         for i in range(get_num_experiments()):
-            kill(i)
+            bundle.kill(i)
         return "Kill All"
     return "Kill All"
 
@@ -217,7 +215,7 @@ def show_kill_button(child):
 @app.callback(Output('kill-button', 'children'), [Input('data-panel', 'children')])
 def set_kill_button_text(child):
     if not "Nothing" in child:
-        num = child.split(" ")[3]
+        num = child.split(" ")[2]
         return "Kill line: %s" % num
     return "Nope"
 
@@ -237,11 +235,13 @@ def select_or_kill(selected_points, kill_button_ts, current_info):
     last_kill_time = (time.time() * 1000.0) - kill_button_ts
     # HACK: To see if we selected something or killed something, we check to seek
     # when the last increment occured.
-    if  last_kill_time > 100:
-        cnum = int(selected_points["points"][0]["curveNumber"])
-        return 'Selected curve number: %d' % cnum
+    if  last_kill_time > 500:
+        #print(selected_points["points"][0])
+        cnum = int(selected_points["points"][0]["customdata"])
+        return 'Chose line: %d' % cnum
     else:
-        cnum = int(current_info.split(" ")[3])
+        print("Killing line")
+        cnum = int(current_info.split(" ")[2])
         kill(cnum)
         return "Nothing selected!"
 
@@ -255,7 +255,7 @@ def select_or_kill(selected_points, kill_button_ts, current_info):
     Output('tmem', 'children'),
     [Input('logloss-update', 'n_intervals')])
 def gen_cost(interval):
-    child = "Mem Usage: %d Mbs" % get_mem_usage()
+    child = "Mem Usage: %d MBs" % get_mem_usage()
     return child
 
 # Update the cost term
@@ -271,7 +271,7 @@ def gen_cost(interval):
     Output('cost', 'children'),
     [Input('logloss-update', 'n_intervals')])
 def gen_cost(interval):
-    child = "Cost: $%0.2f \n($%0.5f/sec)" % (get_cost(), get_cost_per_second())
+    child = "Current Cost: $%0.2f \n($%0.5f/sec)" % (get_cost(), get_cost_per_second())
     return child
 
 # FIXME: Need a more sophisticated way to zoom into the graph.
@@ -287,9 +287,9 @@ def gen_cost(interval):
     State('mapControls', 'values')])
 def gen_loss(interval, menu, oldfig, relayoutData, lockCamera):
     if menu=="top_ten":
-        how_many = 1
+        how_many = 5
     elif menu == 'last_ten':
-        how_many = -1
+        how_many = -5
     else:
         how_many = 0
 
@@ -355,4 +355,4 @@ def run_server():
 
 from IPython.display import IFrame
 def display_dash():
-    return IFrame('http://localhost:8050', width=1000, height=800)
+    return IFrame('http://localhost:8050', width=1000, height=600)

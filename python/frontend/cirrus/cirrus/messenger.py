@@ -2,9 +2,8 @@ import struct
 import socket
 import time
 
-GET_NUM_CONNS = '\x08\x00\x00\x00'
-GET_LAST_TIME_ERROR = '\x09\x00\x00\x00'
-GET_ALL_TIME_ERROR = '\x0A\x00\x00\x00'
+GET_NUM_CONNS = '\x09\x00\x00\x00'
+GET_LAST_TIME_ERROR = '\x0A\x00\x00\x00'
 
 
 def get_num_lambdas(ip="127.0.0.1", port=1337):

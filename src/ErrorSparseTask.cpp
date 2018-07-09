@@ -42,9 +42,10 @@ void ErrorSparseTask::error_response() {
   std::memset(serveraddr.sin_zero, 0, sizeof(serveraddr.sin_zero));
 
   int ret = bind(fd, (struct sockaddr*) &serveraddr, sizeof(serveraddr));
-  
+
   if (ret < 0) {
-    throw std::runtime_error("Error in binding in port " + std::to_string((ps_port + 1)));
+    throw std::runtime_error("Error in binding in port " +
+                             std::to_string((ps_port + 1)));
   }
 
   uint32_t operation;
@@ -65,9 +66,10 @@ void ErrorSparseTask::error_response() {
     if (operation == GET_LAST_TIME_ERROR) {
       double time_error[2] = {last_time, last_error};
 
-      ret = sendto(fd, time_error, 2 * sizeof(double), 0, (struct sockaddr*) &remaddr, addrlen);
+      ret = sendto(fd, time_error, 2 * sizeof(double), 0,
+                   (struct sockaddr*) &remaddr, addrlen);
       if (ret < 0) {
-        throw std::runtime_error("Error in sending response"); 
+        throw std::runtime_error("Error in sending response");
       }
     }
   }

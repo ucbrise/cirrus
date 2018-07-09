@@ -2,9 +2,8 @@ import struct
 import socket
 import time
 
-GET_NUM_CONNS = '\x08\x00\x00\x00'
-GET_LAST_TIME_ERROR = '\x09\x00\x00\x00'
-GET_ALL_TIME_ERROR = '\x0A\x00\x00\x00'
+GET_NUM_CONNS = '\x09\x00\x00\x00'
+GET_LAST_TIME_ERROR = '\x0A\x00\x00\x00'
 
 
 def get_num_lambdas(ip="127.0.0.1", port=1337):
@@ -27,15 +26,3 @@ def get_last_time_error(ip="127.0.0.1", port=1338):
     out = struct.unpack("dd", s)
     #print("Received: ", out)
     return out
-
-def get_all_time_error(ip="127.0.0.1", port=1338):
-    clientsocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    clientsocket.sendto(GET_ALL_TIME_ERROR, (ip, port))
-    s = clientsocket.recv(32)
-    return "NOT IMPLEMENTED"
-if __name__ == "__main__":
-
-    while True:
-        time.sleep(1)
-        print(get_last_time_error("34.210.71.81", 1340))
-        #print(get_last_time_error())

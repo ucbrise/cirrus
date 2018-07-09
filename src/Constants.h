@@ -10,6 +10,7 @@ enum PS_OP {
   GET_MF_SPARSE_MODEL,  // 5
   SET_TASK_STATUS,      // 6
   GET_TASK_STATUS,      // 7
+  REGISTER_TASK,
   GET_NUM_CONNS,        // 8
   GET_LAST_TIME_ERROR,  // 9
   GET_ALL_TIME_ERROR    // 10

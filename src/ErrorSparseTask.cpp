@@ -32,21 +32,19 @@ std::unique_ptr<CirrusModel> get_model(const Configuration& config,
 void ErrorSparseTask::error_response() {
   int fd;
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    std::cout << "SOCKET FAILED"
-              << std::endl;  // FIXME: Should throw an error instead
-    return;
+    throw std::runtime_error("Error setting socket options.");
   }
 
   struct sockaddr_in serveraddr;
   serveraddr.sin_family = AF_INET;
   serveraddr.sin_addr.s_addr = INADDR_ANY;
-  serveraddr.sin_port = htons(1338);
+  serveraddr.sin_port = htons(ps_port + 1);
   std::memset(serveraddr.sin_zero, 0, sizeof(serveraddr.sin_zero));
 
-  if (bind(fd, (struct sockaddr*) &serveraddr, sizeof(serveraddr)) < 0) {
-    std::cout << "SOCKET FAILED 2"
-              << std::endl;  // FIXME: Should throw an error instead
-    return;
+  int ret = bind(fd, (struct sockaddr*) &serveraddr, sizeof(serveraddr));
+  
+  if (ret < 0) {
+    throw std::runtime_error("Error in binding in port " + std::to_string((ps_port + 1)));
   }
 
   uint32_t operation;
@@ -54,7 +52,6 @@ void ErrorSparseTask::error_response() {
   struct sockaddr_in remaddr;          /* remote address */
   socklen_t addrlen = sizeof(remaddr); /* length of addresses */
 
-  std::cout << "Waiting on message" << std::endl;
   while (true) {
     length = recvfrom(fd, &operation, sizeof(uint32_t), 0,
                       (struct sockaddr*) &remaddr, &addrlen);
@@ -66,12 +63,12 @@ void ErrorSparseTask::error_response() {
     std::cout << "Received: " << operation << std::endl;
 
     if (operation == GET_LAST_TIME_ERROR) {
-      double time_error[2];
-      time_error[0] = last_time;
-      time_error[1] = last_error;
+      double time_error[2] = {last_time, last_error};
 
-      sendto(fd, time_error, 2 * sizeof(double), 0, (struct sockaddr*) &remaddr,
-             addrlen);
+      ret = sendto(fd, time_error, 2 * sizeof(double), 0, (struct sockaddr*) &remaddr, addrlen);
+      if (ret < 0) {
+        throw std::runtime_error("Error in sending response"); 
+      }
     }
   }
 }

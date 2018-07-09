@@ -156,6 +156,7 @@ class ErrorSparseTask : public MLTask {
     void error_response();
 
    private:
+    // Stores last recorded time/loss values 
     double last_time = 0.0;
     double last_error = 0.0;
 };

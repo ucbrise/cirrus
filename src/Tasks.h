@@ -82,12 +82,15 @@ class LogisticSparseTaskS3 : public MLTask {
         SparseModelGet(const std::string& ps_ip, int ps_port) :
           ps_ip(ps_ip), ps_port(ps_port) {
             psi = std::make_unique<PSSparseServerInterface>(ps_ip, ps_port);
-          }
+        }
 
-        SparseLRModel get_new_model(const SparseDataset& ds, const Configuration& config) {
+        SparseLRModel get_new_model(const SparseDataset& ds,
+                                    const Configuration& config) {
           return std::move(psi->get_lr_sparse_model(ds, config));
         }
-        void get_new_model_inplace(const SparseDataset& ds, SparseLRModel& model, const Configuration& config) {
+        void get_new_model_inplace(const SparseDataset& ds,
+                                   SparseLRModel& model,
+                                   const Configuration& config) {
           psi->get_lr_sparse_model_inplace(ds, model, config);
         }
 
@@ -255,22 +258,26 @@ class PSSparseServerTask : public MLTask {
     * Handle the situation when a socket read fails within worker threads
     */
   void handle_failed_read(struct pollfd* pfd);
+  void checkpoint_model_loop();      //< periodically checkpoint model
+  void start_server();               //< start server thread
+  void main_poll_thread_fn(int id);  //< setup polling thread and call poll()
 
-  void thread_fn();
-  void checkpoint_model_loop();
+  bool testRemove(struct pollfd x, int id);  //< clean dead connections
+  void loop(int id);                         //< listen for requests
+  bool process(struct pollfd&, int id);      //< process a request
 
-  // network related methods
-  void start_server();
-  void main_poll_thread_fn(int id);
+  /**
+    * Model/ML related methods
+    */
 
-  bool testRemove(struct pollfd x, int id);
-  void loop(int id);
-  bool process(struct pollfd&, int id);
-
-  // Model/ML related methods
+  // checkpoint model to file
   void checkpoint_model_file(const std::string&) const;
+
+  // serialize lr model
   std::shared_ptr<char> serialize_lr_model(const SparseLRModel&,
                                            uint64_t* model_size) const;
+
+  // worker thread function
   void gradient_f();
 
   // message handling
@@ -291,6 +298,7 @@ class PSSparseServerTask : public MLTask {
     */
   std::unique_ptr<OptimizationMethod> opt_method;  //< SGD optimization method
 
+  // keep track of per-worker connections
   std::vector<uint64_t> curr_indexes = std::vector<uint64_t>(NUM_POLL_THREADS);
 
   // threads to handle connections and messages
@@ -303,36 +311,38 @@ class PSSparseServerTask : public MLTask {
 
   // thread to checkpoint model
   std::vector<std::unique_ptr<std::thread>> checkpoint_thread;
-  pthread_t poll_thread;
   pthread_t main_thread;
-  std::mutex to_process_lock;
-  sem_t sem_new_req;
-  std::queue<Request> to_process;
+  std::mutex to_process_lock;      //< lock for queue of requests
+  sem_t sem_new_req;               //< semaphore for queue of requests
+  std::queue<Request> to_process;  //< list of requests
   std::mutex model_lock;  //< to coordinate access to the last computed model
 
+  // file descriptors for pipes
   int pipefds[NUM_POLL_THREADS][2] = {{0}};
 
-  int port_ = 1337;
-  int server_sock_ = 0;
+  int port_ = 1337;               //< server port
+  int server_sock_ = 0;           //< server used to receive connections
   const uint64_t max_fds = 1000;  //< max number of connections supported
   int timeout = 1;                //< 1 ms
+
+  // file descriptors for connections
   std::vector<std::vector<struct pollfd>> fdses =
       std::vector<std::vector<struct pollfd>>(NUM_POLL_THREADS);
 
   std::vector<char> buffer;  //< we use this buffer to hold data from workers
 
-  volatile uint64_t gradientUpdatesCount = 0;
+  std::atomic<uint64_t> gradientUpdatesCount;  //< # of gradients processed
 
   std::unique_ptr<SparseLRModel> lr_model;  //< last computed model
   std::unique_ptr<MFModel> mf_model;        //< last computed model
-  Configuration task_config;
-  uint32_t num_connections = 0;
+  Configuration task_config;                //< config for parameter server
+  uint32_t num_connections = 0;             //< number of current connections
 
-  std::map<int, bool> task_to_status;
-  std::map<int, std::string> operation_to_name;
+  std::map<int, bool> task_to_status;            //< keep track of task status
+  std::map<int, std::string> operation_to_name;  //< request id to name
 
   char* thread_msg_buffer[NUM_PS_WORK_THREADS];  // per-thread buffer
-  std::atomic<int> thread_count;
+  std::atomic<int> thread_count;  //< keep track of each thread's id
 };
 
 class MFNetflixTask : public MLTask {
@@ -359,10 +369,11 @@ class MFNetflixTask : public MLTask {
         MFModelGet(const std::string& ps_ip, int ps_port) :
           ps_ip(ps_ip), ps_port(ps_port) {
             psi = std::make_unique<PSSparseServerInterface>(ps_ip, ps_port);
-          }
+        }
 
-        SparseMFModel get_new_model(
-            const SparseDataset& ds, uint64_t user_base_index, uint64_t mb_size) {
+        SparseMFModel get_new_model(const SparseDataset& ds,
+                                    uint64_t user_base_index,
+                                    uint64_t mb_size) {
           return psi->get_sparse_mf_model(ds, user_base_index, mb_size);
         }
 

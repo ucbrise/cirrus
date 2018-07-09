@@ -29,6 +29,7 @@ PSSparseServerTask::PSSparseServerTask(
       nworkers, worker_id, ps_ip, ps_port) {
     std::cout << "PSSparseServerTask is built" << std::endl;
 
+    std::atomic_init(&gradientUpdatesCount, 0UL);
     std::atomic_init(&thread_count, 0);
 
     operation_to_name[0] = "SEND_LR_GRADIENT";
@@ -65,10 +66,13 @@ bool PSSparseServerTask::testRemove(struct pollfd x, int poll_id) {
   return x.fd == -1;
 }
 
-bool PSSparseServerTask::process_send_mf_gradient(const Request& req, std::vector<char>& thread_buffer) {
+bool PSSparseServerTask::process_send_mf_gradient(
+    const Request& req,
+    std::vector<char>& thread_buffer) {
   uint32_t incoming_size = req.incoming_size;
 #ifdef DEBUG
-  std::cout << "APPLY_GRADIENT_REQ incoming size: " << incoming_size << std::endl;
+  std::cout << "APPLY_GRADIENT_REQ incoming size: " << incoming_size
+            << std::endl;
 #endif
   if (incoming_size > thread_buffer.size()) {
     throw std::runtime_error("Not enough buffer");
@@ -97,10 +101,13 @@ bool PSSparseServerTask::process_send_mf_gradient(const Request& req, std::vecto
   return true;
 }
 
-bool PSSparseServerTask::process_send_lr_gradient(const Request& req, std::vector<char>& thread_buffer) {
+bool PSSparseServerTask::process_send_lr_gradient(
+    const Request& req,
+    std::vector<char>& thread_buffer) {
   uint32_t incoming_size = req.incoming_size;
 #ifdef DEBUG
-  std::cout << "APPLY_GRADIENT_REQ incoming size: " << incoming_size << std::endl;
+  std::cout << "APPLY_GRADIENT_REQ incoming size: " << incoming_size
+            << std::endl;
 #endif
   if (incoming_size > thread_buffer.size()) {
     throw std::runtime_error("Not enough buffer");
@@ -147,8 +154,9 @@ bool PSSparseServerTask::process_get_mf_sparse_model(
   }
   read_all(req.sock, thread_buffer.data(), k_items * sizeof(uint32_t));
   uint32_t to_send_size =
-    minibatch_size * (sizeof(uint32_t) + (NUM_FACTORS + 1) * sizeof(FEATURE_TYPE)) +
-    k_items * (sizeof(uint32_t) + (NUM_FACTORS + 1) * sizeof(FEATURE_TYPE));
+      minibatch_size *
+          (sizeof(uint32_t) + (NUM_FACTORS + 1) * sizeof(FEATURE_TYPE)) +
+      k_items * (sizeof(uint32_t) + (NUM_FACTORS + 1) * sizeof(FEATURE_TYPE));
 #ifdef DEBUG
   std::cout << "k_items: " << k_items << std::endl;
   std::cout << "base_user_id: " << base_user_id << std::endl;
@@ -164,7 +172,8 @@ bool PSSparseServerTask::process_get_mf_sparse_model(
   if (send_all(req.sock, &to_send_size, sizeof(uint32_t)) == -1) {
     return false;
   }
-  if (send_all(req.sock, thread_msg_buffer[thread_number], to_send_size) == -1) {
+  if (send_all(req.sock, thread_msg_buffer[thread_number], to_send_size) ==
+      -1) {
     return false;
   }
   return true;
@@ -251,8 +260,9 @@ bool PSSparseServerTask::process_get_lr_full_model(
   uint32_t model_size = lr_model_copy.getSerializedSize();
 
   if (thread_buffer.size() < model_size) {
-    std::string error_str = "buffer with size " + std::to_string(thread_buffer.size()) +
-      "too small: " + std::to_string(model_size);
+    std::string error_str = "buffer with size " +
+                            std::to_string(thread_buffer.size()) +
+                            "too small: " + std::to_string(model_size);
     throw std::runtime_error(error_str);
   }
 
@@ -385,7 +395,8 @@ void PSSparseServerTask::gradient_f() {
         continue;
       }
 #ifdef DEBUG
-      std::cout << "Set status task id: " << data[0] << " status: " << data[1] << std::endl;
+      std::cout << "Set status task id: " << data[0] << " status: " << data[1]
+                << std::endl;
 #endif
       task_to_status[data[0]] = data[1];
     
@@ -438,7 +449,8 @@ bool PSSparseServerTask::process(struct pollfd& poll_fd, int thread_id) {
 void PSSparseServerTask::start_server() {
   lr_model.reset(new SparseLRModel(model_size));
   lr_model->randomize();
-  mf_model.reset(new MFModel(task_config.get_users(), task_config.get_items(), NUM_FACTORS));
+  mf_model.reset(new MFModel(task_config.get_users(), task_config.get_items(),
+                             NUM_FACTORS));
   mf_model->randomize();
 
   sem_init(&sem_new_req, 0, 0);
@@ -466,8 +478,6 @@ void PSSparseServerTask::main_poll_thread_fn(int poll_id) {
   // id=0 -> poll thread responsible for handling new connections
   if (poll_id == 0) {
     std::cout << "Starting server, poll id " << poll_id << std::endl;
-
-    poll_thread = pthread_self();
 
     server_sock_ = socket(AF_INET, SOCK_STREAM, 0);
     if (server_sock_ < 0) {
@@ -527,7 +537,8 @@ void PSSparseServerTask::loop(int poll_id) {
 
   std::cout << "Starting loop for id: " << poll_id << std::endl;
   while (1) {
-    int poll_status = poll(fdses[poll_id].data(), curr_indexes[poll_id], timeout);
+    int poll_status =
+        poll(fdses[poll_id].data(), curr_indexes[poll_id], timeout);
     if (poll_status == -1) {
       if (errno != EINTR) {
         throw std::runtime_error("Server error calling poll.");
@@ -554,7 +565,8 @@ void PSSparseServerTask::loop(int poll_id) {
         if (curr_fd.revents != POLLIN) {
           //LOG<ERROR>("Non read event on socket: ", curr_fd.fd);
           if (curr_fd.revents & POLLHUP) {
-            std::cout << "PS closing connection " << num_connections << std::endl;
+            std::cout << "PS closing connection " << num_connections
+                      << std::endl;
             num_connections--;
             close(curr_fd.fd);
             curr_fd.fd = -1;
@@ -591,10 +603,12 @@ void PSSparseServerTask::loop(int poll_id) {
 #endif
           if (!process(curr_fd, poll_id)) {
             if (close(curr_fd.fd) != 0) {
-              std::cout << "Error closing socket. errno: " << errno << std::endl;
+              std::cout << "Error closing socket. errno: " << errno
+                        << std::endl;
             }
             num_connections--;
-            std::cout << "PS closing connection after process(): " << num_connections << std::endl;
+            std::cout << "PS closing connection after process(): "
+                      << num_connections << std::endl;
             curr_fd.fd = -1;
           }
         }
@@ -691,7 +705,8 @@ void PSSparseServerTask::checkpoint_model_loop() {
     }
 }
 
-void PSSparseServerTask::checkpoint_model_file(const std::string& filename) const {
+void PSSparseServerTask::checkpoint_model_file(
+    const std::string& filename) const {
   uint64_t model_size;
   std::shared_ptr<char> data = serialize_lr_model(*lr_model, &model_size);
 

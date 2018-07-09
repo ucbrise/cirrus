@@ -1,4 +1,5 @@
 #include <Tasks.h>
+#include <thread>
 
 #include "Serializers.h"
 #include "config.h"
@@ -7,6 +8,7 @@
 #include "SparseLRModel.h"
 #include "PSSparseServerInterface.h"
 #include "Configuration.h"
+#include "Constants.h"
 
 #define DEBUG
 #define ERROR_INTERVAL_USEC (100000)  // time between error checks
@@ -27,7 +29,54 @@ std::unique_ptr<CirrusModel> get_model(const Configuration& config,
   return psi->get_full_model(use_col_filtering);
 }
 
+void ErrorSparseTask::error_response() {
+  int fd;
+  if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+    throw std::runtime_error("Error setting socket options.");
+  }
+
+  struct sockaddr_in serveraddr;
+  serveraddr.sin_family = AF_INET;
+  serveraddr.sin_addr.s_addr = INADDR_ANY;
+  serveraddr.sin_port = htons(ps_port + 1);
+  std::memset(serveraddr.sin_zero, 0, sizeof(serveraddr.sin_zero));
+
+  int ret = bind(fd, (struct sockaddr*) &serveraddr, sizeof(serveraddr));
+  
+  if (ret < 0) {
+    throw std::runtime_error("Error in binding in port " + std::to_string((ps_port + 1)));
+  }
+
+  uint32_t operation;
+  int length = 0;
+  struct sockaddr_in remaddr;          /* remote address */
+  socklen_t addrlen = sizeof(remaddr); /* length of addresses */
+
+  while (true) {
+    length = recvfrom(fd, &operation, sizeof(uint32_t), 0,
+                      (struct sockaddr*) &remaddr, &addrlen);
+    if (length < 0) {
+      std::cout << "Failed to read" << std::endl;
+      continue;
+    }
+    printf("Received: %d bytes\n", length);
+    std::cout << "Received: " << operation << std::endl;
+
+    if (operation == GET_LAST_TIME_ERROR) {
+      double time_error[2] = {last_time, last_error};
+
+      ret = sendto(fd, time_error, 2 * sizeof(double), 0, (struct sockaddr*) &remaddr, addrlen);
+      if (ret < 0) {
+        throw std::runtime_error("Error in sending response"); 
+      }
+    }
+  }
+}
+
 void ErrorSparseTask::run(const Configuration& config) {
+  std::cout << "Creating error response thread" << std::endl;
+  std::thread error_thread(std::bind(&ErrorSparseTask::error_response, this));
+
   std::cout << "Compute error task connecting to store" << std::endl;
 
   std::cout << "Creating sequential S3Iterator" << std::endl;
@@ -111,23 +160,19 @@ void ErrorSparseTask::run(const Configuration& config) {
         start_index += config.get_minibatch_size();
       }
 
+      last_time = (get_time_us() - start_time) / 1000000.0;
       if (config.get_model_type() == Configuration::LOGISTICREGRESSION) {
-        std::cout
-          << "[ERROR_TASK] Loss (Total/Avg): " << total_loss
-          << "/" << (total_loss / total_num_samples)
-          << " Accuracy: " << (total_accuracy / minibatches_vec.size())
-          << " time(us): " << get_time_us()
-          << " time from start (sec): "
-          << (get_time_us() - start_time) / 1000000.0
-          << std::endl;
+        last_error = (total_loss / total_num_samples);
+        std::cout << "[ERROR_TASK] Loss (Total/Avg): " << total_loss << "/"
+                  << last_error
+                  << " Accuracy: " << (total_accuracy / minibatches_vec.size())
+                  << " time(us): " << get_time_us()
+                  << " time from start (sec): " << last_time << std::endl;
       } else if (config.get_model_type() == Configuration::COLLABORATIVE_FILTERING) {
-        std::cout
-          << "[ERROR_TASK] RMSE (Total): "
-          << std::sqrt(total_loss / total_num_features)
-          << " time(us): " << get_time_us()
-          << " time from start (sec): "
-          << (get_time_us() - start_time) / 1000000.0
-          << std::endl;
+        last_error = std::sqrt(total_loss / total_num_features);
+        std::cout << "[ERROR_TASK] RMSE (Total): " << last_error
+                  << " time(us): " << get_time_us()
+                  << " time from start (sec): " << last_time << std::endl;
       }
     } catch(...) {
       std::cout << "run_compute_error_task unknown id" << std::endl;

@@ -21,16 +21,3 @@ def get_last_time_error(ip="127.0.0.1", port=1338):
     clientsocket.sendto(GET_LAST_TIME_ERROR, (ip, port))
     s = clientsocket.recv(128)
     return struct.unpack("dd", s)
-
-def get_all_time_error(ip="127.0.0.1", port=1338):
-    clientsocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    clientsocket.sendto(GET_ALL_TIME_ERROR, (ip, port))
-    s = clientsocket.recv(32)
-    return "NOT IMPLEMENTED"
-if __name__ == "__main__":
-
-    while True:
-        time.sleep(1)
-        print(get_num_lambdas())
-        print(get_last_time_error()) 
-

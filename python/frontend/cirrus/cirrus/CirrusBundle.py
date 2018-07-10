@@ -5,12 +5,16 @@ class CirrusBundle:
     # Graph interfacer
 
     def __init__(self):
-        self.cirrus_objs = []
-        self.infos = []
-        self.param_lst = []
-        self.num_jobs = 1
+        self.cirrus_objs = [] # Stores each singular experiment
+        self.infos = []       # Stores metadata associated with each experiment
+        self.param_lst = []   # Stores parameters of each experiment
+        self.check_queue = [] # Queue for checking error/lambdas for each object
+        self.num_jobs = 1     # Number of threads checking check_queue
 
-        self.hit = True
+        self.threads = []
+
+        self.kill_signal = threading.Event()
+
         pass
 
     def set_task_parameters(self, task, param_dict_lst):
@@ -24,6 +28,22 @@ class CirrusBundle:
             self.cirrus_objs.append(c)
             self.infos.append({'color': get_random_color()})
 
+    # FIXME: Better name...
+    def custodian(self, thread_id):
+        index = thread_id
+        while not self.kill_signal.is_set():
+            self.cirrus_objs[index].relaunch_lambda()
+            self.cirrus_objs[index].get_time_loss()
+            index += self.num_jobs
+            index = index % len(cirrus_objs);
+        print "Thread number %d is exiting" % thread_id
+
+    def start_queue_threads(self):
+        for i in range(self.num_jobs):
+            thread = threading.Thread(target=custodian, args=(self, i))
+
+
+
     def get_number_experiments(self):
         return len(self.cirrus_objs)
 
@@ -35,6 +55,8 @@ class CirrusBundle:
 
     def run(self):
         self.cirrus_objs[0].kill_all()
+
+        self.start_queue_threads()
         for cirrus_ob in self.cirrus_objs:
             cirrus_ob.run()
 
@@ -62,7 +84,7 @@ class CirrusBundle:
         top = lst[:n]
         return [cirrus_obj.get_time_loss() for cirrus_obj in top]
 
-    def kill(self, i, ):
+    def kill(self, i):
         # FIXME: Do not delete the cirrus object
         self.cirrus_objs[i].kill()
         if self.hit:

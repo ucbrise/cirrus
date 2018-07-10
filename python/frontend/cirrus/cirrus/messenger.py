@@ -14,11 +14,10 @@ def get_num_lambdas(ip="127.0.0.1", port=1337):
         s = clientsocket.recv(32)
         return struct.unpack("I", s)[0] - 1   # Subtract 1, as we don't count the clientsocket as a connection
     except:
-        return 100
+        return -1
 
 # FIXME: Add some sort of timeout, in case of error out
 def get_last_time_error(ip="127.0.0.1", port=1338):
-    #print("Loss: ", port)
 
     clientsocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     clientsocket.sendto(GET_LAST_TIME_ERROR, (ip, port))

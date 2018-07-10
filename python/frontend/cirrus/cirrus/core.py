@@ -74,6 +74,8 @@ class BaseTask(object):
         self.total_lambda = 0
         self.id = 0
 
+        # HACK: Prevents Cirrus objects from spawning personal threads
+        self.personal_thread = False
 
 
     def copy_ps_to_vm(self, ip):
@@ -131,6 +133,31 @@ class BaseTask(object):
         #print("Lambdas: ", self.ps_ip_public, self.ps_ip_port)
         return messenger.get_num_lambdas(self.ps_ip_public, self.ps_ip_port)
 
+
+    def relaunch_lambdas(self):
+        # if 0 run indefinitely
+        if self.kill_signal.is_set():
+            print("Task appears dead...")
+            return;
+
+        num_lambdas = self.get_num_lambdas();
+        num_task = 3
+        if num_lambdas < self.n_workers:
+            shortage = num_workers - self.n_workers;
+
+            payload = '{"num_task": %d, "num_workers": %d, "ps_ip": \"%s\", "ps_port": %d}' \
+                        % (num_task, num_workers, self.ps_ip_private, self.ps_ip_port)
+            for i in range(shortage):
+                try:
+                    response = client.invoke(
+                        FunctionName="myfunc",
+                        InvocationType='Event',
+                        LogType='Tail',
+                        Payload=payload)
+                except:
+                    print "client.invoke exception caught"
+
+    # FIXME: Refactor below to launch_lambda_threads
     # if timeout is 0 we run lambdas indefinitely
     # otherwise we stop invoking them after timeout secs
     def launch_lambda(self, num_workers, timeout=50):
@@ -201,13 +228,16 @@ class BaseTask(object):
                 if self.timeout > 0 and float(t) > self.timeout:
                     #print("error is timing out")
                     return
-            #print("AAAAAAAAAAAAAAAAAAAAA")
 
-        self.lambda_launcher = Thread(target=launch)
-        self.error_task = Thread(target=error_task)
+        self.start_time = time.time()
 
-        self.lambda_launcher.start()
-        self.error_task.start()
+        if self.personal_thread:
+            self.lambda_launcher = Thread(target=launch)
+            self.error_task = Thread(target=error_task)
+            self.lambda_launcher.start()
+            self.error_task.start()
+        else:
+            print "Avoiding error and lambda threads"
 
         #print "Lambdas have been launched"
 

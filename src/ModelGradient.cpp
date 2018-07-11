@@ -152,16 +152,51 @@ void LRSparseGradient::serialize(void* mem) const {
 }
 
 /** 
- * Method will serialize like this [data to send ps1, data to send ps2, ... data to send ps_parts]
+ * Method will serialize like this [version(int), num_weights, data to send ps1, version(int), num_weights, data to send ps2, ... data to send ps_parts]
  * 
  */
  
 std::vector<int> LRSparseGradient::shard_serialize(void* mem, uint32_t parts) {
 
-  std::vector<int> starts;
-  starts.resize(parts);
+  std::vector<int> starts(parts, 0);
 
+  // Perform count
+  for (const auto& w : weights) {
+    starts[w.first % parts]++;
+  }
 
+  for (int i = 1; i < parts; i++) {
+    int count = starts[i];
+    starts[i] += starts[i-1];
+
+    // How many [version(int), num_weights] + [number of (int, FEATURE_TYPEs)] that lie previous
+    uint32_t offset = (i * (2 * sizeof(int))) + 
+      (starts[i] * (sizeof(int) + sizeof(FEATURE_TYPE)));
+
+    (reinterpret_cast<char*> (mem))[offset] = version;
+    (reinterpret_cast<char*> (mem))[offset + sizeof(int)] = count;
+
+  }
+
+  // Perform count
+  for (const auto& w : weights) {
+    starts[w.first % parts]++;
+  }
+
+  for (const auto& w : weights) {
+    int index = w.first;
+    FEATURE_TYPE v = w.second;
+
+    int ps_num = index % parts;
+    uint32_t position = starts[ps_num] - 1;
+
+    uint32_t offset = (ps_num + 1) * (sizeof(int) + sizeof(int)) + position * (sizeof(int) + sizeof(FEATURE_TYPE));
+    (reinterpret_cast<char*> (mem))[offset] = index; 
+    (reinterpret_cast<char*> (mem))[offset + sizeof(int)] = v;
+    
+  }
+
+  return starts;
 }
 
 

@@ -25,6 +25,7 @@ script:
    - g++ --version
    - make -j 10
    - ./tests/test_travis/test.sh
+   - ./tests/test_travis/test_lr
 
 env:
   global:

@@ -4,7 +4,9 @@ AUTOMAKE_OPTIONS = foreign
 
 CXX = g++
 
-bin_PROGRAMS = parameter_server ps_test csv_to_libsvm $(TOP_DIR)/tests/test_travis/test_lr $(TOP_DIR)/tests/test_travis/test_ps $(TOP_DIR)/tests/test_travis/worker $(TOP_DIR)/tests/test_travis/error
+bin_PROGRAMS = parameter_server ps_test csv_to_libsvm $(TOP_DIR)/tests/test_travis/test_lr \
+	       $(TOP_DIR)/tests/test_travis/test_ps $(TOP_DIR)/tests/test_travis/worker \
+	       $(TOP_DIR)/tests/test_travis/error
 
 LIBS         =  -laws-cpp-sdk-s3 -laws-cpp-sdk-core \
 		-lcurl -lssl -lcrypto -lz -ldl -lkrb5 -lk5crypto \

@@ -14,7 +14,7 @@
 
 using namespace cirrus;
 
-Configuration config = Configuration("configs/criteo_kaggle.cfg")
+Configuration config = Configuration("configs/criteo_kaggle.cfg");
 
 std::unique_ptr<CirrusModel> get_model(const Configuration& config,
         const std::string& ps_ip, uint64_t ps_port) {
@@ -35,15 +35,12 @@ int main() {
   // get data first
   // what we are going to use as a test set
   std::vector<SparseDataset> minibatches_vec;
-  std::cout << "[ERROR_TASK] getting minibatches from "
-    << config.get_train_range().first << " to "
-    << config.get_train_range().second
-    << std::endl;
   InputReader input;
-  SparseDataset test_data = input.read_input_criteo_kaggle_sparse("tests/test_data/test_lr.csv");
+  SparseDataset test_data = input.read_input_criteo_kaggle_sparse("tests/test_data/test_lr.csv", ",", config);
   minibatches_vec.push_back(test_data);
+  SparseLRModel model(1 << config.get_model_bits());
+  std::unique_ptr<PSSparseServerInterface> psi = std::make_unique<PSSparseServerInterface>("127.0.0.1", 1337);
 
-  wait_for_start(ERROR_SPARSE_TASK_RANK, nworkers);
   uint64_t start_time = get_time_us();
 
   std::cout << "[ERROR_TASK] Computing accuracies"
@@ -57,7 +54,7 @@ int main() {
       std::cout << "[ERROR_TASK] getting the full model"
         << "\n";
 #endif
-      std::unique_ptr<CirrusModel> model = get_model(config, ps_ip, ps_port);
+      std::unique_ptr<CirrusModel> model = get_model(config, "127.0.0.1", 1337);
 
 #ifdef DEBUG
       std::cout << "[ERROR_TASK] received the model" << std::endl;

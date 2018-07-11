@@ -35,6 +35,7 @@ src/ps_test
 tests/test_travis/test_lr
 tests/test_travis/test_ps
 tests/test_travis/worker
+tests/test_travis/error
 third_party/kerberos/
 third_party/keyutils-1.5.10.tar.bz2
 third_party/keyutils/

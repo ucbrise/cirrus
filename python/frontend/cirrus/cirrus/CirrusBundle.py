@@ -1,5 +1,8 @@
 from utils import *
 import threading
+import time  
+
+from multiprocessing import Process
 
 class CirrusBundle:
 
@@ -30,23 +33,39 @@ class CirrusBundle:
             self.infos.append({'color': get_random_color()})
 
     # FIXME: Better name...
-    def custodian(self, thread_id):
+    def custodian(cirrus_objs, thread_id, num_jobs):
         index = thread_id
-        while not self.kill_signal.is_set():
-            print("Launching lambdas")
-            self.cirrus_objs[index].relaunch_lambdas()
-            print("Launching lambdas2")
-            loss = self.cirrus_objs[index].get_time_loss()
-            index += self.num_jobs
-            index = index % len(self.cirrus_objs);
+        print("Custodian starting...")
+        while True:
+            time.sleep(1)
+            cirrus_objs[index].relaunch_lambdas()
+            loss = cirrus_objs[index].get_time_loss()
+            print("Machine #", index)
             print(loss)
+            index += num_jobs
+            index = index % len(cirrus_objs)
+            
         print "Thread number %d is exiting" % thread_id
 
     def start_queue_threads(self):
+        def custodian(cirrus_objs, thread_id, num_jobs):
+            index = thread_id
+            print("Custodian starting...")
+            while True:
+                time.sleep(1)
+                cirrus_objs[index].relaunch_lambdas()
+                loss = cirrus_objs[index].get_time_loss()
+                print("Machine #", index)
+                print(loss)
+                index += num_jobs
+                index = index % len(cirrus_objs)
+            
+            print "Thread number %d is exiting" % thread_id
         for i in range(self.num_jobs):
-            thread = threading.Thread(target=self.custodian, args=(i, ))
-            thread.start()
-
+            #thread = threading.Thread(target=self.custodian, args=(i, ))
+            #thread.start()
+            p = Process(target=custodian, args=(self.cirrus_objs, i, self.num_jobs))
+            p.start()
 
 
     def get_number_experiments(self):
@@ -61,9 +80,9 @@ class CirrusBundle:
     def run(self):
         self.cirrus_objs[0].kill_all()
 
-        self.start_queue_threads()
         for cirrus_ob in self.cirrus_objs:
             cirrus_ob.run()
+        time.sleep(10)
         self.start_queue_threads()
 
     def kill_all(self):

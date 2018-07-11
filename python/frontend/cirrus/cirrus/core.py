@@ -115,7 +115,7 @@ class BaseTask(object):
 
         cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' \
                 % (self.key_path, self.ps_username, self.ps_ip_public) + \
-		'"nohup ./parameter_server --config config.txt --nworkers 10 --rank 1 --ps_port %d > psout &"' % self.ps_ip_port
+		'"nohup ./parameter_server --config config.txt --nworkers 100 --rank 1 --ps_port %d &> ps_out &"' % self.ps_ip_port
         #print("cmd:", cmd)
         os.system(cmd)
 
@@ -139,23 +139,25 @@ class BaseTask(object):
             print("Task appears dead...")
             return;
 
-        num_lambdas = self.get_num_lambdas();
+        num_lambdas = self.get_num_lambdas()
         num_task = 3
+        print("Num Lambdas: %d, Requested: %d" %(num_lambdas, self.n_workers))
         if num_lambdas < self.n_workers:
-            shortage = num_lambdas - self.n_workers;
+            shortage = self.n_workers - num_lambdas;
 
             payload = '{"num_task": %d, "num_workers": %d, "ps_ip": \"%s\", "ps_port": %d}' \
                         % (num_task, self.n_workers, self.ps_ip_private, self.ps_ip_port)
+            print payload
             for i in range(shortage):
                 try:
-                    response = client.invoke(
+                    response = boto3.client('lambda').invoke(
                         FunctionName="myfunc",
                         InvocationType='Event',
                         LogType='Tail',
                         Payload=payload)
-                except:
+                except Exception as e:
                     print "client.invoke exception caught"
-
+                    print str(e)
     # FIXME: Refactor below to launch_lambda_threads
     # if timeout is 0 we run lambdas indefinitely
     # otherwise we stop invoking them after timeout secs
@@ -199,7 +201,7 @@ class BaseTask(object):
             print "Starting error task"
             cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' \
                     % (self.key_path, self.ps_username, self.ps_ip_public) + \
-    		  '"./parameter_server --config config.txt --nworkers 10 --rank 2 --ps_ip \"%s\" --ps_port %d &> /dev/null" &' % (self.ps_ip_private,  self.ps_ip_port)
+    		  '"./parameter_server --config config.txt --nworkers 10 --rank 2 --ps_ip \"%s\" --ps_port %d &> error_out" &' % (self.ps_ip_private,  self.ps_ip_port)
             print('cmd', cmd)
             os.system(cmd)
 
@@ -239,7 +241,7 @@ class BaseTask(object):
             print "Avoiding error and lambda threads"
             cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' \
                     % (self.key_path, self.ps_username, self.ps_ip_public) + \
-    		  '"./parameter_server --config config.txt --nworkers 10 --rank 2 --ps_ip \"%s\" --ps_port %d &> /dev/null" &' % (self.ps_ip_private,  self.ps_ip_port)
+    		  '"./parameter_server --config config.txt --nworkers 10 --rank 2 --ps_ip \"%s\" --ps_port %d &> error_out" &' % (self.ps_ip_private,  self.ps_ip_port)
             print('cmd', cmd)
             os.system(cmd)
 
@@ -278,6 +280,7 @@ class BaseTask(object):
         self.copy_ps_to_vm(self.ps_ip_public)
         self.define_config(self.ps_ip_public)
         self.launch_ps(self.ps_ip_public)
+        time.sleep(5)
         self.launch_lambda(self.n_workers, self.timeout)
 
     def kill(self):

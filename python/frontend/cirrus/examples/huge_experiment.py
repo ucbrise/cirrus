@@ -12,8 +12,9 @@ def progress_callback(time_loss, cost, task):
     #print("Current training loss:", time_loss, "current cost ($): ", cost)
 
 ps_servers = [
-    ('ec2-54-202-70-220.us-west-2.compute.amazonaws.com', '172.31.10.89', 0.1),
-    ('ec2-54-202-70-220.us-west-2.compute.amazonaws.com', '172.31.10.89', 0.2)
+    #('ec2-54-202-70-220.us-west-2.compute.amazonaws.com', '172.31.10.89', 0.1),
+    ('ec2-52-12-119-107.us-west-2.compute.amazonaws.com', '172.31.38.206', 0.2), 
+    ('ec2-52-12-119-107.us-west-2.compute.amazonaws.com', '172.31.38.206', 0.3)
 
 ]
 
@@ -21,7 +22,7 @@ data_bucket = 'cirrus-criteo-kaggle-19b-random'
 model = 'model_v1'
 
 basic_params = {
-    'n_workers': 4,
+    'n_workers': 10,
     'n_ps': 2,
     'worker_size': 128,
     'dataset': data_bucket,
@@ -61,7 +62,8 @@ if __name__ == "__main__":
 
     cb = CirrusBundle()
     cb.set_task_parameters(LogisticRegression, batch)
-    cb.set_jobs(2)
+    cb.set_jobs(1)
     cb.run()
 
-    time.sleep(20)
+    while True:
+        pass

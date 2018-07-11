@@ -41,7 +41,8 @@ void ErrorSparseTask::error_response() {
   serveraddr.sin_port = htons(ps_port + 1);
   std::memset(serveraddr.sin_zero, 0, sizeof(serveraddr.sin_zero));
 
-  int ret = bind(fd, reinterpret_cast<sockaddr*> (&serveraddr), sizeof(serveraddr));
+  int ret =
+      bind(fd, reinterpret_cast<sockaddr*>(&serveraddr), sizeof(serveraddr));
 
   if (ret < 0) {
     throw std::runtime_error("Error in binding in port " +
@@ -55,7 +56,7 @@ void ErrorSparseTask::error_response() {
 
   while (true) {
     length = recvfrom(fd, &operation, sizeof(uint32_t), 0,
-                      reinterpret_cast<sockaddr*> (&remaddr), &addrlen);
+                      reinterpret_cast<sockaddr*>(&remaddr), &addrlen);
     if (length < 0) {
       std::cout << "Failed to read" << std::endl;
       continue;

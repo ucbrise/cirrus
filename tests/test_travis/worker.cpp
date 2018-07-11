@@ -19,7 +19,7 @@
 using namespace cirrus;
 
 cirrus::Configuration config =
-    cirrus::Configuration("configs/criteo_kaggle.cfg");
+    cirrus::Configuration("configs/test_config.cfg");
 
 int main() {
   InputReader input;

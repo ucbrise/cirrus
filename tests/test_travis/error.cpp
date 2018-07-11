@@ -14,7 +14,7 @@
 
 using namespace cirrus;
 
-Configuration config = Configuration("configs/criteo_kaggle.cfg");
+Configuration config = Configuration("configs/test_config.cfg");
 
 std::unique_ptr<CirrusModel> get_model(const Configuration& config,
                                        const std::string& ps_ip,

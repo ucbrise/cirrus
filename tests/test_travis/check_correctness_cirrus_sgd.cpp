@@ -28,7 +28,7 @@ double check_error(auto model, auto dataset) {
 }
 
 cirrus::Configuration config =
-    cirrus::Configuration("configs/criteo_kaggle.cfg");
+    cirrus::Configuration("configs/test_config.cfg");
 std::mutex model_lock;
 std::unique_ptr<SparseLRModel> model;
 double epsilon = 0.00001;

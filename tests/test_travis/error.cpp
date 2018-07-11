@@ -45,9 +45,10 @@ int main() {
 
   std::cout << "[ERROR_TASK] Computing accuracies"
     << "\n";
-  while (1) {
+  FEATURE_TYPE avg_loss = 0;
+  for (int i = 0; i < 100; i++) {
     usleep(ERROR_INTERVAL_USEC);
-
+    std::cout << i << std::endl;
     try {
       // first we get the model
 #ifdef DEBUG
@@ -87,6 +88,7 @@ int main() {
           << " time from start (sec): "
           << (get_time_us() - start_time) / 1000000.0
           << std::endl;
+        avg_loss = (total_loss / total_num_samples);
       } else if (config.get_model_type() == Configuration::COLLABORATIVE_FILTERING) {
         std::cout
           << "[ERROR_TASK] RMSE (Total): "
@@ -99,6 +101,11 @@ int main() {
     } catch(...) {
       std::cout << "run_compute_error_task unknown id" << std::endl;
     }
+  }
+  if (avg_loss < 0.6) {
+    return 0;
+  } else {
+    throw std::runtime_error("Does not converge");
   }
 }
 

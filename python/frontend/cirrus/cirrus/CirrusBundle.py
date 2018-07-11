@@ -1,4 +1,5 @@
 from utils import *
+import threading
 
 class CirrusBundle:
 
@@ -32,15 +33,19 @@ class CirrusBundle:
     def custodian(self, thread_id):
         index = thread_id
         while not self.kill_signal.is_set():
-            self.cirrus_objs[index].relaunch_lambda()
-            self.cirrus_objs[index].get_time_loss()
+            print("Launching lambdas")
+            self.cirrus_objs[index].relaunch_lambdas()
+            print("Launching lambdas2")
+            loss = self.cirrus_objs[index].get_time_loss()
             index += self.num_jobs
-            index = index % len(cirrus_objs);
+            index = index % len(self.cirrus_objs);
+            print(loss)
         print "Thread number %d is exiting" % thread_id
 
     def start_queue_threads(self):
         for i in range(self.num_jobs):
-            thread = threading.Thread(target=custodian, args=(self, i))
+            thread = threading.Thread(target=self.custodian, args=(i, ))
+            thread.start()
 
 
 
@@ -59,6 +64,7 @@ class CirrusBundle:
         self.start_queue_threads()
         for cirrus_ob in self.cirrus_objs:
             cirrus_ob.run()
+        self.start_queue_threads()
 
     def kill_all(self):
         for cirrus_ob in self.cirrus_objs:

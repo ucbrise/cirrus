@@ -12,15 +12,8 @@ def progress_callback(time_loss, cost, task):
     #print("Current training loss:", time_loss, "current cost ($): ", cost)
 
 ps_servers = [
-    ('ec2-54-214-110-121.us-west-2.compute.amazonaws.com', '172.31.31.58', 0.1),
-    ('ec2-54-214-110-121.us-west-2.compute.amazonaws.com', '172.31.31.58', 0.2),
-    ('ec2-54-214-110-121.us-west-2.compute.amazonaws.com', '172.31.31.58', 0.3),
-    ('ec2-54-214-110-121.us-west-2.compute.amazonaws.com', '172.31.31.58', 0.4),
-    ('ec2-54-214-110-121.us-west-2.compute.amazonaws.com', '172.31.31.58', 0.5),
-    ('ec2-54-214-110-121.us-west-2.compute.amazonaws.com', '172.31.31.58', 0.6),
-    ('ec2-54-214-110-121.us-west-2.compute.amazonaws.com', '172.31.31.58', 0.7),
-    ('ec2-54-214-110-121.us-west-2.compute.amazonaws.com', '172.31.31.58', 0.8),
-    ('ec2-54-214-110-121.us-west-2.compute.amazonaws.com', '172.31.31.58', 0.9),
+    ('ec2-54-202-70-220.us-west-2.compute.amazonaws.com', '172.31.10.89', 0.1),
+    ('ec2-54-202-70-220.us-west-2.compute.amazonaws.com', '172.31.10.89', 0.2)
 
 ]
 
@@ -65,11 +58,10 @@ if __name__ == "__main__":
         config['learning_rate'] = ps[2]
         batch.append(config)
         index += 1
-        
+
     cb = CirrusBundle()
     cb.set_task_parameters(LogisticRegression, batch)
-    app.bundle = cb
+    cb.set_jobs(2)
     cb.run()
-    print("XXXXXXXXXXXXXXXXXXXXXXXXXXx")
 
-    app.app.run_server(debug=True)
+    time.sleep(20)

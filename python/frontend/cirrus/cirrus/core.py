@@ -16,7 +16,6 @@ import messenger
 
 class BaseTask(object):
     __metaclass__ = ABCMeta
-    time_loss_lst = []
 
     def __init__(self,
             n_workers,
@@ -73,6 +72,8 @@ class BaseTask(object):
         self.cost_per_second = 0
         self.total_lambda = 0
         self.id = 0
+        self.kill_signal = threading.Event()
+
 
         # HACK: Prevents Cirrus objects from spawning personal threads
         self.personal_thread = False
@@ -114,10 +115,9 @@ class BaseTask(object):
 
         cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' \
                 % (self.key_path, self.ps_username, self.ps_ip_public) + \
-		'"nohup ./parameter_server --config config.txt --nworkers 10 --rank 1 --ps_port %d &> ps_output &"' % self.ps_ip_port
+		'"nohup ./parameter_server --config config.txt --nworkers 10 --rank 1 --ps_port %d > psout &"' % self.ps_ip_port
         #print("cmd:", cmd)
         os.system(cmd)
-        time.sleep(2)
 
     def kill_all(self):
         print "Launching ps"
@@ -130,7 +130,6 @@ class BaseTask(object):
         time.sleep(2)
 
     def get_num_lambdas(self):
-        #print("Lambdas: ", self.ps_ip_public, self.ps_ip_port)
         return messenger.get_num_lambdas(self.ps_ip_public, self.ps_ip_port)
 
 
@@ -143,10 +142,10 @@ class BaseTask(object):
         num_lambdas = self.get_num_lambdas();
         num_task = 3
         if num_lambdas < self.n_workers:
-            shortage = num_workers - self.n_workers;
+            shortage = num_lambdas - self.n_workers;
 
             payload = '{"num_task": %d, "num_workers": %d, "ps_ip": \"%s\", "ps_port": %d}' \
-                        % (num_task, num_workers, self.ps_ip_private, self.ps_ip_port)
+                        % (num_task, self.n_workers, self.ps_ip_private, self.ps_ip_port)
             for i in range(shortage):
                 try:
                     response = client.invoke(
@@ -238,6 +237,11 @@ class BaseTask(object):
             self.error_task.start()
         else:
             print "Avoiding error and lambda threads"
+            cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' \
+                    % (self.key_path, self.ps_username, self.ps_ip_public) + \
+    		  '"./parameter_server --config config.txt --nworkers 10 --rank 2 --ps_ip \"%s\" --ps_port %d &> /dev/null" &' % (self.ps_ip_private,  self.ps_ip_port)
+            print('cmd', cmd)
+            os.system(cmd)
 
         #print "Lambdas have been launched"
 
@@ -274,7 +278,6 @@ class BaseTask(object):
         self.copy_ps_to_vm(self.ps_ip_public)
         self.define_config(self.ps_ip_public)
         self.launch_ps(self.ps_ip_public)
-        self.kill_signal = threading.Event()
         self.launch_lambda(self.n_workers, self.timeout)
 
     def kill(self):

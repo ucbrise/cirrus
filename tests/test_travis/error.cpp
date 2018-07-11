@@ -79,8 +79,8 @@ int main() {
     }
   }
   if (avg_loss < 0.5) {
-    return 0;
+    exit(EXIT_SUCCESS);
   } else {
-    throw std::runtime_error("Does not converge");
+    exit(EXIT_FAILURE);
   }
 }

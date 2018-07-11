@@ -18,8 +18,7 @@
 
 using namespace cirrus;
 
-cirrus::Configuration config =
-    cirrus::Configuration("configs/test_config.cfg");
+cirrus::Configuration config = cirrus::Configuration("configs/test_config.cfg");
 
 int main() {
   InputReader input;

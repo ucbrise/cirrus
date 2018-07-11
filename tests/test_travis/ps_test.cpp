@@ -1,8 +1,7 @@
 #include <Configuration.h>
 #include <Tasks.h>
 
-cirrus::Configuration config =
-    cirrus::Configuration("configs/test_config.cfg");
+cirrus::Configuration config = cirrus::Configuration("configs/test_config.cfg");
 int main() {
   cirrus::PSSparseServerTask st(
       (1 << config.get_model_bits()) + 1, config.get_minibatch_size(),

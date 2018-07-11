@@ -27,8 +27,7 @@ double check_error(auto model, auto dataset) {
   return avg_loss;
 }
 
-cirrus::Configuration config =
-    cirrus::Configuration("configs/test_config.cfg");
+cirrus::Configuration config = cirrus::Configuration("configs/test_config.cfg");
 std::mutex model_lock;
 std::unique_ptr<SparseLRModel> model;
 double epsilon = 0.00001;

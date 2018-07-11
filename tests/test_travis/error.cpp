@@ -78,7 +78,7 @@ int main() {
       std::cout << "run_compute_error_task unknown id" << std::endl;
     }
   }
-  if (avg_loss < 0.6) {
+  if (avg_loss < 0.5) {
     return 0;
   } else {
     throw std::runtime_error("Does not converge");

@@ -71,8 +71,7 @@ int main() {
       std::cout << "[ERROR_TASK] Loss (Total/Avg): " << total_loss << "/"
                 << (total_loss / total_num_samples)
                 << " Accuracy: " << (total_accuracy)
-                << " time(us): " << get_time_us()
-                << " time from start (sec): "
+                << " time(us): " << get_time_us() << " time from start (sec): "
                 << (get_time_us() - start_time) / 1000000.0 << std::endl;
       avg_loss = (total_loss / total_num_samples);
     } catch (...) {

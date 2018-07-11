@@ -8,9 +8,13 @@
 #include <thread>
 
 #include <InputReader.h>
+#include <PSSparseServerInterface.h>
 #include <SparseLRModel.h>
 #include <Configuration.h>
 #include "SGD.h"
+#include "Utils.h"
+#include "Serializers.h"
+#include <Tasks.h>
 
 using namespace cirrus;
 
@@ -25,14 +29,14 @@ int main() {
   train_dataset.print_info();
 
   SparseLRModel model(1 << config.get_model_bits());
-  std::unique_ptr<SparseModelGet> sparse_model_get = std::make_unique<SparseModelGet>("127.0.0.1", 1337);
+  std::unique_ptr<PSSparseServerInterface> psi = std::make_unique<PSSparseServerInterface>("127.0.0.1", 1337);
   int version = 0;
   while (1) {
     SparseDataset minibatch = train_dataset.random_sample(20);
-    sparse_model_get->get_new_model_inplace(*dataset, model, config);
-    auto gradient = model.minibatch_grad_sparse(*dataset, config);
+    psi->get_lr_sparse_model_inplace(minibatch, model, config);
+    auto gradient = model.minibatch_grad_sparse(minibatch, config);
     gradient->setVersion(version++);
     LRSparseGradient* lrg = dynamic_cast<LRSparseGradient*>(gradient.get());
-    push_gradient(lrg);
+    psi->send_lr_gradient(*lrg);
   }
 }

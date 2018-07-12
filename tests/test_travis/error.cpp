@@ -40,7 +40,7 @@ int main() {
   std::cout << "[ERROR_TASK] Computing accuracies"
             << "\n";
   FEATURE_TYPE avg_loss = 0;
-  while (1) {
+  for (int i = 0; i < 100; i++) {
     usleep(ERROR_INTERVAL_USEC);
     try {
 #ifdef DEBUG
@@ -74,12 +74,12 @@ int main() {
                 << (get_time_us() - start_time) / 1000000.0 << std::endl;
       avg_loss = (total_loss / total_num_samples);
     } catch (...) {
-      break;
+      throw std::runtime_error("Error");
     }
   }
-  if (avg_loss < 0.1) {
-    return 0;
+  if (avg_loss < 0.5) {
+    exit(EXIT_SUCCESS);
   } else {
-    throw std::runtime_error("Fail");
+    exit(EXIT_FAILURE);
   }
 }

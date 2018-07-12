@@ -77,7 +77,7 @@ int main() {
       throw std::runtime_error("Error");
     }
   }
-  if (avg_loss < 0.5) {
+  if (avg_loss < 0.6) {
     exit(EXIT_SUCCESS);
   } else {
     exit(EXIT_FAILURE);

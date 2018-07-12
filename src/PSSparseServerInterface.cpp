@@ -181,7 +181,6 @@ std::unique_ptr<CirrusModel> PSSparseServerInterface::get_full_model(
   } else {
     // 1. Send operation
     uint32_t operation = GET_LR_FULL_MODEL;
-    std::cout << sock << std::endl; 
     if (send_all(sock, &operation, sizeof(uint32_t)) == -1) {
       throw std::runtime_error("Error getting full model");
     }

@@ -34,10 +34,15 @@ PSSparseServerInterface::PSSparseServerInterface(const std::string& ip, int port
   std::memset(serv_addr.sin_zero, 0, sizeof(serv_addr.sin_zero));
 
   // Connect to the server
-  if (::connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-    throw std::runtime_error(
-        "Client could not connect to server."
-        " Address: " + ip + " port: " + std::to_string(port));
+  int ret = -1;
+  while (ret == -1) {
+    ret = ::connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+    if (ret < 0) {
+      std::cout << "Failed to make contact with server with ip: " << ip << " port: " << port << std::endl;
+      sleep(1);
+    } else {
+      std::cout << "Made contact with server" << std::endl;
+    }
   }
 }
 
@@ -176,7 +181,10 @@ std::unique_ptr<CirrusModel> PSSparseServerInterface::get_full_model(
   } else {
     // 1. Send operation
     uint32_t operation = GET_LR_FULL_MODEL;
-    send_all(sock, &operation, sizeof(uint32_t));
+    std::cout << sock << std::endl; 
+    if (send_all(sock, &operation, sizeof(uint32_t)) == -1) {
+      throw std::runtime_error("Error getting full model");
+    }
     //2. receive size from PS
     int model_size;
     if (read_all(sock, &model_size, sizeof(int)) == 0) {
@@ -237,7 +245,9 @@ SparseMFModel PSSparseServerInterface::get_sparse_mf_model(
 
   // 1. Send operation
   uint32_t operation = GET_MF_SPARSE_MODEL;
-  send_all(sock, &operation, sizeof(uint32_t));
+  if (send_all(sock, &operation, sizeof(uint32_t)) == -1) {
+    throw std::runtime_error("Error sending GET_MF_SPARSE_MODEL");
+  }
   // 2. Send msg size
   uint32_t msg_size = sizeof(uint32_t) * 4 + sizeof(uint32_t) * item_ids_count;
   send_all(sock, &msg_size, sizeof(uint32_t));

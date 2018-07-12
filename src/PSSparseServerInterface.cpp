@@ -36,9 +36,10 @@ PSSparseServerInterface::PSSparseServerInterface(const std::string& ip, int port
   // Connect to the server
   int ret = -1;
   while (ret == -1) {
-    ret = ::connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+    ret = ::connect(sock, (struct sockaddr*) &serv_addr, sizeof(serv_addr));
     if (ret < 0) {
-      std::cout << "Failed to make contact with server with ip: " << ip << " port: " << port << std::endl;
+      std::cout << "Failed to make contact with server with ip: " << ip
+                << " port: " << port << std::endl;
       sleep(1);
     } else {
       std::cout << "Made contact with server" << std::endl;

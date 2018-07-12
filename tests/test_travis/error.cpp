@@ -40,7 +40,7 @@ int main() {
   std::cout << "[ERROR_TASK] Computing accuracies"
             << "\n";
   FEATURE_TYPE avg_loss = 0;
-  while(1) {
+  while (1) {
     usleep(ERROR_INTERVAL_USEC);
     try {
 #ifdef DEBUG

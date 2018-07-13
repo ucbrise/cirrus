@@ -1,8 +1,11 @@
 from utils import *
 import threading
-import time  
+import time
 
 from multiprocessing import Process
+from multiprocessing import Process, Manager
+from multiprocessing.managers import BaseManager
+
 
 class CirrusBundle:
 
@@ -14,6 +17,7 @@ class CirrusBundle:
         self.param_lst = []   # Stores parameters of each experiment
         self.check_queue = [] # Queue for checking error/lambdas for each object
         self.num_jobs = 1     # Number of threads checking check_queue
+        self.set_timeout = -1 # Timeout. -1 means never timeout
 
         self.threads = []
 
@@ -32,38 +36,33 @@ class CirrusBundle:
             self.cirrus_objs.append(c)
             self.infos.append({'color': get_random_color()})
 
-    # FIXME: Better name...
-    def custodian(cirrus_objs, thread_id, num_jobs):
-        index = thread_id
-        print("Custodian starting...")
-        while True:
-            time.sleep(1)
-            cirrus_objs[index].relaunch_lambdas()
-            loss = cirrus_objs[index].get_time_loss()
-            print("Machine #", index)
-            print(loss)
-            index += num_jobs
-            index = index % len(cirrus_objs)
-            
-        print "Thread number %d is exiting" % thread_id
 
     def start_queue_threads(self):
-        def custodian(cirrus_objs, thread_id, num_jobs):
+        def custodian(cirrus_objs, thread_id, num_jobs, infos):
             index = thread_id
             print("Custodian starting...")
+            seen = []
+            start_time
             while True:
-                time.sleep(1)
+                time.sleep(3)
+                print "Thread %d checking index %d" % (thread_id, index)
+                cirrus_obj = cirrus_objs[index]
+                if not (index in seen):
+                    print seen
+                    print "Thread %d starting experiment %d" % (thread_id, index)
+                    self.run(index)
+                    seen.append(index)
                 cirrus_objs[index].relaunch_lambdas()
                 loss = cirrus_objs[index].get_time_loss()
                 print("Machine #", index)
                 print(loss)
                 index += num_jobs
-                index = index % len(cirrus_objs)
-            
+                if index >= len(cirrus_objs):
+                    index = thread_id
+
             print "Thread number %d is exiting" % thread_id
+
         for i in range(self.num_jobs):
-            #thread = threading.Thread(target=self.custodian, args=(i, ))
-            #thread.start()
             p = Process(target=custodian, args=(self.cirrus_objs, i, self.num_jobs))
             p.start()
 
@@ -77,12 +76,16 @@ class CirrusBundle:
     def set_existing_machines(self):
         pass
 
-    def run(self):
-        self.cirrus_objs[0].kill_all()
+    def run(self, index):
+        assert(0 <= index <= len(self.cirrus_objs))
+        cirrus_obj = self.cirrus_objs[index]
+        self.infos[index]['start_time'] = time.time()
+        print(self.infos)
+        cirrus_obj.run()
 
-        for cirrus_ob in self.cirrus_objs:
-            cirrus_ob.run()
-        time.sleep(10)
+
+    def run_bundle(self):
+        self.cirrus_objs[0].kill_all()
         self.start_queue_threads()
 
     def kill_all(self):

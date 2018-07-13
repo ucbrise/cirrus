@@ -77,6 +77,8 @@ class BaseTask(object):
 
         # HACK: Prevents Cirrus objects from spawning personal threads
         self.personal_thread = False
+        
+
 
 
     def copy_ps_to_vm(self, ip):
@@ -115,7 +117,7 @@ class BaseTask(object):
 
         cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' \
                 % (self.key_path, self.ps_username, self.ps_ip_public) + \
-		'"nohup ./parameter_server --config config.txt --nworkers 100 --rank 1 --ps_port %d &> ps_out &"' % self.ps_ip_port
+		'"nohup ./parameter_server --config config.txt --nworkers 100 --rank 1 --ps_port %d &> ps_out_%d &"' % (self.ps_ip_port, self.ps_ip_port)
         #print("cmd:", cmd)
         os.system(cmd)
 
@@ -201,11 +203,10 @@ class BaseTask(object):
             print "Starting error task"
             cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' \
                     % (self.key_path, self.ps_username, self.ps_ip_public) + \
-    		  '"./parameter_server --config config.txt --nworkers 10 --rank 2 --ps_ip \"%s\" --ps_port %d &> error_out" &' % (self.ps_ip_private,  self.ps_ip_port)
+    		  '"./parameter_server --config config.txt --nworkers 10 --rank 2 --ps_ip \"%s\" --ps_port %d &> error_out_%d" &' % (self.ps_ip_private,  self.ps_ip_port, self.ps_ip_port)
             print('cmd', cmd)
             os.system(cmd)
 
-            time.sleep(3)
 
             start_time = time.time()
             cost_model = CostModel(
@@ -227,7 +228,6 @@ class BaseTask(object):
                         "task1")
 
                 if self.timeout > 0 and float(t) > self.timeout:
-                    #print("error is timing out")
                     return
 
         self.start_time = time.time()
@@ -241,7 +241,7 @@ class BaseTask(object):
             print "Avoiding error and lambda threads"
             cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' \
                     % (self.key_path, self.ps_username, self.ps_ip_public) + \
-    		  '"./parameter_server --config config.txt --nworkers 10 --rank 2 --ps_ip \"%s\" --ps_port %d &> error_out" &' % (self.ps_ip_private,  self.ps_ip_port)
+    		  '"./parameter_server --config config.txt --nworkers 10 --rank 2 --ps_ip \"%s\" --ps_port %d &> error_out_%d" &' % (self.ps_ip_private,  self.ps_ip_port, self.ps_ip_port)
             print('cmd', cmd)
             os.system(cmd)
 
@@ -249,7 +249,7 @@ class BaseTask(object):
 
     def get_time_loss(self):
         t, loss = messenger.get_last_time_error(self.ps_ip_public, self.ps_ip_port + 1)
-        if (t == 0):
+        if (t == 0) or (self.is_dead()):
             return []
         if len(self.time_loss_lst) == 0 or not ((t, loss) == self.time_loss_lst[-1]):
             self.time_loss_lst.append((t, loss))
@@ -280,7 +280,6 @@ class BaseTask(object):
         self.copy_ps_to_vm(self.ps_ip_public)
         self.define_config(self.ps_ip_public)
         self.launch_ps(self.ps_ip_public)
-        time.sleep(5)
         self.launch_lambda(self.n_workers, self.timeout)
 
     def kill(self):

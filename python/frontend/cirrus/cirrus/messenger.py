@@ -24,5 +24,5 @@ def get_last_time_error(ip="127.0.0.1", port=1338):
     try:
         s = clientsocket.recv(128)
         return struct.unpack("dd", s)
-    except clientsocket.timeout, e:
+    except:
         return (-1, -1)

@@ -13,7 +13,6 @@ class LogisticRegressionTask(BaseTask):
     def __init__(self, *args, **kwargs):
         # pass all arguments of init to parent class
         super(LogisticRegressionTask, self).__init__(*args, **kwargs)
-        print("Starting LogisticRegressionTask")
 
     def __del__(self):
         print("Logistic Regression Task Lost")
@@ -49,7 +48,6 @@ class LogisticRegressionTask(BaseTask):
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect(hostname=ip, username=self.ps_username, pkey=key)
-        print "Defining configuration file"
         stdin, stdout, stderr = client.exec_command('echo "%s" > config.txt' % config)
         client.close()
 
@@ -78,7 +76,6 @@ def LogisticRegression(
             timeout=60,
             threshold_loss=0
             ):
-    print "Running Logistic Regression workload"
     return LogisticRegressionTask(
             n_workers=n_workers,
             n_ps=n_ps,

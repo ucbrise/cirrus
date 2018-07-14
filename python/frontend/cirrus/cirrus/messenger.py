@@ -25,4 +25,4 @@ def get_last_time_error(ip="127.0.0.1", port=1338):
         s = clientsocket.recv(128)
         return struct.unpack("dd", s)
     except:
-        return (-1, -1)
+        return None

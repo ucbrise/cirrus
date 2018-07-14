@@ -16,9 +16,9 @@ ip = "172.31.5.74"
 
 ps_servers = [
     (url, ip, 0.1),
-    (url, ip, 0.2),
-    #('ec2-52-12-119-107.us-west-2.compute.amazonaws.com', '172.31.38.206', 0.3),
-
+    (url, ip, 0.1),
+    (url, ip, 0.1),
+    (url, ip, 0.1),
 ]
 
 data_bucket = 'cirrus-criteo-kaggle-19b-random'
@@ -65,8 +65,10 @@ if __name__ == "__main__":
 
     cb = CirrusBundle()
     cb.set_task_parameters(LogisticRegression, batch)
-    cb.set_jobs(1)
+    cb.set_jobs(2)
     cb.run_bundle()
-
+    print("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
     while True:
-        pass
+        time.sleep(1)
+        print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXx")
+        print(cb.get_top(-5))

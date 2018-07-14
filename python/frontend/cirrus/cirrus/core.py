@@ -14,6 +14,11 @@ import time
 import random
 import messenger
 
+lambda_client = boto3.client('lambda', 'us-west-2')
+lambda_name = "testfunc1"
+#lambda_name = "myfunc"
+
+
 class BaseTask(object):
     __metaclass__ = ABCMeta
 
@@ -82,7 +87,6 @@ class BaseTask(object):
 
 
     def copy_ps_to_vm(self, ip):
-        print("Copying ps to vm..")
         # Setup via ssh
         key = paramiko.RSAKey.from_private_key_file(self.key_path)
         client = paramiko.SSHClient()
@@ -92,28 +96,22 @@ class BaseTask(object):
             client.connect(hostname=ip, username=self.ps_username, pkey=key)
             # Set up ssm (if we choose to use that, and get the binary)
             # FIXME: make wget replace old copies of parameter_server and not make a new one.
-            print("Done waiting... Attempting to copy over binary")
             #stdin, stdout, stderr = client.exec_command(\
             #    "rm -rf parameter_server && " \
             #    + "wget -q https://s3-us-west-2.amazonaws.com/" \
             #    + "cirrus-parameter-server/parameter_server && "\
             #    + "chmod +x parameter_server")
         except Exception, e:
-            print "Got an exception in copy_ps_to_vm..."
             print e
-        print "Copied PS binary to VM"
 
 
     def launch_ps(self, ip):
-        print "Launching ps"
         cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' \
                 % (self.key_path, self.ps_username, self.ps_ip_public) + \
 		'"nohup ./parameter_server --config config.txt --nworkers 100 --rank 1 --ps_port %d &> ps_out_%d &"' % (self.ps_ip_port, self.ps_ip_port)
-        print("cmd:", cmd)
         os.system(cmd)
 
     def kill_all(self):
-        print "Launching ps"
         key = paramiko.RSAKey.from_private_key_file(self.key_path)
 
         client = paramiko.SSHClient()
@@ -129,22 +127,19 @@ class BaseTask(object):
     def relaunch_lambdas(self):
         # if 0 run indefinitely
         if self.kill_signal.is_set():
-            print("Task appears dead...")
             return;
 
         num_lambdas = self.get_num_lambdas()
         num_task = 3
-        print("Num Lambdas: %d, Requested: %d" %(num_lambdas, self.n_workers))
         if num_lambdas < self.n_workers:
             shortage = self.n_workers - num_lambdas;
 
             payload = '{"num_task": %d, "num_workers": %d, "ps_ip": \"%s\", "ps_port": %d}' \
                         % (num_task, self.n_workers, self.ps_ip_private, self.ps_ip_port)
-            print payload
             for i in range(shortage):
                 try:
-                    response = boto3.client('lambda').invoke(
-                        FunctionName="testfunc1",
+                    response = lambda_client.invoke(
+                        FunctionName=lambda_name,
                         InvocationType='Event',
                         LogType='Tail',
                         Payload=payload)
@@ -155,8 +150,6 @@ class BaseTask(object):
     # if timeout is 0 we run lambdas indefinitely
     # otherwise we stop invoking them after timeout secs
     def launch_lambda(self, num_workers, timeout=50):
-        print "Launching lambdas"
-        client = boto3.client('lambda', region_name='us-west-2')
         start_time = time.time()
         def launch():
 
@@ -165,7 +158,6 @@ class BaseTask(object):
                 time.sleep(2)
 
                 if self.kill_signal.is_set():
-                    print("Lambda launcher has received kill signal")
                     return;
 
                 # TODO: Make this grab the number of lambdas from PS log
@@ -182,7 +174,7 @@ class BaseTask(object):
                     #print "payload:", payload
 
                     try:
-                        response = client.invoke(
+                        response = lambda_client.invoke(
                             #FunctionName="testfunc1",
                             FunctionName="myfunc",
                             InvocationType='Event',
@@ -191,11 +183,9 @@ class BaseTask(object):
                     except:
                         print "client.invoke exception caught"
         def error_task():
-            print "Starting error task"
             cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' \
                     % (self.key_path, self.ps_username, self.ps_ip_public) + \
     		  '"./parameter_server --config config.txt --nworkers 10 --rank 2 --ps_ip \"%s\" --ps_port %d &> error_out_%d" &' % (self.ps_ip_private,  self.ps_ip_port, self.ps_ip_port)
-            print('cmd', cmd)
             os.system(cmd)
 
 
@@ -229,11 +219,10 @@ class BaseTask(object):
             self.lambda_launcher.start()
             self.error_task.start()
         else:
-            print "Avoiding error and lambda threads"
+            time.sleep(3)
             cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' \
                     % (self.key_path, self.ps_username, self.ps_ip_public) + \
     		  '"./parameter_server --config config.txt --nworkers 10 --rank 2 --ps_ip \"%s\" --ps_port %d &> error_out_%d" &' % (self.ps_ip_private,  self.ps_ip_port, self.ps_ip_port)
-            print('cmd', cmd)
             os.system(cmd)
 
         #print "Lambdas have been launched"
@@ -251,7 +240,6 @@ class BaseTask(object):
 
     def run(self):
         if self.ps_ip_public == "" or self.ps_ip_private == "":
-            print "Creating a spot VM"
             # create vm manager
             vm_manager = ec2_vm.Ec2VMManager("ec2 manager", "", "")
             # launch a spot instance
@@ -266,8 +254,7 @@ class BaseTask(object):
 	    # need to wait until VM and ssh-server starts
             time.sleep(60)
         else:
-            print "User's specific ip:", self.ps_ip_public
-
+            pass
         self.copy_ps_to_vm(self.ps_ip_public)
         self.define_config(self.ps_ip_public)
         self.launch_ps(self.ps_ip_public)

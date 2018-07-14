@@ -101,13 +101,14 @@ app.layout = html.Div([
 # helper functions
 
 def get_cost_per_second():
-    return sum([item.cost_per_second for item in bundle.cirrus_objs])
+    return 10
 
 def get_cost():
-    return sum([item.total_cost for item in bundle.cirrus_objs])
+    return 10
 
 def get_num_lambdas():
-    return str(sum([item.get_num_lambdas() for item in bundle.cirrus_objs]))
+    return 100
+    #return str(sum([item.get_num_lambdas() for item in bundle.cirrus_objs]))
 
 def get_mem_usage():
     global process
@@ -150,7 +151,8 @@ def get_traces(num):
                 line = dict(color = (bundle.get_info(i, 'color'))),
                 customdata= str(i) * lll
             )
-            q.append((ys[-1], trace))
+            if (len(ys) > 0):
+                q.append((ys[-1], trace))
         q.sort(reverse=(num > 0))
         trace_lst = [item[1] for item in q[:abs(num)]]
     return trace_lst
@@ -166,29 +168,16 @@ def get_num_experiments():
     return bundle.get_number_experiments()
 
 def get_xs_for(i):
-    if i in dead_lst:
-        return []
-
-    item = bundle.cirrus_objs[i]
-    out = item.get_time_loss()
-    #print(out)
-    frozen_lstx[i] = [tl[0] for tl in out]
-    return frozen_lstx[i]
+    return bundle.get_xs_for(i)
 
 def get_ys_for(i):
-    if i in dead_lst:
-        return []
-    item = bundle.cirrus_objs[i]
-    frozen_lsty[i] = [tl[1] for tl in item.get_time_loss()]
-    return frozen_lsty[i]
+    return bundle.get_ys_for(i)
+
 def get_name_for(i):
-    item = bundle.cirrus_objs[i]
-    return item.get_name()
+    return "Name"
 
 def kill(i):
-    dead_lst.append(i)
-    bundle.kill(i)
-
+    pass
 
 
 

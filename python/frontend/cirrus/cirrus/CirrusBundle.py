@@ -42,10 +42,10 @@ class CirrusBundle:
             index = thread_id
             print("Custodian starting...")
             seen = []
-            start_time
+            start_time = time.time()
             while True:
-                time.sleep(3)
                 print "Thread %d checking index %d" % (thread_id, index)
+                time.sleep(3)
                 cirrus_obj = cirrus_objs[index]
                 if not (index in seen):
                     print seen
@@ -63,7 +63,7 @@ class CirrusBundle:
             print "Thread number %d is exiting" % thread_id
 
         for i in range(self.num_jobs):
-            p = Process(target=custodian, args=(self.cirrus_objs, i, self.num_jobs))
+            p = Process(target=custodian, args=(self.cirrus_objs, i, self.num_jobs, self.infos))
             p.start()
 
 

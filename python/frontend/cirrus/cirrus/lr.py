@@ -51,9 +51,6 @@ class LogisticRegressionTask(BaseTask):
         client.connect(hostname=ip, username=self.ps_username, pkey=key)
         print "Defining configuration file"
         stdin, stdout, stderr = client.exec_command('echo "%s" > config.txt' % config)
-        print stdout.read()
-        stdin, stdout, stderr = client.exec_command('cat config.txt')
-        print stdout.read()
         client.close()
 
 def LogisticRegression(

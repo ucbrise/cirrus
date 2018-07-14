@@ -11,9 +11,12 @@ def progress_callback(time_loss, cost, task):
     pass
     #print("Current training loss:", time_loss, "current cost ($): ", cost)
 
+url = "ec2-34-212-6-172.us-west-2.compute.amazonaws.com"
+ip = "172.31.5.74"
+
 ps_servers = [
-    ('ec2-52-12-119-107.us-west-2.compute.amazonaws.com', '172.31.38.206', 0.1),
-    ('ec2-52-12-119-107.us-west-2.compute.amazonaws.com', '172.31.38.206', 0.2),
+    (url, ip, 0.1),
+    (url, ip, 0.2),
     #('ec2-52-12-119-107.us-west-2.compute.amazonaws.com', '172.31.38.206', 0.3),
 
 ]

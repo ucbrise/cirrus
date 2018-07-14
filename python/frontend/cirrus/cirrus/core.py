@@ -106,19 +106,10 @@ class BaseTask(object):
 
     def launch_ps(self, ip):
         print "Launching ps"
-        #key = paramiko.RSAKey.from_private_key_file(self.key_path)
-
-        #client = paramiko.SSHClient()
-        #self.ssh_client = client
-        #client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        #client.connect(hostname=ip, username=self.ps_username, pkey=key)
-        # Set up ssm (if we choose to use that, and get the binary) XXX: replace a.pdf with the actual binary
-        print "Launching parameter server"
-
         cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' \
                 % (self.key_path, self.ps_username, self.ps_ip_public) + \
 		'"nohup ./parameter_server --config config.txt --nworkers 100 --rank 1 --ps_port %d &> ps_out_%d &"' % (self.ps_ip_port, self.ps_ip_port)
-        #print("cmd:", cmd)
+        print("cmd:", cmd)
         os.system(cmd)
 
     def kill_all(self):
@@ -153,7 +144,7 @@ class BaseTask(object):
             for i in range(shortage):
                 try:
                     response = boto3.client('lambda').invoke(
-                        FunctionName="myfunc",
+                        FunctionName="testfunc1",
                         InvocationType='Event',
                         LogType='Tail',
                         Payload=payload)

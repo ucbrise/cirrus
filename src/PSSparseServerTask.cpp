@@ -14,7 +14,7 @@
 #undef DEBUG
 
 #define MAX_CONNECTIONS (nworkers * 2 + 1) // (2 x # workers + 1)
-#define THREAD_MSG_BUFFER_SIZE 5000000
+#define THREAD_MSG_BUFFER_SIZE 1000000
 
 namespace cirrus {
 
@@ -452,9 +452,9 @@ bool PSSparseServerTask::process(struct pollfd& poll_fd, int thread_id) {
 void PSSparseServerTask::start_server() {
   lr_model.reset(new SparseLRModel(model_size));
   lr_model->randomize();
-  mf_model.reset(new MFModel(task_config.get_users(), task_config.get_items(),
-                             NUM_FACTORS));
-  mf_model->randomize();
+  //mf_model.reset(new MFModel(task_config.get_users(), task_config.get_items(),
+                             //NUM_FACTORS));
+  //mf_model->randomize();
 
   sem_init(&sem_new_req, 0, 0);
 

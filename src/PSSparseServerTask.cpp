@@ -41,6 +41,8 @@ PSSparseServerTask::PSSparseServerTask(
     operation_to_name[6] = "SET_TASK_STATUS";
     operation_to_name[7] = "GET_TASK_STATUS";
     operation_to_name[8] = "REGISTER_TASK";
+    operation_to_name[9] = "GET_NUM_CONNS";
+    operation_to_name[10] = "GET_LAST_TIME_ERROR";
 
     for (int i = 0; i < NUM_PS_WORK_THREADS; i++) {
       thread_msg_buffer[i] =
@@ -399,7 +401,12 @@ void PSSparseServerTask::gradient_f() {
                 << std::endl;
 #endif
       task_to_status[data[0]] = data[1];
-    
+
+    } else if (operation == GET_NUM_CONNS) {
+      std::cout << "Retrieve num connections: " << num_connections << std::endl;
+      if (send(sock, &num_connections, sizeof(uint32_t), 0) < 0) {
+        throw std::runtime_error("Error sending number of connections");
+      }
     } else {
       throw std::runtime_error("gradient_f: Unknown operation");
     }

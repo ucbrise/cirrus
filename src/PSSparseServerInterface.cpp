@@ -34,14 +34,11 @@ PSSparseServerInterface::PSSparseServerInterface(const std::string& ip, int port
 }
 
 void PSSparseServerInterface::connect() {
-  
-
   int ret = ::connect(sock, (struct sockaddr*) &serv_addr, sizeof(serv_addr));
   if (ret < 0) {
-      throw std::runtime_error("Failed to make contact with server with ip: " + ip
-                + " port: " + std::to_string(port) + "\n");
+    throw std::runtime_error("Failed to make contact with server with ip: " +
+                             ip + " port: " + std::to_string(port) + "\n");
   }
-
 }
 
 PSSparseServerInterface::~PSSparseServerInterface() {

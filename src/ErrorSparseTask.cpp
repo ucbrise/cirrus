@@ -20,6 +20,15 @@ std::unique_ptr<CirrusModel> get_model(const Configuration& config,
   if (first_time) {
     first_time = false;
     psi = new PSSparseServerInterface(ps_ip, ps_port);
+    
+    while (true) {
+      try {
+        psi->connect();
+        break;
+      } catch (const std::exception &exc) {
+        std::cout << exc.what();
+      }
+    }
   }
 
   bool use_col_filtering =

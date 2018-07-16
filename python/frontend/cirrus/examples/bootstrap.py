@@ -10,19 +10,12 @@ from cirrus import CirrusBundle
 url = "ec2-34-212-6-172.us-west-2.compute.amazonaws.com"
 ip = "172.31.5.74"
 
-ps_servers = [
-    (url, ip, 0.1),
-    (url, ip, 0.1),
-    (url, ip, 0.1),
-    (url, ip, 0.1),
-]
-
 data_bucket = 'cirrus-criteo-kaggle-19b-random'
 model = 'model_v1'
 
 basic_params = {
-    'n_workers': 3,
-    'n_ps': 2,
+    'n_workers': 5,
+    'n_ps': 1,
     'worker_size': 128,
     'dataset': data_bucket,
     'learning_rate': 0.01,
@@ -51,18 +44,20 @@ if __name__ == "__main__":
     batch = []
     index = 0
     base_port = 1337
-    for ps in ps_servers:
+    start =    0.100000
+    end =      0.000001
+    interval = 0.001
+    for _ in range(100):
         config = basic_params.copy()
-        config['ps_ip_public'] = ps[0]
-        config['ps_ip_private'] = ps[1]
         config['ps_ip_port'] = base_port + (index * 2)
-        config['learning_rate'] = ps[2]
+        config['learning_rate'] = start
+        print(start)
         batch.append(config)
-        index += 1
+        start /= 1.25
 
     cb = CirrusBundle()
     cb.set_task_parameters(LogisticRegression, batch)
-    cb.set_jobs(2)
+    cb.set_jobs(15)
     cb.run_bundle()
     app.bundle = cb
     

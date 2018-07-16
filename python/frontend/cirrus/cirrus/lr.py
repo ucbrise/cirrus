@@ -19,6 +19,7 @@ class LogisticRegressionTask(BaseTask):
 
 
     def define_config(self, ip):
+        
         if self.use_grad_threshold:
             grad_t = 1
         else:
@@ -48,7 +49,7 @@ class LogisticRegressionTask(BaseTask):
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect(hostname=ip, username=self.ps_username, pkey=key)
-        stdin, stdout, stderr = client.exec_command('echo "%s" > config.txt' % config)
+        stdin, stdout, stderr = client.exec_command('echo "%s" > config_%d.txt' % (config, self.ps_ip_port))
         client.close()
 
 def LogisticRegression(

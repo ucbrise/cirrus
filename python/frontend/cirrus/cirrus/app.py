@@ -78,8 +78,8 @@ app.layout = html.Div([
                 id="showmenu",
                 options=[
                     {'label': 'Show All', 'value': 'all'},
-                    {'label': 'Show Top Five', 'value': 'top_ten'},
-                    {'label': 'Show Last Five', 'value': 'last_ten'}
+                    {'label': 'Show Best Five', 'value': 'top_ten'},
+                    {'label': 'Show Worst Five', 'value': 'last_ten'}
                 ],
                 value='all'
             ),
@@ -101,14 +101,14 @@ app.layout = html.Div([
 # helper functions
 
 def get_cost_per_second():
-    return 10
+    out = bundle.get_cost_per_sec()
+    return out
 
 def get_cost():
-    return 10
+    return bundle.get_cost()
 
 def get_num_lambdas():
-    return 100
-    #return str(sum([item.get_num_lambdas() for item in bundle.cirrus_objs]))
+    return bundle.get_num_lambdas()
 
 def get_mem_usage():
     global process
@@ -174,10 +174,11 @@ def get_ys_for(i):
     return bundle.get_ys_for(i)
 
 def get_name_for(i):
-    return "Name"
+    out = bundle.get_name_for(i)
+    return out
 
 def kill(i):
-    pass
+    bundle.kill(i)
 
 
 
@@ -276,9 +277,9 @@ def gen_cost(interval):
     State('mapControls', 'values')])
 def gen_loss(interval, menu, oldfig, relayoutData, lockCamera):
     if menu=="top_ten":
-        how_many = 5
-    elif menu == 'last_ten':
         how_many = -5
+    elif menu == 'last_ten':
+        how_many = 5
     else:
         how_many = 0
 

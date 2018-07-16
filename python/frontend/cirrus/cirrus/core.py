@@ -78,22 +78,32 @@ class BaseTask(object):
         self.total_lambda = 0
         self.id = 0
         self.kill_signal = threading.Event()
-
+        self.num_lambdas = 0 
+        self.cost_model = CostModel(
+                    'm5.large',
+                    self.n_ps,
+                    0,
+                    self.n_workers,
+                    self.worker_size)
 
         # HACK: Prevents Cirrus objects from spawning personal threads
         self.personal_thread = False
         
 
+    def get_name(self):
+        string = "Rate %f" % self.learning_rate
+        return string
 
 
     def copy_ps_to_vm(self, ip):
         # Setup via ssh
-        key = paramiko.RSAKey.from_private_key_file(self.key_path)
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        #key = paramiko.RSAKey.from_private_key_file(self.key_path)
+        #client = paramiko.SSHClient()
+        #client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         # Download ps to vm
         try:
-            client.connect(hostname=ip, username=self.ps_username, pkey=key)
+            pass
+            #client.connect(hostname=ip, username=self.ps_username, pkey=key)
             # Set up ssm (if we choose to use that, and get the binary)
             # FIXME: make wget replace old copies of parameter_server and not make a new one.
             #stdin, stdout, stderr = client.exec_command(\
@@ -108,7 +118,7 @@ class BaseTask(object):
     def launch_ps(self, ip):
         cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' \
                 % (self.key_path, self.ps_username, self.ps_ip_public) + \
-		'"nohup ./parameter_server --config config.txt --nworkers 100 --rank 1 --ps_port %d &> ps_out_%d &"' % (self.ps_ip_port, self.ps_ip_port)
+		'"nohup ./parameter_server --config config_%d.txt --nworkers 100 --rank 1 --ps_port %d &> ps_out_%d &"' % (self.ps_ip_port, self.ps_ip_port, self.ps_ip_port)
         os.system(cmd)
 
     def kill_all(self):
@@ -120,9 +130,16 @@ class BaseTask(object):
         client.exec_command("killall parameter_server")
         time.sleep(2)
 
-    def get_num_lambdas(self):
-        return messenger.get_num_lambdas(self.ps_ip_public, self.ps_ip_port)
-
+    def get_num_lambdas(self, fetch=True):
+        
+        if self.is_dead():
+            return 0
+        
+        if fetch:
+            self.num_lambdas = messenger.get_num_lambdas(self.ps_ip_public, self.ps_ip_port)
+            return self.num_lambdas
+        else:
+            return self.num_lambdas
 
     def relaunch_lambdas(self):
         # if 0 run indefinitely
@@ -185,7 +202,7 @@ class BaseTask(object):
         def error_task():
             cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' \
                     % (self.key_path, self.ps_username, self.ps_ip_public) + \
-    		  '"./parameter_server --config config.txt --nworkers 10 --rank 2 --ps_ip \"%s\" --ps_port %d &> error_out_%d" &' % (self.ps_ip_private,  self.ps_ip_port, self.ps_ip_port)
+    		  '"./parameter_server --config config_%d.txt --nworkers 10 --rank 2 --ps_ip \"%s\" --ps_port %d &> error_out_%d" &' % (self.ps_ip_port, self.ps_ip_private,  self.ps_ip_port, self.ps_ip_port)
             os.system(cmd)
 
 
@@ -219,25 +236,30 @@ class BaseTask(object):
             self.lambda_launcher.start()
             self.error_task.start()
         else:
-            time.sleep(3)
             cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' \
                     % (self.key_path, self.ps_username, self.ps_ip_public) + \
-    		  '"./parameter_server --config config.txt --nworkers 10 --rank 2 --ps_ip \"%s\" --ps_port %d &> error_out_%d" &' % (self.ps_ip_private,  self.ps_ip_port, self.ps_ip_port)
+    		  '"sleep 3 && ./parameter_server --config config_%d.txt --nworkers 10 --rank 2 --ps_ip \"%s\" --ps_port %d &> error_out_%d" &' % (self.ps_ip_port, self.ps_ip_private,  self.ps_ip_port, self.ps_ip_port)
             os.system(cmd)
 
         #print "Lambdas have been launched"
 
     def get_time_loss(self):
-        t, loss = messenger.get_last_time_error(self.ps_ip_public, self.ps_ip_port + 1)
+        
+        if self.is_dead():
+            return self.time_loss_lst
+
+        out = messenger.get_last_time_error(self.ps_ip_public, self.ps_ip_port + 1)
+        if out == None:
+            return []
+        t, loss = out
         if (t == 0) or (self.is_dead()):
             return []
         if len(self.time_loss_lst) == 0 or not ((t, loss) == self.time_loss_lst[-1]):
             self.time_loss_lst.append((t, loss))
         return self.time_loss_lst
 
-    def get_name(self):
-        return str(self.learning_rate)
 
+    
     def run(self):
         if self.ps_ip_public == "" or self.ps_ip_private == "":
             # create vm manager
@@ -261,10 +283,6 @@ class BaseTask(object):
         self.launch_lambda(self.n_workers, self.timeout)
 
     def kill(self):
-        self.kill_signal.set()
-        self.lambda_launcher.join()
-        self.error_task.join()
-        #print "Everyone is dead"
         self.dead = True
 
     def is_dead(self):

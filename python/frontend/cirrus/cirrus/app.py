@@ -37,6 +37,15 @@ server = app.server
 def div_graph(name):
     return html.Div([
 
+        dcc.Dropdown(
+            id='graph-type',
+            options=[
+                {'label': 'Loss vs. Time', 'value': 'LOSS'},
+                {'label': 'Updates/Second', 'value': 'UPS'},
+                {'label': 'Cost/Sec', 'value': 'CPS'}
+                ],
+            value='LOSS'
+        ),
 
         dcc.Checklist(
             id='mapControls',
@@ -47,6 +56,7 @@ def div_graph(name):
             labelClassName="mapControls",
             inputStyle={"z-index": "3"}
         ),
+
 
         dcc.Graph(
             id='logloss',
@@ -167,10 +177,10 @@ frozen_lsty = {}
 def get_num_experiments():
     return bundle.get_number_experiments()
 
-def get_xs_for(i):
+def get_xs_for(i, metric="LOSS"):
     return bundle.get_xs_for(i)
 
-def get_ys_for(i):
+def get_ys_for(i, metric="LOSS"):
     return bundle.get_ys_for(i)
 
 def get_name_for(i):
@@ -181,6 +191,8 @@ def kill(i):
     bundle.kill(i)
 
 
+def get_info_for(i):
+    bundle.get_info_for(i)
 
 # Callbacks
 
@@ -228,7 +240,7 @@ def select_or_kill(selected_points, kill_button_ts, current_info):
     if  last_kill_time > 500:
         #print(selected_points["points"][0])
         cnum = int(selected_points["points"][0]["customdata"])
-        return 'Chose line: %d' % cnum
+        string = 'Chose line: %d\n Parameters: %d' % (cnum,  10)
     else:
         print("Killing line")
         cnum = int(current_info.split(" ")[2])
@@ -267,15 +279,16 @@ def gen_cost(interval):
 # FIXME: Need a more sophisticated way to zoom into the graph.
 @app.callback(Output('logloss', 'figure'),
     [
-    Input('logloss-update', 'n_intervals'),
-    Input('showmenu', 'value')
+        Input('logloss-update', 'n_intervals'),
+        Input('showmenu', 'value'),
+        Input('graph-type', 'value')
     ],
     [
-
-    State('logloss', 'figure'),
-    State('logloss', 'relayoutData'),
-    State('mapControls', 'values')])
-def gen_loss(interval, menu, oldfig, relayoutData, lockCamera):
+        State('logloss', 'figure'),
+        State('logloss', 'relayoutData'),
+        State('mapControls', 'values')
+    ])
+def gen_loss(interval, menu, graph_type, oldfig, relayoutData, lockCamera):
     if menu=="top_ten":
         how_many = -5
     elif menu == 'last_ten':
@@ -285,6 +298,8 @@ def gen_loss(interval, menu, oldfig, relayoutData, lockCamera):
 
 
     trace_lst = get_traces(how_many)
+
+    graph_names = {'LOSS': "Loss", 'UPS': "Updates/Second", 'CPS': "Cost/Second"}
 
     if 'lock' in lockCamera:
         return oldfig
@@ -321,7 +336,7 @@ def gen_loss(interval, menu, oldfig, relayoutData, lockCamera):
                 title='Time Elapsed (sec)'
             ),
             yaxis=dict(
-                title="Loss"
+                title=graph_names[graph_type]
 
             ),
             margin=Margin(

@@ -47,7 +47,7 @@ if __name__ == "__main__":
     start =    0.100000
     end =      0.000001
     interval = 0.001
-    for _ in range(100):
+    for _ in range(10):
         config = basic_params.copy()
         config['ps_ip_port'] = base_port + (index * 2)
         config['learning_rate'] = start
@@ -55,9 +55,8 @@ if __name__ == "__main__":
         batch.append(config)
         start /= 1.25
 
-    cb = CirrusBundle()
-    cb.set_task_parameters(LogisticRegression, batch)
-    cb.set_jobs(15)
+    cb = CirrusBundle(task=LogisticRegression, param_dict_lst = batch)
+    cb.set_jobs(2)
     cb.run_bundle()
     app.bundle = cb
     

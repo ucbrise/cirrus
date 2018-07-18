@@ -15,20 +15,34 @@ class CirrusBundle:
 
     # Graph interfacer
 
-    def __init__(self):
+
+    # TODO: Add some sort of optional argument checking
+    def __init__(self, task=None, param_dict_lst=None, param_base=None, hyper_vars=[], hyper_params=[], num_jobs=1, timeout=-1):
+        
+        # Private Variables
         self.cirrus_objs = [] # Stores each singular experiment
         self.infos = []       # Stores metadata associated with each experiment
         self.param_lst = []   # Stores parameters of each experiment
         self.check_queue = [] # Queue for checking error/lambdas for each object
-        self.num_jobs = 1     # Number of threads checking check_queue
-        self.set_timeout = -1 # Timeout. -1 means never timeout
-
         self.threads = []
-
         self.kill_signal = threading.Event()
         self.loss_lst = []
-
         self.start_time = time.time()
+        
+        # User inputs
+        self.set_timeout = timeout # Timeout. -1 means never timeout
+        self.num_jobs = num_jobs     # Number of threads checking check_queue
+
+        # Setup
+        self.set_task_parameters(
+                task, 
+                param_dict_lst=param_dict_lst, 
+                param_base=param_base, 
+                hyper_vars=hyper_vars, 
+                hyper_params=hyper_params)
+
+    def get_info_for(self, i):
+        return "Learning Rate: %f" % self.cirrus_objs[i].learning_rate;
 
     def get_name_for(self, i):
         out = self.cirrus_objs[i].get_name()
@@ -57,17 +71,38 @@ class CirrusBundle:
         return [item[1] for item in lst]
         
 
-    def set_task_parameters(self, task, param_dict_lst):
-        self.param_lst = param_dict_lst
-        index = 0
-        base_port = 1337
-        for param in param_dict_lst:
-            param['ps_ip_port'] = base_port + (index * 2)
-            index += 1
-            c = task(**param)
-            self.cirrus_objs.append(c)
-            self.infos.append({'color': get_random_color()})
-            self.loss_lst.append({})
+    # TODO: Add some sort of optional argument checking
+    # User must either specify param_dict_lst, or hyper_vars, hyper_params, and param_base
+    def set_task_parameters(self, task, param_dict_lst=[], param_base=None, hyper_vars=[], hyper_params=[]):
+
+        # We have a hyper_var thing
+        if len(hyper_vars) > 0:
+            self.param_lst = []
+            base_port = 1337
+            for params in hyper_params:
+                param_base_cpy = param_base.copy()
+                for var_param in zip(hyper_vars, params):
+                    var, param = var_param
+                    param_base_cpy[var] = param
+                param_base_cpy['ps_ip_port'] = base_port
+                c = task(**param)
+                self.cirrus_objs.append(c)
+                self.infos.append({'color': get_random_color()})
+                self.loss_lst.append({})
+                base_port += 2
+                self.param_lst.append(param_base_cpy)
+            return
+        else:
+            self.param_lst = param_dict_lst
+            index = 0
+            base_port = 1337
+            for param in param_dict_lst:
+                param['ps_ip_port'] = base_port + (index * 2)
+                index += 1
+                c = task(**param)
+                self.cirrus_objs.append(c)
+                self.infos.append({'color': get_random_color()})
+                self.loss_lst.append({})
 
 
     def start_queue_threads(self):

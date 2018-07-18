@@ -24,6 +24,7 @@ class BaseTask(object):
 
     def __init__(self,
             n_workers,
+            lambda_size,
             n_ps,
             worker_size,
             dataset,
@@ -48,6 +49,7 @@ class BaseTask(object):
             ):
         self.thread = threading.Thread(target=self.run)
         self.n_workers = n_workers
+        self.lambda_size = lambda_size
         self.n_ps = n_ps
         self.worker_size = worker_size
         self.dataset=dataset
@@ -116,6 +118,10 @@ class BaseTask(object):
 
 
     def launch_ps(self, ip):
+        
+        
+
+
         cmd = 'ssh -o "StrictHostKeyChecking no" -i %s %s@%s ' \
                 % (self.key_path, self.ps_username, self.ps_ip_public) + \
 		'"nohup ./parameter_server --config config_%d.txt --nworkers 100 --rank 1 --ps_port %d &> ps_out_%d &"' % (self.ps_ip_port, self.ps_ip_port, self.ps_ip_port)
@@ -167,6 +173,7 @@ class BaseTask(object):
     # if timeout is 0 we run lambdas indefinitely
     # otherwise we stop invoking them after timeout secs
     def launch_lambda(self, num_workers, timeout=50):
+
         start_time = time.time()
         def launch():
 

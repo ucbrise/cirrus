@@ -72,7 +72,6 @@ class BaseTask(object):
         self.timeout=timeout
         self.threshold_loss=threshold_loss
         self.progress_callback=progress_callback
-        self.time_loss_lst = []
         self.dead = False
         self.cost_model = None
         self.total_cost = 0
@@ -87,6 +86,10 @@ class BaseTask(object):
                     0,
                     self.n_workers,
                     self.worker_size)
+
+        self.time_cps_lst = []
+        self.time_ups_lst = [] 
+        self.time_loss_lst = []
 
         # HACK: Prevents Cirrus objects from spawning personal threads
         self.personal_thread = False
@@ -169,6 +172,12 @@ class BaseTask(object):
                 except Exception as e:
                     print "client.invoke exception caught"
                     print str(e)
+
+    def get_lambda_info():
+        pass
+
+
+
     # FIXME: Refactor below to launch_lambda_threads
     # if timeout is 0 we run lambdas indefinitely
     # otherwise we stop invoking them after timeout secs

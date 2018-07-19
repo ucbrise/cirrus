@@ -3,9 +3,8 @@
 import time
 import random
 from context import cirrus
-from cirrus import LogisticRegression
-from cirrus import app
-from cirrus import CirrusBundle
+import cirrus
+
 
 url = "ec2-34-212-6-172.us-west-2.compute.amazonaws.com"
 ip = "172.31.5.74"
@@ -55,9 +54,9 @@ if __name__ == "__main__":
         batch.append(config)
         start /= 1.25
 
-    cb = CirrusBundle(task=LogisticRegression, param_dict_lst = batch)
-    cb.set_jobs(2)
-    cb.run_bundle()
-    app.bundle = cb
-    
-    app.app.run_server()
+    gs = cirrus.GridSearch(task=cirrus.LogisticRegression, param_base = basic_params, hyper_vars=["learning_rate", "worker_size"], hyper_params=[[0.1, 0.2], [128, 246, 512]])
+    #gs.set_threads(2)
+    #gs.run(UI=True)
+
+    #app.bundle = gs
+    #app.app.run_server()

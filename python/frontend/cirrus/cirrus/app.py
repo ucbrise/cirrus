@@ -93,8 +93,8 @@ app.layout = html.Div([
                 ],
                 value='all'
             ),
-            html.Div(id='data-panel',
-                children='Click on a point and then press kill'),
+            html.P(id='data-panel',
+                children='Click on a point and then press kill', style={"white-space": "pre-line"}),
             html.Button('Kill', id='kill-button'),
             html.Button('Kill All', id='kill-all-button')
 
@@ -192,7 +192,7 @@ def kill(i):
 
 
 def get_info_for(i):
-    bundle.get_info_for(i)
+    return bundle.get_info_for(i)
 
 # Callbacks
 
@@ -240,7 +240,9 @@ def select_or_kill(selected_points, kill_button_ts, current_info):
     if  last_kill_time > 500:
         #print(selected_points["points"][0])
         cnum = int(selected_points["points"][0]["customdata"])
-        string = 'Chose line: %d\n Parameters: %d' % (cnum,  10)
+        param_info = get_info_for(cnum)
+        string = 'Chose line: %d \n%s' % (cnum,  get_info_for(cnum))
+        return string
     else:
         print("Killing line")
         cnum = int(current_info.split(" ")[2])

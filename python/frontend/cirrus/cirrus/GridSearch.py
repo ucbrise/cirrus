@@ -1,6 +1,7 @@
 from utils import *
 import threading
 import time
+import itertools
 
 from multiprocessing import Process
 from multiprocessing import Process, Manager
@@ -11,14 +12,14 @@ import logging
 
 logging.basicConfig(filename="cirrusbundle.log", level=logging.WARNING)
 
-class CirrusBundle:
+class GridSearch:
 
     # Graph interfacer
 
 
     # TODO: Add some sort of optional argument checking
-    def __init__(self, task=None, param_dict_lst=None, param_base=None, hyper_vars=[], hyper_params=[], num_jobs=1, timeout=-1):
-        
+    def __init__(self, task=None, param_base=None, hyper_vars=[], hyper_params=[], machines = [], num_jobs=1, timeout=-1):
+
         # Private Variables
         self.cirrus_objs = [] # Stores each singular experiment
         self.infos = []       # Stores metadata associated with each experiment
@@ -28,21 +29,49 @@ class CirrusBundle:
         self.kill_signal = threading.Event()
         self.loss_lst = []
         self.start_time = time.time()
-        
+
         # User inputs
         self.set_timeout = timeout # Timeout. -1 means never timeout
         self.num_jobs = num_jobs     # Number of threads checking check_queue
+        self.hyper_vars = hyper_vars
 
         # Setup
         self.set_task_parameters(
-                task, 
-                param_dict_lst=param_dict_lst, 
-                param_base=param_base, 
-                hyper_vars=hyper_vars, 
-                hyper_params=hyper_params)
+                task,
+                param_base=param_base,
+                hyper_vars=hyper_vars,
+                hyper_params=hyper_params,
+                machines=machines)
+
+
+    # TODO: Add some sort of optional argument checking
+    # User must either specify param_dict_lst, or hyper_vars, hyper_params, and param_base
+    def set_task_parameters(self, task, param_base=None, hyper_vars=[], hyper_params=[], machines=[]):
+
+        possibilities = list(itertools.product(*hyper_params))
+        base_port = 1337
+        print(possibilities)
+        for p in possibilities:
+            configuration = zip(hyper_vars, p)
+            print(configuration)
+            modified_config = param_base.copy()
+            for var_name, var_value in configuration:
+                modified_config[var_name] = var_value
+            modified_config['ps_ip_port'] = base_port
+            base_port += 2
+            c = task(**modified_config)
+            self.cirrus_objs.append(c)
+            self.infos.append({'color': get_random_color()})
+            self.loss_lst.append({})
+            self.param_lst.append(modified_config)
 
     def get_info_for(self, i):
-        return "Learning Rate: %f" % self.cirrus_objs[i].learning_rate;
+        string = ""
+        for param_name in self.hyper_vars:
+            string += "%s: %s\n" % (param_name, str(self.param_lst[i][param_name]))
+
+
+        return string;
 
     def get_name_for(self, i):
         out = self.cirrus_objs[i].get_name()
@@ -65,45 +94,10 @@ class CirrusBundle:
     def get_xs_for(self, i):
         lst = self.loss_lst[i]
         return [item[0] for item in lst]
-    
+
     def get_ys_for(self, i):
         lst = self.loss_lst[i]
         return [item[1] for item in lst]
-        
-
-    # TODO: Add some sort of optional argument checking
-    # User must either specify param_dict_lst, or hyper_vars, hyper_params, and param_base
-    def set_task_parameters(self, task, param_dict_lst=[], param_base=None, hyper_vars=[], hyper_params=[]):
-
-        # We have a hyper_var thing
-        if len(hyper_vars) > 0:
-            self.param_lst = []
-            base_port = 1337
-            for params in hyper_params:
-                param_base_cpy = param_base.copy()
-                for var_param in zip(hyper_vars, params):
-                    var, param = var_param
-                    param_base_cpy[var] = param
-                param_base_cpy['ps_ip_port'] = base_port
-                c = task(**param)
-                self.cirrus_objs.append(c)
-                self.infos.append({'color': get_random_color()})
-                self.loss_lst.append({})
-                base_port += 2
-                self.param_lst.append(param_base_cpy)
-            return
-        else:
-            self.param_lst = param_dict_lst
-            index = 0
-            base_port = 1337
-            for param in param_dict_lst:
-                param['ps_ip_port'] = base_port + (index * 2)
-                index += 1
-                c = task(**param)
-                self.cirrus_objs.append(c)
-                self.infos.append({'color': get_random_color()})
-                self.loss_lst.append({})
-
 
     def start_queue_threads(self):
         def custodian(cirrus_objs, thread_id, num_jobs, infos):
@@ -113,9 +107,7 @@ class CirrusBundle:
             start_time = time.time()
             while True:
                 cirrus_obj = cirrus_objs[index]
-                #if not (index in seen):
-                #    self.run(index)
-                #    seen.append(index)
+
                 cirrus_objs[index].relaunch_lambdas()
                 loss = cirrus_objs[index].get_time_loss()
                 print("Thread", thread_id, "Machine", index, "Loss", loss)
@@ -123,27 +115,31 @@ class CirrusBundle:
                 index += num_jobs
                 if index >= len(cirrus_objs):
                     index = thread_id
+
+                    # Dampener to prevent too many calls at once
                     if time.time() - start_time < 3:
                         time.sleep(3)
                     start_time = time.time()
 
             logging.info("Thread number %d is exiting" % thread_id)
 
+        # Simulatenous SSH running
         def runner(i):
             while i < self.get_number_experiments():
                 self.run(i)
                 print "Ran %d" % i
                 i += 4
-
+        # 4 threads to execute SSH commands
         plst = []
         for i in range(4):
             p = threading.Thread(target=runner, args=(i,))
             p.start()
             plst.append(p)
-
         for i in range(4):
             plst[i].join()
-        
+
+
+
         print "Everything started"
         for i in range(self.num_jobs):
             p = threading.Thread(target=custodian, args=(self.cirrus_objs, i, self.num_jobs, self.infos))
@@ -200,7 +196,4 @@ class CirrusBundle:
         return top
 
     def kill(self, i):
-        # FIXME: Do not delete the cirrus object
         self.cirrus_objs[i].kill()
-
-

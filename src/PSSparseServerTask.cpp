@@ -41,6 +41,7 @@ PSSparseServerTask::PSSparseServerTask(
     operation_to_name[6] = "SET_TASK_STATUS";
     operation_to_name[7] = "GET_TASK_STATUS";
     operation_to_name[8] = "REGISTER_TASK";
+    operation_to_name[9] = "GET_NUM_CONNS";
 
     for (int i = 0; i < NUM_PS_WORK_THREADS; i++) {
       thread_msg_buffer[i] =
@@ -400,9 +401,15 @@ void PSSparseServerTask::gradient_f() {
 #endif
       task_to_status[data[0]] = data[1];
 
-    } else if (operation == GET_NUM_CONNS) {
-      std::cout << "Retreive num conections: " << num_connections << std::endl;
-      send(sock, &num_connections, sizeof(uint32_t), 0);
+    } else if (operation == GET_INFO) {
+      // NOTE: Consider changing this to flatbuffer serialization? 
+      std::cout << "Retrieve info: " << num_connections << " " << last_num_updates << std::endl;
+
+      uint32_t info[2] = {num_connections, last_num_updates};
+
+      if (send(sock, &info, sizeof(int) * 2, 0) < 0) {
+        throw std::runtime_error("Error sending number of connections");
+      }
     } else {
       throw std::runtime_error("gradient_f: Unknown operation");
     }
@@ -683,6 +690,10 @@ void PSSparseServerTask::run(const Configuration& config) {
     auto now = get_time_us();
     auto elapsed_us = now - last_tick;
     auto since_start_sec = 1.0 * (now - start) / 1000000;
+
+    last_num_updates = static_cast<uint32_t>(1.0 * gradientUpdatesCount / elapsed_us * 1000 * 1000);
+
+    
     if (elapsed_us > 1000000) {
       last_tick = now;
       std::cout << "Events in the last sec: "

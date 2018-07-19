@@ -34,21 +34,21 @@ std::unique_ptr<CirrusModel> get_model(const Configuration& config,
 void ErrorSparseTask::error_response() {
   int fd;
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    std::cout << "SOCKET FAILED"
-              << std::endl;  // FIXME: Should throw an error instead
-    return;
+    throw std::runtime_error("Error setting socket options.");
   }
 
   struct sockaddr_in serveraddr;
   serveraddr.sin_family = AF_INET;
   serveraddr.sin_addr.s_addr = INADDR_ANY;
-  serveraddr.sin_port = htons(this->ps_port + 1);
+  serveraddr.sin_port = htons(ps_port + 1);
   std::memset(serveraddr.sin_zero, 0, sizeof(serveraddr.sin_zero));
 
-  if (bind(fd, (struct sockaddr*) &serveraddr, sizeof(serveraddr)) < 0) {
-    std::cout << "SOCKET FAILED 2"
-              << std::endl;  // FIXME: Should throw an error instead
-    return;
+  int ret =
+      bind(fd, reinterpret_cast<sockaddr*>(&serveraddr), sizeof(serveraddr));
+
+  if (ret < 0) {
+    throw std::runtime_error("Error in binding in port " +
+                             std::to_string((ps_port + 1)));
   }
 
   uint32_t operation;
@@ -56,10 +56,9 @@ void ErrorSparseTask::error_response() {
   struct sockaddr_in remaddr;          /* remote address */
   socklen_t addrlen = sizeof(remaddr); /* length of addresses */
 
-  std::cout << "Waiting on message" << std::endl;
   while (true) {
     length = recvfrom(fd, &operation, sizeof(uint32_t), 0,
-                      (struct sockaddr*) &remaddr, &addrlen);
+                      reinterpret_cast<sockaddr*>(&remaddr), &addrlen);
     if (length < 0) {
       std::cout << "Failed to read" << std::endl;
       continue;
@@ -68,12 +67,13 @@ void ErrorSparseTask::error_response() {
     std::cout << "Received: " << operation << std::endl;
 
     if (operation == GET_LAST_TIME_ERROR) {
-      double time_error[2];
-      time_error[0] = last_time;
-      time_error[1] = last_error;
+      double time_error[3] = {last_time, last_error, curr_error};
 
-      sendto(fd, time_error, 2 * sizeof(double), 0, (struct sockaddr*) &remaddr,
-             addrlen);
+      ret = sendto(fd, time_error, 3 * sizeof(double), 0,
+                   (struct sockaddr*) &remaddr, addrlen);
+      if (ret < 0) {
+        throw std::runtime_error("Error in sending response");
+      }
     }
   }
 }
@@ -157,6 +157,7 @@ void ErrorSparseTask::run(const Configuration& config) {
       uint64_t total_num_samples = 0;
       uint64_t total_num_features = 0;
       uint64_t start_index = 0;
+
       for (auto& ds : minibatches_vec) {
         std::pair<FEATURE_TYPE, FEATURE_TYPE> ret =
           model->calc_loss(ds, start_index);
@@ -165,6 +166,11 @@ void ErrorSparseTask::run(const Configuration& config) {
         total_num_samples += ds.num_samples();
         total_num_features += ds.num_features();
         start_index += config.get_minibatch_size();
+        if (config.get_model_type() == Configuration::LOGISTICREGRESSION) {
+          curr_error = (total_loss / total_num_features);
+        } else if (config.get_model_type() == Configuration::COLLABORATIVE_FILTERING) {
+          curr_error = std::sqrt(total_loss / total_num_features);
+        }
       }
 
       last_time = (get_time_us() - start_time) / 1000000.0;

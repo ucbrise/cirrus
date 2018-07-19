@@ -162,6 +162,7 @@ class ErrorSparseTask : public MLTask {
     // Stores last recorded time/loss values
     double last_time = 0.0;
     double last_error = 0.0;
+    std::atomic<double> curr_error;
 };
 
 class PerformanceLambdaTask : public MLTask {
@@ -354,6 +355,8 @@ class PSSparseServerTask : public MLTask {
 
   char* thread_msg_buffer[NUM_PS_WORK_THREADS];  // per-thread buffer
   std::atomic<int> thread_count;  //< keep track of each thread's id
+
+  uint32_t last_num_updates; // Last measured num updates
 };
 
 class MFNetflixTask : public MLTask {

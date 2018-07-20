@@ -46,11 +46,9 @@ CPP_SOURCES = InputReader.cpp Utils.cpp \
 	      MFNetflixTask.cpp \
 	      LoadingSparseTaskS3.cpp LoadingNetflixTask.cpp \
               TasksWait.cpp MurmurHash3.cpp \
-	      S3SparseIterator.cpp S3Iterator.cpp S3IteratorText.cpp \
+	      S3SparseIterator.cpp S3Iterator.cpp S3IteratorLibsvm.cpp \
 	      S3.cpp SparseDataset.cpp \
 	      PSSparseServerTask.cpp PSSparseServerInterface.cpp
-
-#S3IteratorText.cpp 
 
 parameter_server_SOURCES  = parameter_server.cpp $(CPP_SOURCES)
 

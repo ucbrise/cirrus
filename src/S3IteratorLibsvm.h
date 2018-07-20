@@ -18,43 +18,42 @@
 
 namespace cirrus {
 
-class S3IteratorText : public S3Iterator {
+class S3IteratorLibsvm : public S3Iterator {
  public:
-    S3IteratorText(
+    S3IteratorLibsvm(
         const Configuration& c,
-        uint64_t file_size, // FIXME we should
+        uint64_t file_size,      // FIXME we should calculate this automatically
         uint64_t minibatch_rows, // number of samples in a minibatch
         int worker_id,           // id of this worker
         bool random_access);     // whether to access samples in a rand. fashion
 
-    std::shared_ptr<SparseDataset> get_next_fast();
+    std::shared_ptr<SparseDataset> getNextFast();
 
-    void thread_function(const Configuration&);
+    void threadFunction(const Configuration&);
 
  private:
-  void report_bandwidth(uint64_t elapsed, uint64_t size);
-  void push_samples(std::ostringstream* oss);
+  void reportBandwidth(uint64_t elapsed, uint64_t size);
+  void pushSamples(std::ostringstream* oss);
 
   template <class T>
-    T read_num(uint64_t& index, std::string& data);
+    T readNum(uint64_t& index, std::string& data);
 
   std::vector<std::shared_ptr<SparseDataset>>
-    parse_obj_libsvm(std::string& data);
+    parseObjLibsvm(std::string& data);
 
-  bool build_dataset_libsvm(
+  bool buildDatasetLibsvm(
     std::string& data, uint64_t index,
     std::shared_ptr<SparseDataset>& minibatch);
-  bool build_dataset_csv(
+  bool buildDatasetCsv(
+      const std::string& data, uint64_t index,
+      std::shared_ptr<SparseDataset>& minibatch);
+  bool buildDatasetVowpalWabbit(
       const std::string& data, uint64_t index,
       std::shared_ptr<SparseDataset>& minibatch);
 
-  bool build_dataset_vowpal_wabbit(
-      const std::string& data, uint64_t index,
-      std::shared_ptr<SparseDataset>& minibatch);
+  std::pair<uint64_t, uint64_t> getFileRange(uint64_t);
 
-  std::pair<uint64_t, uint64_t> get_file_range(uint64_t);
-
-  void read_until_newline(uint64_t* index, const std::string& data);
+  void readUntilNewline(uint64_t* index, const std::string& data);
 
   /**
     * Attributes

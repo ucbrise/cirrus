@@ -10,6 +10,7 @@
 #include <aws/s3/model/DeleteObjectRequest.h>
 #include <aws/core/client/ClientConfiguration.h>
 #include <string>
+#include <memory>
 
 using namespace Aws::S3;
 
@@ -30,7 +31,7 @@ class S3Client {
                                   const std::string& bucket_name);
   std::ostringstream* s3_get_object_ptr(const std::string& key_name,
                                         const std::string& bucket_name);
-  std::ostringstream* s3_get_object_range_ptr(
+  std::shared_ptr<std::ostringstream> s3_get_object_range_ptr(
       const std::string& key_name,
       const std::string& bucket_name,
       std::pair<uint64_t, uint64_t> range);

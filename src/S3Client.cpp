@@ -1,5 +1,7 @@
 #include "S3Client.h"
 
+#define DEBUG
+
 using namespace Aws::S3;
 
 namespace cirrus {
@@ -100,10 +102,18 @@ std::ostringstream* S3Client::s3_get_object_ptr(
   }
 }
 
-std::ostringstream* S3Client::s3_get_object_range_ptr(
+std::shared_ptr<std::ostringstream> S3Client::s3_get_object_range_ptr(
     const std::string& key_name,
     const std::string& bucket_name,
     std::pair<uint64_t, uint64_t> range) {
+#ifdef DEBUG
+      std::cout << "Read object "
+                << " key_name: " << key_name
+                << " bucket_name: " << bucket_name
+                << " with range: "
+                << range.first << " - " << range.second
+                << std::endl;
+#endif
   Aws::S3::Model::GetObjectRequest object_request;
 
   std::string range_str =
@@ -114,7 +124,7 @@ std::ostringstream* S3Client::s3_get_object_range_ptr(
   auto get_object_outcome = s3_client->GetObject(object_request);
 
   if (get_object_outcome.IsSuccess()) {
-    std::ostringstream* ss = new std::ostringstream;
+    std::shared_ptr<std::ostringstream> ss = std::make_shared<std::ostringstream>();
     *ss << get_object_outcome.GetResult().GetBody().rdbuf();
     return ss;
   } else {

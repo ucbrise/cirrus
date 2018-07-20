@@ -35,7 +35,7 @@ class S3IteratorLibsvm : public S3Iterator {
 
  private:
   void reportBandwidth(uint64_t elapsed, uint64_t size);
-  void pushSamples(std::ostringstream* oss);
+  void pushSamples(std::shared_ptr<std::ostringstream> oss);
 
   template <class T>
     T readNum(uint64_t& index, std::string& data);
@@ -44,7 +44,7 @@ class S3IteratorLibsvm : public S3Iterator {
     parseObjLibsvm(std::string& data);
 
   bool buildDatasetLibsvm(
-    std::string& data, uint64_t index,
+    std::string& data, uint64_t& index,
     std::shared_ptr<SparseDataset>& minibatch);
   bool buildDatasetCsv(
       const std::string& data, uint64_t index,
@@ -57,9 +57,15 @@ class S3IteratorLibsvm : public S3Iterator {
 
   void readUntilNewline(uint64_t* index, const std::string& data);
 
+  bool ignoreSpacesNotNewline(uint64_t& index, const std::string& data);
+  bool ignoreSpaces(uint64_t& index, const std::string& data);
+
   /**
     * Attributes
     */
+  std::string s3_bucket;
+  std::string s3_key;
+
   uint64_t file_size = 0;
 
   std::shared_ptr<S3Client> s3_client;
@@ -71,7 +77,7 @@ class S3IteratorLibsvm : public S3Iterator {
   // used to control number of blocks to prefetch
   PosixSemaphore pref_sem; //<
 
-  uint64_t s3_rows;
+  //uint64_t s3_rows;
   uint64_t minibatch_rows;
 
   sem_t semaphore;
@@ -88,9 +94,6 @@ class S3IteratorLibsvm : public S3Iterator {
   std::default_random_engine re;
   bool random_access = true;
   uint64_t cur_index = 0;
-
-  std::string s3_bucket;
-  std::string s3_key;
 };
 
 }

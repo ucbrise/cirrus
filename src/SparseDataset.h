@@ -13,7 +13,7 @@ namespace cirrus {
   * Each sample is a variable size list of pairs <int, FEATURE_TYPE>
   */
 class SparseDataset {
-  public:
+ public:
   /**
    * Construct empty dataset
    */
@@ -100,7 +100,10 @@ class SparseDataset {
    * from feature and label data from samples in range [l,r)
    * output size of object in the uint64_t*
    */
-  std::shared_ptr<char> build_serialized_s3_obj(uint64_t, uint64_t, uint64_t*, bool store_labels = true);
+  std::shared_ptr<char> build_serialized_s3_obj(uint64_t,
+                                                uint64_t,
+                                                uint64_t*,
+                                                bool store_labels = true);
 
   /**
    * Return random subset of samples
@@ -120,7 +123,7 @@ class SparseDataset {
   // return train set and test set (in this order)
   std::pair<SparseDataset, SparseDataset> split(double fraction) const;
 
-  public:
+ public:
   void build_max_features();
 
   std::vector<std::vector<std::pair<int, FEATURE_TYPE>>> data_;

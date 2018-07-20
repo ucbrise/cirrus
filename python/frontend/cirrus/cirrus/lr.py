@@ -1,12 +1,5 @@
 # Logistic Regression
 
-import threading
-import paramiko
-import time
-import os
-import boto3
-from threading import Thread
-from CostModel import CostModel
 from core import BaseTask
 
 class LogisticRegressionTask(BaseTask):
@@ -17,8 +10,7 @@ class LogisticRegressionTask(BaseTask):
     def __del__(self):
         print("Logistic Regression Task Lost")
 
-
-    def define_config(self, ip):
+    def define_config(self):
         
         if self.use_grad_threshold:
             grad_t = 1
@@ -44,13 +36,8 @@ class LogisticRegressionTask(BaseTask):
                  "grad_threshold: %lf \n" % self.grad_threshold + \
                  "train_set: %d-%d \n" % self.train_set + \
                  "test_set: %d-%d" % self.test_set
+        return config
 
-        key = paramiko.RSAKey.from_private_key_file(self.key_path)
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(hostname=ip, username=self.ps_username, pkey=key)
-        stdin, stdout, stderr = client.exec_command('echo "%s" > config_%d.txt' % (config, self.ps_ip_port))
-        client.close()
 
 def LogisticRegression(
             n_workers,

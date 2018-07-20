@@ -1,22 +1,16 @@
 # -*- coding: utf-8 -*-
+# Grab memory usage by process
+import os
+import random
+import time
+
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-
-import plotly.graph_objs as go
+import psutil
 from dash.dependencies import Input, Output, State
-from plotly import tools
 from plotly.graph_objs import *
 
-import json
-import random
-import time
-import CirrusBundle
-
-
-# Grab memory usage by process
-import os
-import psutil
 process = psutil.Process(os.getpid())
 
 
@@ -128,16 +122,17 @@ def test():
     r = lambda: random.randint(0,255)
     return 'rgb(%d, %d, %d)' % (r(),r(),r())
 
-def get_traces(num):
+
+def get_traces(num, metric="LOSS"):
     trace_lst = []
     if num == 0:
         # Get all
         for i in range(get_num_experiments()):
-            xs = get_xs_for(i)
+            xs = get_xs_for(i, metric)
             lll = len(xs)
             trace = Scatter(
                 x=xs,
-                y=get_ys_for(i),
+                y=get_ys_for(i, metric),
                 name=get_name_for(i),
                 mode='markers+lines',
                 line = dict(color = bundle.get_info(i, 'color')),
@@ -150,8 +145,8 @@ def get_traces(num):
 
         for i in range(get_num_experiments()):
 
-            xs = get_xs_for(i)
-            ys = get_ys_for(i)
+            xs = get_xs_for(i, metric)
+            ys = get_ys_for(i, metric)
             lll = len(ys)
             trace = Scatter(
                 x=xs,
@@ -178,10 +173,10 @@ def get_num_experiments():
     return bundle.get_number_experiments()
 
 def get_xs_for(i, metric="LOSS"):
-    return bundle.get_xs_for(i)
+    return bundle.get_xs_for(i, metric)
 
 def get_ys_for(i, metric="LOSS"):
-    return bundle.get_ys_for(i)
+    return bundle.get_ys_for(i, metric)
 
 def get_name_for(i):
     out = bundle.get_name_for(i)
@@ -298,8 +293,7 @@ def gen_loss(interval, menu, graph_type, oldfig, relayoutData, lockCamera):
     else:
         how_many = 0
 
-
-    trace_lst = get_traces(how_many)
+    trace_lst = get_traces(how_many, graph_type)
 
     graph_names = {'LOSS': "Loss", 'UPS': "Updates/Second", 'CPS': "Cost/Second"}
 

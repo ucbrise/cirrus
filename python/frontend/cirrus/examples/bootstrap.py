@@ -1,8 +1,3 @@
-
-
-import time
-import random
-from context import cirrus
 import cirrus
 
 
@@ -54,9 +49,14 @@ if __name__ == "__main__":
         batch.append(config)
         start /= 1.25
 
-    gs = cirrus.GridSearch(task=cirrus.LogisticRegression, param_base = basic_params, hyper_vars=["learning_rate", "worker_size"], hyper_params=[[0.1, 0.2], [128, 246, 512]])
+    gs = cirrus.GridSearch(task=cirrus.LogisticRegression,
+                           param_base=basic_params,
+                           hyper_vars=["learning_rate", "worker_size"],
+                           hyper_params=[[0.1, 0.2], [128, 246, 512]],
+                           machines=[url])
     #gs.set_threads(2)
     #gs.run(UI=True)
+    gs.run_bundle()
 
-    #app.bundle = gs
-    #app.app.run_server()
+    # cirrus.app.bundle = gs
+    # cirrus.app.app.run_server()

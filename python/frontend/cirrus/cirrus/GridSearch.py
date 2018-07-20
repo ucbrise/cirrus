@@ -1,14 +1,10 @@
-from utils import *
+import itertools
+import logging
+import os
 import threading
 import time
-import itertools
 
-from multiprocessing import Process
-from multiprocessing import Process, Manager
-from multiprocessing.managers import BaseManager
-
-import logging
-
+from utils import *
 
 logging.basicConfig(filename="cirrusbundle.log", level=logging.WARNING)
 
@@ -18,7 +14,7 @@ class GridSearch:
 
 
     # TODO: Add some sort of optional argument checking
-    def __init__(self, task=None, param_base=None, hyper_vars=[], hyper_params=[], machines = [], num_jobs=1, timeout=-1):
+    def __init__(self, task=None, param_base=None, hyper_vars=[], hyper_params=[], machines=[], num_jobs=1, timeout=-1):
 
         # Private Variables
         self.cirrus_objs = [] # Stores each singular experiment
@@ -34,6 +30,7 @@ class GridSearch:
         self.set_timeout = timeout # Timeout. -1 means never timeout
         self.num_jobs = num_jobs     # Number of threads checking check_queue
         self.hyper_vars = hyper_vars
+        self.machines = machines
 
         # Setup
         self.set_task_parameters(
@@ -47,7 +44,6 @@ class GridSearch:
     # TODO: Add some sort of optional argument checking
     # User must either specify param_dict_lst, or hyper_vars, hyper_params, and param_base
     def set_task_parameters(self, task, param_base=None, hyper_vars=[], hyper_params=[], machines=[]):
-
         possibilities = list(itertools.product(*hyper_params))
         base_port = 1337
         print(possibilities)
@@ -69,8 +65,6 @@ class GridSearch:
         string = ""
         for param_name in self.hyper_vars:
             string += "%s: %s\n" % (param_name, str(self.param_lst[i][param_name]))
-
-
         return string;
 
     def get_name_for(self, i):
@@ -91,12 +85,24 @@ class GridSearch:
     def get_num_lambdas(self):
         return sum([c.get_num_lambdas(fetch=False) for c in self.cirrus_objs])
 
-    def get_xs_for(self, i):
-        lst = self.loss_lst[i]
+    def get_xs_for(self, i, metric="LOSS"):
+        if metric == "LOSS":
+            lst = self.loss_lst[i]
+        if metric == "UPS":
+            lst = self.cirrus_objs[i].get_updates_per_second(fetch=False)
         return [item[0] for item in lst]
 
-    def get_ys_for(self, i):
-        lst = self.loss_lst[i]
+    def get_total_command(self):
+        cmd_lst = []
+        for c in self.cirrus_objs:
+            cmd_lst.append(c.get_command())
+        return ' '.join(cmd_lst)
+
+    def get_ys_for(self, i, metric="LOSS"):
+        if metric == "LOSS":
+            lst = self.loss_lst[i]
+        if metric == "UPS":
+            lst = self.cirrus_objs[i].get_updates_per_second(fetch=False)
         return [item[1] for item in lst]
 
     def start_queue_threads(self):
@@ -105,6 +111,7 @@ class GridSearch:
             logging.info("Custodian number %d starting..." % thread_id)
             seen = []
             start_time = time.time()
+
             while True:
                 cirrus_obj = cirrus_objs[index]
 
@@ -117,34 +124,54 @@ class GridSearch:
                     index = thread_id
 
                     # Dampener to prevent too many calls at once
-                    if time.time() - start_time < 3:
-                        time.sleep(3)
+                    if time.time() - start_time < 1:
+                        time.sleep(1)
                     start_time = time.time()
 
             logging.info("Thread number %d is exiting" % thread_id)
 
-        # Simulatenous SSH running
-        def runner(i):
-            while i < self.get_number_experiments():
-                self.run(i)
-                print "Ran %d" % i
-                i += 4
-        # 4 threads to execute SSH commands
-        plst = []
-        for i in range(4):
-            p = threading.Thread(target=runner, args=(i,))
+        # Dictionary of commands per machine
+        command_dict = {}
+        for machine in self.machines:
+            command_dict[machine] = []
+
+        for c in self.cirrus_objs:
+            c.get_command(command_dict)
+
+        command_dict_to_file(command_dict)
+
+        copy_threads = min(len(self.machines), self.num_jobs)
+
+        def copy_and_run(thread_id):
+            while True:
+                if thread_id >= len(self.machines):
+                    return
+                cmd = 'ssh ubuntu@%s "killall parameter_server"' % (self.machines[thread_id])
+                print cmd
+                os.system(cmd)
+                cmd = "scp machine_%d.sh ubuntu@%s:~/" % (thread_id, self.machines[thread_id])
+                print cmd
+                os.system(cmd)
+                cmd = 'ssh ubuntu@%s "chmod +x machine_%d.sh &"' % (self.machines[thread_id], thread_id)
+                print cmd
+                os.system(cmd)
+                cmd = 'ssh ubuntu@%s "./machine_%d.sh &"' % (self.machines[thread_id], thread_id)
+                print cmd
+                os.system(cmd)
+                thread_id += copy_threads
+                print("Done")
+
+        p_lst = []
+        for i in range(copy_threads):
+            p = threading.Thread(target=copy_and_run, args=(i,))
             p.start()
-            plst.append(p)
-        for i in range(4):
-            plst[i].join()
+            p_lst.append(p)
 
+        [p.join for p in p_lst]
 
-
-        print "Everything started"
         for i in range(self.num_jobs):
             p = threading.Thread(target=custodian, args=(self.cirrus_objs, i, self.num_jobs, self.infos))
             p.start()
-
 
     def get_number_experiments(self):
         return len(self.cirrus_objs)
@@ -163,7 +190,6 @@ class GridSearch:
 
 
     def run_bundle(self):
-        self.cirrus_objs[0].kill_all()
         self.start_queue_threads()
 
     def kill_all(self):

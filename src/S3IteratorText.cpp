@@ -41,8 +41,7 @@ S3IteratorText::S3IteratorText(
     << std::endl;
 
   // initialize s3
-  s3_initialize_aws();
-  s3_client.reset(s3_create_client_ptr());
+  s3_client = std::make_shared<S3Client>();
 
   for (uint64_t i = 0; i < read_ahead; ++i) {
     pref_sem.signal();
@@ -111,10 +110,12 @@ T S3IteratorText::read_num(uint64_t& index, std::string& data) {
   T result;
   if constexpr (std::is_same<T, int>::value) {
       sscanf(&data[index], "%d", &result);
-  } else if constexpr (std::is_same<T, double>::value || std::is_same<T, float>::value) { 
+  } else if constexpr (std::is_same<T, double>::value) {
       sscanf(&data[index], "%lf", &result);
+  } else if constexpr (std::is_same<T, float>::value) {
+      sscanf(&data[index], "%f", &result);
   } else if constexpr (std::is_same<T, uint64_t>::value) { 
-      sscanf(&data[index], "%llu", &result);
+      sscanf(&data[index], "%lu", &result);
   } else {
     throw std::runtime_error("Data type not supported");
   }
@@ -310,8 +311,8 @@ try_start:
       std::cout << "S3IteratorText: getting object" << std::endl;
       uint64_t start = get_time_us();
 
-      s3_obj = s3_get_object_range_ptr(
-          config.get_s3_dataset_key(), *s3_client,
+      s3_obj = s3_client->s3_get_object_range_ptr(
+          config.get_s3_dataset_key(),
           config.get_s3_bucket(), range);
 
       report_bandwidth(get_time_us() - start, sstream_size(*s3_obj));

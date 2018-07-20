@@ -20,15 +20,16 @@ S3SparseIterator::S3SparseIterator(
         bool use_label,
         int worker_id,
         bool random_access) :
-  S3Iterator(c),
-  left_id(left_id), right_id(right_id),
-  s3_rows(s3_rows),
-  minibatch_rows(minibatch_rows),
-  minibatches_list(100000),
-  use_label(use_label),
-  worker_id(worker_id),
-  re(worker_id),
-  random_access(random_access)
+    S3Iterator(c),
+    left_id(left_id), right_id(right_id),
+    s3_rows(s3_rows),
+    minibatch_rows(minibatch_rows),
+    //pm(REDIS_IP, REDIS_PORT),
+    minibatches_list(100000),
+    use_label(use_label),
+    worker_id(worker_id),
+    re(worker_id),
+    random_access(random_access)
 {
       
   std::cout << "S3SparseIterator::Creating S3SparseIterator"
@@ -38,8 +39,7 @@ S3SparseIterator::S3SparseIterator(
     << std::endl;
 
   // initialize s3
-  s3_initialize_aws();
-  s3_client.reset(s3_create_client_ptr());
+  s3_client = std::make_shared<S3Client>();
 
   for (uint64_t i = 0; i < read_ahead; ++i) {
     pref_sem.signal();
@@ -244,7 +244,7 @@ try_start:
     try {
       std::cout << "S3SparseIterator: getting object " << obj_id_str << std::endl;
       uint64_t start = get_time_us();
-      s3_obj = s3_get_object_ptr(obj_id_str, *s3_client, config.get_s3_bucket());
+      s3_obj = s3_client->s3_get_object_ptr(obj_id_str, config.get_s3_bucket());
       uint64_t elapsed_us = (get_time_us() - start);
       double mb_s = sstream_size(*s3_obj) / elapsed_us
         * 1000.0 * 1000 / 1024 / 1024;
@@ -253,6 +253,7 @@ try_start:
         << " size: " << sstream_size(*s3_obj)
         << " BW (MB/s): " << mb_s
         << "\n";
+      //pm.increment_batches(); // increment number of batches we have processed
 
 #ifdef DEBUG
       //double MBps = (1.0 * (32812.5*1024.0) / elapsed_us) / 1024 / 1024 * 1000 * 1000;

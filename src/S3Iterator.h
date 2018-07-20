@@ -1,17 +1,16 @@
 #ifndef _S3_ITERATOR_H_
 #define _S3_ITERATOR_H_
 
-#include <Configuration.h>
+#include "Configuration.h"
 
 namespace cirrus {
 
 class S3Iterator {
  public:
-    S3Iterator(const Configuration& c) :
-      config(c) {}
+    S3Iterator(const Configuration& c);
 
  private:
-      Configuration config;
+  Configuration config;
 };
 
 } // namespace cirrus

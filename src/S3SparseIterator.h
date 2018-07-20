@@ -1,19 +1,19 @@
 #ifndef _S3_SPARSEITERATOR_H_
 #define _S3_SPARSEITERATOR_H_
 
-#include "S3.h"
-#include "S3Iterator.h"
-#include "Configuration.h"
-#include "config.h"
+#include <S3Client.h>
+#include <Configuration.h>
+#include <config.h>
+#include <S3Iterator.h>
+#include <Synchronization.h>
+#include <Serializers.h>
+#include <CircularBuffer.h>
 
 #include <thread>
 #include <list>
 #include <mutex>
 #include <queue>
 #include <semaphore.h>
-#include "Synchronization.h"
-#include "Serializers.h"
-#include <CircularBuffer.h>
 
 namespace cirrus {
 
@@ -40,7 +40,7 @@ class S3SparseIterator : public S3Iterator {
   uint64_t left_id;
   uint64_t right_id;
 
-  std::shared_ptr<Aws::S3::S3Client> s3_client;
+  std::shared_ptr<S3Client> s3_client;
 
   uint64_t cur;
   std::list<std::shared_ptr<FEATURE_TYPE>> ring;

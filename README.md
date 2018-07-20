@@ -10,10 +10,10 @@ Cirrus is a serverless machine learning library. Cirrus provides a list of machi
 Requirements
 ============
 
-The Cirrus backend has been tested on Ubuntu >= 14.04 and Amazon AMI.
+The Cirrus backend has been tested on Ubuntu 14.04/16.04 and Amazon AMI.
 
 It has been tested with the following environment / dependencies:
-* g++ 6
+* g++-7
 
 In the Amazon AMI please do:
 
@@ -24,7 +24,7 @@ In the Amazon AMI please do:
 Building
 =========
 
-    $ ./boostrap.sh
+    $ ./bootstrap.sh
     $ make -j 10
 
 

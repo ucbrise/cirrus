@@ -27,7 +27,7 @@ class S3IteratorLibsvm : public S3Iterator {
         int worker_id,           // id of this worker
         bool random_access);     // whether to access samples in a rand. fashion
 
-    std::shared_ptr<SparseDataset> getNextFast();
+    std::shared_ptr<SparseDataset> getNext();
 
     void threadFunction(const Configuration&);
 

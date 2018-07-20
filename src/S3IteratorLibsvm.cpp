@@ -57,7 +57,7 @@ S3IteratorLibsvm::S3IteratorLibsvm(
   }
 }
 
-std::shared_ptr<SparseDataset> S3IteratorLibsvm::getNextFast() {
+std::shared_ptr<SparseDataset> S3IteratorLibsvm::getNext() {
   sem_wait(&semaphore);
   ring_lock.lock();
 
@@ -73,7 +73,7 @@ std::shared_ptr<SparseDataset> S3IteratorLibsvm::getNextFast() {
   // FIXME this should be calculating the local amount of memory
   if (num_minibatches_ready < 200 && pref_sem.getvalue() < (int)read_ahead) {
 #ifdef DEBUG
-    std::cout << "getNextFast::pref_sem.signal" << std::endl;
+    std::cout << "getNext::pref_sem.signal" << std::endl;
 #endif
     pref_sem.signal();
   }
@@ -240,7 +240,7 @@ void S3IteratorLibsvm::pushSamples(std::ostringstream* oss) {
   }
 }
 
-static int sstream_size(std::ostringstream& ss) {
+static int sstreamSize(std::ostringstream& ss) {
   return ss.tellp();
 }
 
@@ -281,11 +281,11 @@ S3IteratorLibsvm::getFileRange(uint64_t file_size) {
 void S3IteratorLibsvm::reportBandwidth(uint64_t elapsed, uint64_t size) {
 #if 0
   uint64_t elapsed_us = (get_time_us() - start);
-  double mb_s = sstream_size(*s3_obj) / elapsed_us
+  double mb_s = sstreamSize(*s3_obj) / elapsed_us
     * 1000.0 * 1000 / 1024 / 1024;
   std::cout << "received s3 obj"
     << " elapsed: " << elapsed_us
-    << " size: " << sstream_size(*s3_obj)
+    << " size: " << sstreamSize(*s3_obj)
     << " BW (MB/s): " << mb_s
     << "\n";
 #endif
@@ -314,7 +314,7 @@ try_start:
           config.get_s3_dataset_key(),
           config.get_s3_bucket(), range);
 
-      reportBandwidth(get_time_us() - start, sstream_size(*s3_obj));
+      reportBandwidth(get_time_us() - start, sstreamSize(*s3_obj));
     } catch(...) {
       std::cout
         << "S3IteratorLibsvm: error in s3_get_object"

@@ -22,7 +22,9 @@ CIRRUS_SRC_FILES=$(CIRRUS_SRC_DIR)/Configuration.cpp \
 		    $(CIRRUS_SRC_DIR)/PSSparseServerInterface.cpp \
 		    $(CIRRUS_SRC_DIR)/SparseMFModel.cpp \
 		    $(CIRRUS_SRC_DIR)/MFModel.cpp \
-		    $(CIRRUS_SRC_DIR)/S3IteratorText.cpp \
+		    $(CIRRUS_SRC_DIR)/S3Iterator.cpp \
+		    $(CIRRUS_SRC_DIR)/S3IteratorLibsvm.cpp \
+		    $(CIRRUS_SRC_DIR)/S3Client.cpp \
 		    $(CIRRUS_SRC_DIR)/SparseDataset.cpp
 
 LINCLUDES = -L$(THIRD_PARTY_DIR)/kerberos/src/lib \

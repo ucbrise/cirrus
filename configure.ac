@@ -37,6 +37,6 @@ AC_CHECK_FUNCS([gettimeofday localtime_r memchr memmove memset mkdir stpcpy strc
 AC_CONFIG_FILES([Makefile
                  src/Makefile
                  tests/Makefile
-                 tests/test_iterator/Makefile])
+                 tests/iterator/Makefile])
 
 AC_OUTPUT

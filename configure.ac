@@ -16,7 +16,7 @@ AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 AX_CXX_COMPILE_STDCXX_14
 
-CXXFLAGS="-O3 -fPIC -std=c++1z -Werror"
+CXXFLAGS="-O3 -fPIC -std=c++17 -Werror"
 
 # Checks for header files.
 AC_CHECK_HEADERS([ arpa/inet.h netdb.h string.h stdint.h\

@@ -20,13 +20,15 @@ namespace cirrus {
   
 S3IteratorLibsvm::S3IteratorLibsvm(
         const Configuration& c,
-        // FIXME we should pass the filename and bucket instead
-        // FIXME we should figure out file_size from that
+        const std::string& s3_bucket,
+        const std::string& s3_key,
         uint64_t file_size,
         uint64_t minibatch_rows,
         int worker_id,
         bool random_access) :
   S3Iterator(c),
+  s3_bucket(s3_bucket),
+  s3_key(s3_key),
   file_size(file_size),
   s3_rows(s3_rows),
   minibatch_rows(minibatch_rows),
@@ -166,7 +168,7 @@ bool S3IteratorLibsvm::buildDatasetLibsvm(
         if (!ignoreSpaces(index, data)) {
           if (data[index] == '\n') break; // move to next sample
           else if (data[index] == 0) return false; // end of text
-          else throw std::runtime_error("Error parsing");
+          else throw std::runtime_error("Error parsing while reading pairs");
         }
         uint64_t ind = readNum<uint64_t>(index, data);
         if (data[index] != ':') {
@@ -191,7 +193,7 @@ bool S3IteratorLibsvm::buildDatasetLibsvm(
 void S3IteratorLibsvm::readUntilNewline(uint64_t* index, const std::string& data) {
   while (1) {
     if (*index >= data.size()) {
-      throw std::runtime_error("Error parsing");
+      throw std::runtime_error("Error parsing: *index >= data.size()");
     }
     if (data[*index] == '\n') {
       (*index)++;
@@ -209,7 +211,7 @@ S3IteratorLibsvm::parseObjLibsvm(std::string& data) {
   readUntilNewline(&index, data);
 
   if (index >= data.size()) {
-    throw std::runtime_error("Error parsing data");
+    throw std::runtime_error("Error parsing: index >= data.size()");
   }
 
   while (1) {
@@ -293,7 +295,7 @@ void S3IteratorLibsvm::reportBandwidth(uint64_t elapsed, uint64_t size) {
 
 void S3IteratorLibsvm::threadFunction(const Configuration& config) {
   std::cout << "Building S3 deser. with size: "
-    << std::endl;
+            << std::endl;
 
   uint64_t count = 0;
   while (1) {
@@ -311,8 +313,7 @@ try_start:
       uint64_t start = get_time_us();
 
       s3_obj = s3_client->s3_get_object_range_ptr(
-          config.get_s3_dataset_key(),
-          config.get_s3_bucket(), range);
+          s3_key, s3_bucket, range);
 
       reportBandwidth(get_time_us() - start, sstreamSize(*s3_obj));
     } catch(...) {

@@ -22,6 +22,8 @@ class S3IteratorLibsvm : public S3Iterator {
  public:
     S3IteratorLibsvm(
         const Configuration& c,
+        const std::string& s3_bucket,
+        const std::string& s3_key,
         uint64_t file_size,      // FIXME we should calculate this automatically
         uint64_t minibatch_rows, // number of samples in a minibatch
         int worker_id,           // id of this worker
@@ -86,6 +88,9 @@ class S3IteratorLibsvm : public S3Iterator {
   std::default_random_engine re;
   bool random_access = true;
   uint64_t cur_index = 0;
+
+  std::string s3_bucket;
+  std::string s3_key;
 };
 
 }

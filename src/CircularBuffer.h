@@ -60,7 +60,7 @@ uint64_t CircularBuffer<T>::size() const {
 template<typename T>
 T CircularBuffer<T>::pop() {
   if (size() == 0) {
-    throw std::runtime_error("Empty circular buffer");
+    throw std::runtime_error("pop: Empty circular buffer");
   }
   T ret = _buffer[_front];
   _front = (_front + 1) % _capacity;
@@ -71,7 +71,7 @@ T CircularBuffer<T>::pop() {
 template<typename T>
 T& CircularBuffer<T>::front() {
   if (size() == 0) {
-    throw std::runtime_error("Empty circular buffer");
+    throw std::runtime_error("front(): Empty circular buffer");
   }
   T& ret = _buffer[_front];
   return ret;

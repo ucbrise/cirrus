@@ -1,5 +1,7 @@
-from .context import cirrus
 import pytest
+
+from .context import cirrus
+
 
 @pytest.mark.timeout(10)
 def test_foo():
@@ -56,7 +58,7 @@ def test_foo():
                      # range of testing minibatches
                      test_set=(835,840)
                      )
-        cf_task.run()
+        cf_task.run_cirrus()
         time.sleep(10)
         cf_task.kill()
         assert True

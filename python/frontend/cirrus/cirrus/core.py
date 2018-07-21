@@ -154,6 +154,7 @@ class BaseTask(object):
         self.relaunch_lambdas()
 
     def kill(self):
+        messenger.send_kill_signal(self.ps_ip_public, self.ps_ip_port)
         self.kill_signal.set()
         self.dead = True
 

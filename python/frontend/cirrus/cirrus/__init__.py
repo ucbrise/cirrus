@@ -1,6 +1,5 @@
-name="cirrus"
-from .cf import CollaborativeFiltering
-from .lr import LogisticRegression
+import app
 from .CostModel import CostModel
 from .GridSearch import GridSearch
-import app
+from .cf import CollaborativeFiltering
+from .lr import LogisticRegression

@@ -2,6 +2,7 @@
 
 from core import BaseTask
 
+
 class LogisticRegressionTask(BaseTask):
     def __init__(self, *args, **kwargs):
         # pass all arguments of init to parent class
@@ -91,17 +92,4 @@ def LogisticRegression(
             progress_callback=progress_callback
            )
 
-def create_random_lr_model(n):
-    #print "Creating generic model not yet implemented, creating criteo kaggle model"
-    print "Creating random LR model with size: ", n
 
-    return 0
-
-# Collaborative Filtering
-def CollaborativeFiltering():
-    print "not implemented"
-
-
-# LDA algorithm
-def LDA():
-    print "Not implemented"

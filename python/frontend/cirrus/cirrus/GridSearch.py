@@ -4,13 +4,12 @@ import os
 import threading
 import time
 
+import app
 from utils import *
 
 logging.basicConfig(filename="cirrusbundle.log", level=logging.WARNING)
 
 class GridSearch:
-
-    # Graph interfacer
 
 
     # TODO: Add some sort of optional argument checking
@@ -65,7 +64,7 @@ class GridSearch:
         string = ""
         for param_name in self.hyper_vars:
             string += "%s: %s\n" % (param_name, str(self.param_lst[i][param_name]))
-        return string;
+        return string
 
     def get_name_for(self, i):
         out = self.cirrus_objs[i].get_name()
@@ -85,11 +84,16 @@ class GridSearch:
     def get_num_lambdas(self):
         return sum([c.get_num_lambdas(fetch=False) for c in self.cirrus_objs])
 
+    # TODO: replace get_updates_per_second, etc as a call to some general function in core.py
     def get_xs_for(self, i, metric="LOSS"):
         if metric == "LOSS":
             lst = self.loss_lst[i]
-        if metric == "UPS":
+        elif metric == "UPS":
             lst = self.cirrus_objs[i].get_updates_per_second(fetch=False)
+        elif metric == "CPS":
+            lst = self.cirrus_objs[i].get_cost_per_second(fetch=False)
+        else:
+            raise Exception('Metric not available')
         return [item[0] for item in lst]
 
     def get_total_command(self):
@@ -98,11 +102,16 @@ class GridSearch:
             cmd_lst.append(c.get_command())
         return ' '.join(cmd_lst)
 
+    # TODO: Fix duplicate methods
     def get_ys_for(self, i, metric="LOSS"):
         if metric == "LOSS":
             lst = self.loss_lst[i]
-        if metric == "UPS":
+        elif metric == "UPS":
             lst = self.cirrus_objs[i].get_updates_per_second(fetch=False)
+        elif metric == "CPS":
+            lst = self.cirrus_objs[i].get_cost_per_second(fetch=False)
+        else:
+            raise Exception('Metric not available')
         return [item[1] for item in lst]
 
     def start_queue_threads(self):
@@ -127,8 +136,6 @@ class GridSearch:
                     if time.time() - start_time < 1:
                         time.sleep(1)
                     start_time = time.time()
-
-            logging.info("Thread number %d is exiting" % thread_id)
 
         # Dictionary of commands per machine
         command_dict = {}
@@ -167,7 +174,7 @@ class GridSearch:
             p.start()
             p_lst.append(p)
 
-        [p.join for p in p_lst]
+        [p.join() for p in p_lst]
 
         for i in range(self.num_jobs):
             p = threading.Thread(target=custodian, args=(self.cirrus_objs, i, self.num_jobs, self.infos))
@@ -176,21 +183,24 @@ class GridSearch:
     def get_number_experiments(self):
         return len(self.cirrus_objs)
 
-    def set_jobs(self, n):
+    def set_threads(self, n):
         self.num_jobs = n
 
     def set_existing_machines(self):
         pass
 
-    def run(self, index):
+    def run_cirrus(self, index):
         assert(0 <= index < len(self.cirrus_objs))
         cirrus_obj = self.cirrus_objs[index]
         self.infos[index]['start_time'] = time.time()
-        cirrus_obj.run()
+        cirrus_obj.run_cirrus()
 
-
-    def run_bundle(self):
+    def run(self, UI=False):
         self.start_queue_threads()
+
+        if UI:
+            app.bundle = self
+            app.app.run_server()
 
     def kill_all(self):
         for cirrus_ob in self.cirrus_objs:

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Grab memory usage by process
+import logging
 import os
 import random
 import time
@@ -8,26 +8,24 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import psutil
+from IPython.display import IFrame
 from dash.dependencies import Input, Output, State
 from plotly.graph_objs import *
 
 process = psutil.Process(os.getpid())
-
-
 
 app = dash.Dash(__name__)
 app.css.append_css({
         "external_url": "https://codepen.io/chriddyp/pen/bWLwgP.css"
 })
 
-import logging
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
 server = app.server
 
-# Layout functions
 
+# Layout functions
 def div_graph(name):
     return html.Div([
 
@@ -35,9 +33,7 @@ def div_graph(name):
             id='graph-type',
             options=[
                 {'label': 'Loss vs. Time', 'value': 'LOSS'},
-                {'label': 'Updates/Second', 'value': 'UPS'},
-                {'label': 'Cost/Sec', 'value': 'CPS'}
-                ],
+                {'label': 'Updates/Second', 'value': 'UPS'}],
             value='LOSS'
         ),
 
@@ -172,15 +168,19 @@ frozen_lsty = {}
 def get_num_experiments():
     return bundle.get_number_experiments()
 
+
 def get_xs_for(i, metric="LOSS"):
     return bundle.get_xs_for(i, metric)
+
 
 def get_ys_for(i, metric="LOSS"):
     return bundle.get_ys_for(i, metric)
 
+
 def get_name_for(i):
     out = bundle.get_name_for(i)
     return out
+
 
 def kill(i):
     bundle.kill(i)
@@ -203,11 +203,13 @@ def killall_clicked(n_clicks):
         return "Kill All"
     return "Kill All"
 
+
 @app.callback(Output('kill-button', 'style'), [Input('data-panel', 'children')])
 def show_kill_button(child):
     if "Nothing" in child:
         return {'display': 'none'}
     return {'display': 'block'}
+
 
 @app.callback(Output('kill-button', 'children'), [Input('data-panel', 'children')])
 def set_kill_button_text(child):
@@ -216,12 +218,12 @@ def set_kill_button_text(child):
         return "Kill line: %s" % num
     return "Nope"
 
+
 @app.callback(
     Output('data-panel', 'children'),
     [Input('logloss', 'clickData'),
      Input('kill-button', 'n_clicks_timestamp')],
     [State('data-panel', 'children')]
-    #[Event('')]
 )
 def select_or_kill(selected_points, kill_button_ts, current_info):
     if selected_points == None:
@@ -245,7 +247,6 @@ def select_or_kill(selected_points, kill_button_ts, current_info):
         return "Nothing selected!"
 
 
-
 # Update functions
 
 # FIXME: Combine these updates into 1 callback to 1 output.
@@ -257,6 +258,7 @@ def gen_cost(interval):
     child = "Mem Usage: %d MBs" % get_mem_usage()
     return child
 
+
 # Update the cost term
 @app.callback(
     Output('nlambdas', 'children'),
@@ -265,6 +267,7 @@ def gen_cost(interval):
     child = "Num Lambdas: %s" % get_num_lambdas()
     return child
 
+
 # Update the cost term
 @app.callback(
     Output('cost', 'children'),
@@ -272,6 +275,7 @@ def gen_cost(interval):
 def gen_cost(interval):
     child = "Current Cost: $%0.2f \n($%0.5f/sec)" % (get_cost(), get_cost_per_second())
     return child
+
 
 # FIXME: Need a more sophisticated way to zoom into the graph.
 @app.callback(Output('logloss', 'figure'),
@@ -344,16 +348,8 @@ def gen_loss(interval, menu, graph_type, oldfig, relayoutData, lockCamera):
             hovermode='closest'
         )
 
-
     return Figure(data=trace_lst, layout=layout)
 
-import threading
-def run_server():
-    def runner():
-        app.run_server(debug=False)
-    t = threading.Thread(target=runner)
-    t.start()
 
-from IPython.display import IFrame
 def display_dash():
     return IFrame('http://localhost:8050', width=1000, height=600)

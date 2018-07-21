@@ -1,5 +1,4 @@
-import cirrus
-
+from context import cirrus
 
 url = "ec2-34-212-6-172.us-west-2.compute.amazonaws.com"
 ip = "172.31.5.74"
@@ -54,9 +53,5 @@ if __name__ == "__main__":
                            hyper_vars=["learning_rate", "worker_size"],
                            hyper_params=[[0.1, 0.2], [128, 246, 512]],
                            machines=[url])
-    #gs.set_threads(2)
-    #gs.run(UI=True)
-    gs.run_bundle()
-
-    # cirrus.app.bundle = gs
-    # cirrus.app.app.run_server()
+    gs.set_threads(2)
+    gs.run(UI=False)

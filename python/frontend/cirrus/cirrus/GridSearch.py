@@ -4,7 +4,7 @@ import os
 import threading
 import time
 
-import app
+import graph
 from utils import *
 
 logging.basicConfig(filename="cirrusbundle.log", level=logging.WARNING)
@@ -46,9 +46,9 @@ class GridSearch:
         possibilities = list(itertools.product(*hyper_params))
         base_port = 1337
         print(possibilities)
+        index = 0
         for p in possibilities:
             configuration = zip(hyper_vars, p)
-            print(configuration)
             modified_config = param_base.copy()
             for var_name, var_value in configuration:
                 modified_config[var_name] = var_value
@@ -74,7 +74,6 @@ class GridSearch:
         cost = 0
         for i in range(len(self.param_lst)):
             c = self.cirrus_objs[i]
-            d = self.param_lst[i]
             cost += c.cost_model.get_cost(time.time() - self.start_time)
         return cost
 
@@ -90,8 +89,8 @@ class GridSearch:
             lst = self.loss_lst[i]
         elif metric == "UPS":
             lst = self.cirrus_objs[i].get_updates_per_second(fetch=False)
-        elif metric == "CPS":
-            lst = self.cirrus_objs[i].get_cost_per_second(fetch=False)
+        elif metric == "CPU":
+            raise Exception("Cost Per Update is work in progress")
         else:
             raise Exception('Metric not available')
         return [item[0] for item in lst]
@@ -115,18 +114,16 @@ class GridSearch:
         return [item[1] for item in lst]
 
     def start_queue_threads(self):
-        def custodian(cirrus_objs, thread_id, num_jobs, infos):
+        def custodian(cirrus_objs, thread_id, num_jobs):
             index = thread_id
             logging.info("Custodian number %d starting..." % thread_id)
-            seen = []
             start_time = time.time()
 
             while True:
                 cirrus_obj = cirrus_objs[index]
 
-                cirrus_objs[index].relaunch_lambdas()
-                loss = cirrus_objs[index].get_time_loss()
-                print("Thread", thread_id, "Machine", index, "Loss", loss)
+                cirrus_obj.relaunch_lambdas()
+                loss = cirrus_obj.get_time_loss()
                 self.loss_lst[index] = loss
                 index += num_jobs
                 if index >= len(cirrus_objs):
@@ -134,7 +131,7 @@ class GridSearch:
 
                     # Dampener to prevent too many calls at once
                     if time.time() - start_time < 1:
-                        time.sleep(1)
+                        time.sleep(1 - time.time() + start_time)
                     start_time = time.time()
 
         # Dictionary of commands per machine
@@ -154,15 +151,12 @@ class GridSearch:
                 if thread_id >= len(self.machines):
                     return
 
-                machine_sh
+                sh_file = "machine_%d.sh" % thread_id
+                ubuntu_machine = "ubuntu@%s" % self.machines[thread_id]
 
-                cmd = 'ssh ubuntu@%s "killall parameter_server"' % (self.machines[thread_id])
+                cmd = "scp %s %s:~/" % (sh_file, ubuntu_machine)
                 os.system(cmd)
-                cmd = "scp machine_%d.sh ubuntu@%s:~/" % (thread_id, self.machines[thread_id])
-                os.system(cmd)
-                cmd = 'ssh ubuntu@%s "chmod +x machine_%d.sh &"' % (self.machines[thread_id], thread_id)
-                os.system(cmd)
-                cmd = 'ssh ubuntu@%s "./machine_%d.sh &"' % (self.machines[thread_id], thread_id)
+                cmd = 'ssh %s "killall parameter_server; chmod +x %s; ./%s &"' % (ubuntu_machine, sh_file, sh_file)
                 os.system(cmd)
                 thread_id += copy_threads
 
@@ -197,8 +191,8 @@ class GridSearch:
         self.start_queue_threads()
 
         if UI:
-            app.bundle = self
-            app.app.run_server()
+            graph.bundle = self
+            graph.app.run_server()
 
     def kill_all(self):
         for cirrus_ob in self.cirrus_objs:
@@ -218,7 +212,7 @@ class GridSearch:
         lst = []
         for cirrus_obj in self.cirrus_objs:
             loss = cirrus_obj.get_time_loss()
-            if (len(loss) == 0):
+            if len(loss) == 0:
                 continue
             lst.append((index, loss[-1]))
             index += 1

@@ -232,16 +232,12 @@ def select_or_kill(selected_points, kill_button_ts, current_info):
     if kill_button_ts == None:
         kill_button_ts = 0
     last_kill_time = (time.time() * 1000.0) - kill_button_ts
-    # HACK: To see if we selected something or killed something, we check to seek
-    # when the last increment occured.
-    if  last_kill_time > 500:
-        #print(selected_points["points"][0])
+
+    if last_kill_time > 500:
         cnum = int(selected_points["points"][0]["customdata"])
-        param_info = get_info_for(cnum)
         string = 'Chose line: %d \n%s' % (cnum,  get_info_for(cnum))
         return string
     else:
-        print("Killing line")
         cnum = int(current_info.split(" ")[2])
         kill(cnum)
         return "Nothing selected!"
@@ -303,32 +299,6 @@ def gen_loss(interval, menu, graph_type, oldfig, relayoutData, lockCamera):
 
     if 'lock' in lockCamera:
         return oldfig
-        r1 = None
-        r2 = None
-        if 'xaxis.range[0]' in relayoutData.keys():
-            r1 = [relayoutData['xaxis.range[0]'], relayoutData['xaxis.range[1]']]
-        if 'yaxis.range[0]' in relayoutData.keys():
-            r2 = [relayoutData['yaxis.range[0]'], relayoutData['yaxis.range[1]']]
-        layout = Layout(
-            height=800,
-            width=800,
-            xaxis=dict(
-                title='Time Elapsed (sec)',
-                range=r1
-            ),
-            yaxis=dict(
-                title="Loss",
-                range=r2,
-
-            ),
-            margin=Margin(
-                t=45,
-                l=50,
-                r=50
-            ),
-            showlegend=False
-
-        )
     else:
         layout = Layout(
             height=450,

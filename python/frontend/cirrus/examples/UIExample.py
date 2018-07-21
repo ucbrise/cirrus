@@ -54,4 +54,4 @@ if __name__ == "__main__":
                            hyper_params=[[0.1, 0.2], [128, 246, 512]],
                            machines=[url])
     gs.set_threads(2)
-    gs.run(UI=False)
+    gs.run(UI=True)

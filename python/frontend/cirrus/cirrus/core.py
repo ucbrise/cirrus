@@ -89,8 +89,6 @@ class BaseTask(object):
         string = "Rate %f" % self.learning_rate
         return string
 
-
-
     def get_num_lambdas(self, fetch=True):
         if self.is_dead():
             return 0
@@ -102,7 +100,7 @@ class BaseTask(object):
 
     def get_updates_per_second(self, fetch=True):
         if self.is_dead():
-            return 0
+            return self.time_ups_lst
         if fetch:
             t = time.time() - self.start_time
             ups = messenger.get_num_updates(self.ps_ip_public, self.ps_ip_port)
@@ -176,7 +174,7 @@ class BaseTask(object):
 
     def launch_ps(self, command_dict=None):
         cmd = 'nohup ./parameter_server --config config_%d.txt --nworkers %d --rank 1 --ps_port %d &> ps_out_%d & ' % (
-        self.ps_ip_port, self.n_workers, self.ps_ip_port, self.ps_ip_port)
+            self.ps_ip_port, self.n_workers * 2, self.ps_ip_port, self.ps_ip_port)
         if command_dict is not None:
             command_dict[self.ps_ip_public].append(cmd)
         else:

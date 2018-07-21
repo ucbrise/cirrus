@@ -308,6 +308,8 @@ class PSSparseServerTask : public MLTask {
   bool process_get_mf_full_model(const Request& req,
                                  std::vector<char>& thread_buffer);
 
+  void kill_server();
+
   /**
     * Attributes
     */
@@ -359,6 +361,7 @@ class PSSparseServerTask : public MLTask {
   std::atomic<int> thread_count;  //< keep track of each thread's id
 
   uint32_t num_updates = 0; // Last measured num updates
+  std::atomic<bool> kill_signal; // Used to coordinate thread kills
 };
 
 class MFNetflixTask : public MLTask {

@@ -153,20 +153,18 @@ class GridSearch:
             while True:
                 if thread_id >= len(self.machines):
                     return
+
+                machine_sh
+
                 cmd = 'ssh ubuntu@%s "killall parameter_server"' % (self.machines[thread_id])
-                print cmd
                 os.system(cmd)
                 cmd = "scp machine_%d.sh ubuntu@%s:~/" % (thread_id, self.machines[thread_id])
-                print cmd
                 os.system(cmd)
                 cmd = 'ssh ubuntu@%s "chmod +x machine_%d.sh &"' % (self.machines[thread_id], thread_id)
-                print cmd
                 os.system(cmd)
                 cmd = 'ssh ubuntu@%s "./machine_%d.sh &"' % (self.machines[thread_id], thread_id)
-                print cmd
                 os.system(cmd)
                 thread_id += copy_threads
-                print("Done")
 
         p_lst = []
         for i in range(copy_threads):

@@ -95,7 +95,6 @@ class BaseTask(object):
 
     def get_cost_per_second(self):
         elapsed = time.time() - self.start_time
-        cps = self.get_cost_per_second()
         self.time_cps_lst.append((time.time() - self.start_time, cps))
         return self.time_cps_lst
 

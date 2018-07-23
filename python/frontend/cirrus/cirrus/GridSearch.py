@@ -44,7 +44,6 @@ class GridSearch:
     def set_task_parameters(self, task, param_base=None, hyper_vars=[], hyper_params=[], machines=[]):
         possibilities = list(itertools.product(*hyper_params))
         base_port = 1337
-        print(possibilities)
         index = 0
         num_machines = len(machines)
         for p in possibilities:

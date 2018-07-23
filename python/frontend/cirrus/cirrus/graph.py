@@ -236,6 +236,7 @@ def select_or_kill(selected_points, kill_button_ts, current_info):
     last_kill_time = (time.time() * 1000.0) - kill_button_ts
 
     if last_kill_time > 500:
+        #print selected_points
         cnum = int(selected_points["points"][0]["customdata"])
         string = 'Chose line: %d \n%s' % (cnum,  get_info_for(cnum))
         return string

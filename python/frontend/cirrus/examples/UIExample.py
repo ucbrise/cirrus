@@ -1,13 +1,16 @@
 from context import cirrus
 
-url = "ec2-34-212-6-172.us-west-2.compute.amazonaws.com"
-ip = "172.31.5.74"
-
+urls = [
+        "ec2-18-237-213-139.us-west-2.compute.amazonaws.com", 
+        "ec2-34-211-54-228.us-west-2.compute.amazonaws.com"]
+ips = [
+       "172.31.14.190",
+       "172.31.9.94"]
 data_bucket = 'cirrus-criteo-kaggle-19b-random'
 model = 'model_v1'
 
 basic_params = {
-    'n_workers': 5,
+    'n_workers': 20,
     'n_ps': 1,
     'worker_size': 128,
     'dataset': data_bucket,
@@ -19,8 +22,6 @@ basic_params = {
     'resume_model': model,
     'key_name': 'mykey',
     'key_path': '/home/camus/Downloads/mykey.pem',
-    'ps_ip_public': url,
-    'ps_ip_private': ip,
     'ps_username': 'ubuntu',
     'opt_method': 'adagrad',
     'checkpoint_model': 60,
@@ -40,18 +41,20 @@ if __name__ == "__main__":
     start =    0.100000
     end =      0.000001
     interval = 0.001
-    for _ in range(10):
-        config = basic_params.copy()
-        config['ps_ip_port'] = base_port + (index * 2)
-        config['learning_rate'] = start
-        print(start)
-        batch.append(config)
-        start /= 1.25
+
+        
+    machines = zip(urls, ips)
+
+    learning_rates = [1/(i * 10) for i in range(1, 20)]
 
     gs = cirrus.GridSearch(task=cirrus.LogisticRegression,
                            param_base=basic_params,
                            hyper_vars=["learning_rate", "worker_size"],
-                           hyper_params=[[0.1, 0.2], [128, 246, 512]],
-                           machines=[(url, ip)])
-    gs.set_threads(2)
+                           hyper_params=[learning_rates, [128, 246, 512]],
+                           machines=machines)
+    gs.set_threads(200)
     gs.run(UI=True)
+
+
+    while True:
+        pass

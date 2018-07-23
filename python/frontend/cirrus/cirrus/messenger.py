@@ -18,9 +18,8 @@ def get_num_lambdas(ip="127.0.0.1", port=1337):
         s = clientsocket.recv(32)
         return struct.unpack("I", s)[0] - 1   # Subtract 1, as we don't count the clientsocket as a connection
     except Exception, e:
-        print("get_num_lambdas failed", str(e))
         clientsocket.close()
-        return 0
+        return None
 
 
 def get_last_time_error(ip="127.0.0.1", port=1338):
@@ -31,7 +30,6 @@ def get_last_time_error(ip="127.0.0.1", port=1338):
         s = clientsocket.recv(192)
         return struct.unpack("ddd", s)
     except Exception, e:
-        print("get_last_time_error failed", str(e))
         return None
 
 
@@ -44,7 +42,6 @@ def get_num_updates(ip="127.0.0.1", port=1337):
         s = clientsocket.recv(32)
         return struct.unpack("I", s)[0]
     except Exception, e:
-        print("get_num_updates failed", str(e))
         clientsocket.close()
         return None
 
@@ -56,6 +53,5 @@ def send_kill_signal(ip="127.0.0.1", port=1337):
         clientsocket.send(KILL_SIGNAL)
         return True
     except Exception, e:
-        print("send_kill_signal failed", str(e))
         clientsocket.close()
         return False

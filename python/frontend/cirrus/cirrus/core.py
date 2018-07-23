@@ -94,7 +94,9 @@ class BaseTask(object):
         return string
 
     def get_cost_per_second(self):
+        
         elapsed = time.time() - self.start_time
+        cps = self.cost_model.get_cost_per_second()
         self.time_cps_lst.append((time.time() - self.start_time, cps))
         return self.time_cps_lst
 
@@ -128,6 +130,10 @@ class BaseTask(object):
         self.get_updates_per_second()
         self.get_cost_per_second()
         num_task = 3
+
+        if num_lambdas == None:
+            return
+
         if num_lambdas < self.n_workers:
             shortage = self.n_workers - num_lambdas
 

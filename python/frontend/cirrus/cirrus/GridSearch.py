@@ -127,6 +127,9 @@ class GridSearch:
                 cirrus_obj.relaunch_lambdas()
                 loss = cirrus_obj.get_time_loss()
                 self.loss_lst[index] = loss
+
+                print("Thread", thread_id, "exp", index, "loss", self.loss_lst[index])
+
                 index += num_jobs
                 if index >= len(cirrus_objs):
                     index = thread_id
@@ -144,7 +147,6 @@ class GridSearch:
         for c in self.cirrus_objs:
             c.get_command(command_dict)
 
-
         command_dict_to_file(command_dict)
 
         copy_threads = min(len(self.machines), self.num_jobs)
@@ -158,6 +160,7 @@ class GridSearch:
                 ubuntu_machine = "ubuntu@%s" % self.machines[thread_id][0]
 
                 cmd = "scp %s %s:~/" % (sh_file, ubuntu_machine)
+                print cmd
                 os.system(cmd)
                 cmd = 'ssh %s "killall parameter_server; chmod +x %s; ./%s &"' % (ubuntu_machine, sh_file, sh_file)
                 os.system(cmd)
@@ -194,8 +197,12 @@ class GridSearch:
         self.start_queue_threads()
 
         if UI:
-            graph.bundle = self
-            graph.app.run_server()
+            def ui_func(self):
+                graph.bundle = self
+                graph.app.run_server()
+
+            self.ui_thread = threading.Thread(target=ui_func, args = (self, ))
+            self.ui_thread.start()
 
     def kill_all(self):
         for cirrus_ob in self.cirrus_objs:

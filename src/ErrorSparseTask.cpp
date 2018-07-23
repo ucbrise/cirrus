@@ -15,8 +15,6 @@
 
 namespace cirrus {
 
-
-
 std::unique_ptr<CirrusModel> get_model(const Configuration& config,
         const std::string& ps_ip, uint64_t ps_port) {
   static PSSparseServerInterface* psi;
@@ -133,7 +131,6 @@ void ErrorSparseTask::run(const Configuration& config) {
   std::cout << "[ERROR_TASK] Computing accuracies"
     << "\n";
 
-
   while (1) {
     usleep(ERROR_INTERVAL_USEC);
 
@@ -168,7 +165,8 @@ void ErrorSparseTask::run(const Configuration& config) {
         start_index += config.get_minibatch_size();
         if (config.get_model_type() == Configuration::LOGISTICREGRESSION) {
           curr_error = (total_loss / total_num_features);
-        } else if (config.get_model_type() == Configuration::COLLABORATIVE_FILTERING) {
+        } else if (config.get_model_type() ==
+                   Configuration::COLLABORATIVE_FILTERING) {
           curr_error = std::sqrt(total_loss / total_num_features);
         }
       }

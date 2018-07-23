@@ -83,18 +83,30 @@ class BaseTask(object):
         self.time_cps_lst = []
         self.time_ups_lst = []
         self.time_loss_lst = []
+        self.real_time_loss_lst = []
         self.start_time = time.time()
+
+        # Stored values
+        self.last_num_lambdas = 0
 
     def get_name(self):
         string = "Rate %f" % self.learning_rate
         return string
 
+    def get_cost_per_second(self):
+        elapsed = time.time() - self.start_time
+        cps = self.get_cost_per_second()
+        self.time_cps_lst.append((time.time() - self.start_time, cps))
+        return self.time_cps_lst
+
     def get_num_lambdas(self, fetch=True):
         if self.is_dead():
             return 0
         if fetch:
-            self.num_lambdas = messenger.get_num_lambdas(self.ps_ip_public, self.ps_ip_port)
-            return self.num_lambdas
+            out = messenger.get_num_lambdas(self.ps_ip_public, self.ps_ip_port)
+            if out is not None:
+                self.last_num_lambdas = out
+            return self.last_num_lambdas
         else:
             return self.num_lambdas
 
@@ -115,6 +127,7 @@ class BaseTask(object):
 
         num_lambdas = self.get_num_lambdas()
         self.get_updates_per_second()
+        self.get_cost_per_second()
         num_task = 3
         if num_lambdas < self.n_workers:
             shortage = self.n_workers - num_lambdas
@@ -132,19 +145,34 @@ class BaseTask(object):
                     print "client.invoke exception caught"
                     print str(e)
 
-    def get_time_loss(self):
+    def get_time_loss(self, rtl=False):
 
         if self.is_dead():
-            return self.time_loss_lst
+            if rtl:
+                return self.real_time_loss_lst
+            else:
+                return self.time_loss_lst
         out = messenger.get_last_time_error(self.ps_ip_public, self.ps_ip_port + 1)
         if out == None:
-            return []
-        t, loss, rtl = out
-        if (t == 0) or (self.is_dead()):
-            return []
+            if rtl:
+                return self.real_time_loss_lst
+            else:
+                return self.time_loss_lst
+        t, loss, real_time_loss = out
+
+        if t == 0:
+            if rtl:
+                return self.real_time_loss_lst
+            else:
+                return self.time_loss_lst
+
         if len(self.time_loss_lst) == 0 or not ((t, loss) == self.time_loss_lst[-1]):
             self.time_loss_lst.append((t, loss))
-        return self.time_loss_lst
+        self.real_time_loss_lst.append((time.time() - self.start_time, real_time_loss))
+        if rtl:
+            return self.real_time_loss_lst
+        else:
+            return self.time_loss_lst
 
     def run(self):
         self.define_config(self.ps_ip_public)

@@ -40,19 +40,22 @@ class GridSearch:
                 machines=machines)
 
 
-    # TODO: Add some sort of optional argument checking
     # User must either specify param_dict_lst, or hyper_vars, hyper_params, and param_base
     def set_task_parameters(self, task, param_base=None, hyper_vars=[], hyper_params=[], machines=[]):
         possibilities = list(itertools.product(*hyper_params))
         base_port = 1337
         print(possibilities)
         index = 0
+        num_machines = len(machines)
         for p in possibilities:
             configuration = zip(hyper_vars, p)
             modified_config = param_base.copy()
             for var_name, var_value in configuration:
                 modified_config[var_name] = var_value
             modified_config['ps_ip_port'] = base_port
+            modified_config['ps_ip_public'] = machines[index][0]
+            modified_config['ps_ip_private'] = machines[index][1]
+            index = (index + 1) % num_machines
             base_port += 2
             c = task(**modified_config)
             self.cirrus_objs.append(c)
@@ -83,14 +86,13 @@ class GridSearch:
     def get_num_lambdas(self):
         return sum([c.get_num_lambdas(fetch=False) for c in self.cirrus_objs])
 
-    # TODO: replace get_updates_per_second, etc as a call to some general function in core.py
     def get_xs_for(self, i, metric="LOSS"):
         if metric == "LOSS":
             lst = self.loss_lst[i]
         elif metric == "UPS":
             lst = self.cirrus_objs[i].get_updates_per_second(fetch=False)
-        elif metric == "CPU":
-            raise Exception("Cost Per Update is work in progress")
+        elif metric == "CPS":
+            lst = self.cirrus_objs[i].get_cost_per_second()
         else:
             raise Exception('Metric not available')
         return [item[0] for item in lst]
@@ -108,7 +110,7 @@ class GridSearch:
         elif metric == "UPS":
             lst = self.cirrus_objs[i].get_updates_per_second(fetch=False)
         elif metric == "CPS":
-            lst = self.cirrus_objs[i].get_cost_per_second(fetch=False)
+            lst = self.cirrus_objs[i].get_cost_per_second()
         else:
             raise Exception('Metric not available')
         return [item[1] for item in lst]
@@ -119,6 +121,7 @@ class GridSearch:
             logging.info("Custodian number %d starting..." % thread_id)
             start_time = time.time()
 
+            time.sleep(5)  # HACK: Sleep for 5 seconds to wait for PS to start
             while True:
                 cirrus_obj = cirrus_objs[index]
 
@@ -137,10 +140,11 @@ class GridSearch:
         # Dictionary of commands per machine
         command_dict = {}
         for machine in self.machines:
-            command_dict[machine] = []
+            command_dict[machine[0]] = []
 
         for c in self.cirrus_objs:
             c.get_command(command_dict)
+
 
         command_dict_to_file(command_dict)
 
@@ -152,7 +156,7 @@ class GridSearch:
                     return
 
                 sh_file = "machine_%d.sh" % thread_id
-                ubuntu_machine = "ubuntu@%s" % self.machines[thread_id]
+                ubuntu_machine = "ubuntu@%s" % self.machines[thread_id][0]
 
                 cmd = "scp %s %s:~/" % (sh_file, ubuntu_machine)
                 os.system(cmd)
@@ -169,7 +173,7 @@ class GridSearch:
         [p.join() for p in p_lst]
 
         for i in range(self.num_jobs):
-            p = threading.Thread(target=custodian, args=(self.cirrus_objs, i, self.num_jobs, self.infos))
+            p = threading.Thread(target=custodian, args=(self.cirrus_objs, i, self.num_jobs))
             p.start()
 
     def get_number_experiments(self):

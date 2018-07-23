@@ -34,7 +34,7 @@ class CollaborativeFilteringTask(BaseTask):
         return config
 
 
-# TODO: Is this really nessecary?
+# XXX: Is this really nessecary?
 def CollaborativeFiltering(
             n_workers,
             n_ps,

@@ -7,6 +7,8 @@ GET_LAST_TIME_ERROR = '\x0B\x00\x00\x00'
 KILL_SIGNAL = "\x0C\x00\x00\x00"
 
 
+# TODO: There's something in the exceptions that hogs a connection spot on PS
+
 def get_num_lambdas(ip="127.0.0.1", port=1337):
     try:
         clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -15,8 +17,10 @@ def get_num_lambdas(ip="127.0.0.1", port=1337):
         clientsocket.settimeout(3)
         s = clientsocket.recv(32)
         return struct.unpack("I", s)[0] - 1   # Subtract 1, as we don't count the clientsocket as a connection
-    except:
-        return -1
+    except Exception, e:
+        print("get_num_lambdas failed", str(e))
+        clientsocket.close()
+        return 0
 
 
 def get_last_time_error(ip="127.0.0.1", port=1338):
@@ -27,8 +31,8 @@ def get_last_time_error(ip="127.0.0.1", port=1338):
         s = clientsocket.recv(192)
         return struct.unpack("ddd", s)
     except Exception, e:
-        print(str(e))
-        return -1, -1, -1
+        print("get_last_time_error failed", str(e))
+        return None
 
 
 def get_num_updates(ip="127.0.0.1", port=1337):
@@ -39,8 +43,10 @@ def get_num_updates(ip="127.0.0.1", port=1337):
         clientsocket.settimeout(3)
         s = clientsocket.recv(32)
         return struct.unpack("I", s)[0]
-    except:
-        return -1
+    except Exception, e:
+        print("get_num_updates failed", str(e))
+        clientsocket.close()
+        return None
 
 
 def send_kill_signal(ip="127.0.0.1", port=1337):
@@ -49,5 +55,7 @@ def send_kill_signal(ip="127.0.0.1", port=1337):
         clientsocket.connect((ip, port))
         clientsocket.send(KILL_SIGNAL)
         return True
-    except:
+    except Exception, e:
+        print("send_kill_signal failed", str(e))
+        clientsocket.close()
         return False

@@ -33,7 +33,9 @@ def div_graph(name):
             id='graph-type',
             options=[
                 {'label': 'Loss vs. Time', 'value': 'LOSS'},
-                {'label': 'Updates/Second', 'value': 'UPS'}],
+                {'label': 'Updates/Second', 'value': 'UPS'},
+                {'label': 'Cost/Second', 'value': 'CPS'}
+            ],
             value='LOSS'
         ),
 

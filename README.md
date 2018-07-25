@@ -24,7 +24,7 @@ In the Amazon AMI please do:
 Building
 =========
 
-    $ ./boostrap.sh
+    $ ./bootstrap.sh
     $ make -j 10
 
 

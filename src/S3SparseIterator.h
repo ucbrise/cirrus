@@ -2,6 +2,7 @@
 #define _S3_SPARSEITERATOR_H_
 
 #include "S3.h"
+#include "S3Client.h"
 #include "Configuration.h"
 #include "config.h"
 
@@ -41,7 +42,7 @@ class S3SparseIterator {
 
   Configuration conf;
 
-  std::shared_ptr<Aws::S3::S3Client> s3_client;
+  std::shared_ptr<S3Client> s3_client;
 
   uint64_t cur;
   std::list<std::shared_ptr<FEATURE_TYPE>> ring;

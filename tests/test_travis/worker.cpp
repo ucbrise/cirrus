@@ -30,6 +30,7 @@ int main() {
   SparseLRModel model(1 << config.get_model_bits());
   std::unique_ptr<PSSparseServerInterface> psi =
       std::make_unique<PSSparseServerInterface>("127.0.0.1", 1337);
+  psi->connect();
   int version = 0;
   while (1) {
     SparseDataset minibatch = train_dataset.random_sample(20);

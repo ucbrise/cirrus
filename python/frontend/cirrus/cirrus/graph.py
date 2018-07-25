@@ -116,11 +116,6 @@ def get_mem_usage():
     global process
     return process.memory_info().rss / 1000000
 
-def test():
-    r = lambda: random.randint(0,255)
-    return 'rgb(%d, %d, %d)' % (r(),r(),r())
-
-
 def get_traces(num, metric="LOSS"):
     trace_lst = []
     if num == 0:

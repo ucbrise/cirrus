@@ -62,6 +62,7 @@ class GridSearch:
             self.loss_lst.append({})
             self.param_lst.append(modified_config)
 
+    # Fetches custom metadata from experiment i
     def get_info_for(self, i):
         string = ""
         for param_name in self.hyper_vars:
@@ -85,6 +86,7 @@ class GridSearch:
     def get_num_lambdas(self):
         return sum([c.get_num_lambdas(fetch=False) for c in self.cirrus_objs])
 
+    # Gets x-axis values of specified metric from experiment i 
     def get_xs_for(self, i, metric="LOSS"):
         if metric == "LOSS":
             lst = self.loss_lst[i]
@@ -96,6 +98,7 @@ class GridSearch:
             raise Exception('Metric not available')
         return [item[0] for item in lst]
 
+    # Helper method that collapses a list of commands into a single one
     def get_total_command(self):
         cmd_lst = []
         for c in self.cirrus_objs:
@@ -115,6 +118,8 @@ class GridSearch:
         return [item[1] for item in lst]
 
     def start_queue_threads(self):
+
+        # Function that checks each experiment to restore lambdas, grab metrics
         def custodian(cirrus_objs, thread_id, num_jobs):
             index = thread_id
             logging.info("Custodian number %d starting..." % thread_id)
@@ -144,13 +149,17 @@ class GridSearch:
         for machine in self.machines:
             command_dict[machine[0]] = []
 
+        # Grab commands each machine needs to run
         for c in self.cirrus_objs:
             c.get_command(command_dict)
 
+        # Write those commands into bash files
         command_dict_to_file(command_dict)
 
+        # Number of threads
         copy_threads = min(len(self.machines), self.num_jobs)
 
+        # Copies bash files to machines and starts experiment
         def copy_and_run(thread_id):
             while True:
                 if thread_id >= len(self.machines):
@@ -174,6 +183,7 @@ class GridSearch:
 
         [p.join() for p in p_lst]
 
+        # Start custodian threads
         for i in range(self.num_jobs):
             p = threading.Thread(target=custodian, args=(self.cirrus_objs, i, self.num_jobs))
             p.start()
@@ -184,15 +194,8 @@ class GridSearch:
     def set_threads(self, n):
         self.num_jobs = n
 
-    def set_existing_machines(self):
-        pass
 
-    def run_cirrus(self, index):
-        assert(0 <= index < len(self.cirrus_objs))
-        cirrus_obj = self.cirrus_objs[index]
-        self.infos[index]['start_time'] = time.time()
-        cirrus_obj.run_cirrus()
-
+    # Start threads to maintain all experiments
     def run(self, UI=False):
         self.start_queue_threads()
 
@@ -204,6 +207,7 @@ class GridSearch:
             self.ui_thread = threading.Thread(target=ui_func, args = (self, ))
             self.ui_thread.start()
 
+    # Stop all experiments
     def kill_all(self):
         for cirrus_ob in self.cirrus_objs:
             cirrus_ob.kill()

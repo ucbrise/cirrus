@@ -10,8 +10,7 @@ setup(
     version='0.1dev',
     description='Python library for Cirrus',
     author="João Carreira",
-    author_email='joao [at] berkeley [dot] edu',
-    # NOTE: Email on your berkeley page was like this, not sure if you're afraid of bots parsing your github
+    author_email='joao.berkeley.edu',
     url='https://github.com/jcarreira/cirrus',
     packages=find_packages(exclude=('tests', 'docs')),
     license=open('LICENSE'),

@@ -12,6 +12,8 @@ lambda_client = boto3.client('lambda', 'us-west-2')
 lambda_name = "testfunc1"
 
 
+# Code shared by all Cirrus experiments
+# Contains all data for a single experiment
 class BaseTask(object):
     __metaclass__ = ABCMeta
 

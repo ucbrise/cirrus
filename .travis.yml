@@ -23,7 +23,7 @@ script:
    - export CXX=/usr/bin/g++-6
    - gcc --version
    - g++ --version
-   - make -j 10
+   - make
    - for i in "./tests/test_travis/test.sh & sleep 1" "./tests/test_travis/error"; do eval ${i}; done
 
 env:

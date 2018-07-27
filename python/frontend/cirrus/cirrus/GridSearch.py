@@ -13,7 +13,15 @@ class GridSearch:
 
 
     # TODO: Add some sort of optional argument checking
-    def __init__(self, task=None, param_base=None, hyper_vars=[], hyper_params=[], machines=[], num_jobs=1, timeout=-1):
+    def __init__(self,
+                 task=None,
+                 param_base=None,
+                 hyper_vars=[],
+                 hyper_params=[],
+                 machines=[],
+                 num_jobs=1,
+                 timeout=-1,
+                 ):
 
         # Private Variables
         self.cirrus_objs = [] # Stores each singular experiment
@@ -38,6 +46,8 @@ class GridSearch:
                 hyper_vars=hyper_vars,
                 hyper_params=hyper_params,
                 machines=machines)
+
+
 
 
     # User must either specify param_dict_lst, or hyper_vars, hyper_params, and param_base
@@ -128,15 +138,13 @@ class GridSearch:
                 loss = cirrus_obj.get_time_loss()
                 self.loss_lst[index] = loss
 
-                print("Thread", thread_id, "exp", index, "loss", self.loss_lst[index])
+                logging.debug("Thread", thread_id, "exp", index, "loss", self.loss_lst[index])
 
                 index += num_jobs
                 if index >= len(cirrus_objs):
                     index = thread_id
 
-                    # Dampener to prevent too many calls at once
-                    if time.time() - start_time < 1:
-                        time.sleep(1 - time.time() + start_time)
+                    time.sleep(0.5)
                     start_time = time.time()
 
         # Dictionary of commands per machine
@@ -160,7 +168,6 @@ class GridSearch:
                 ubuntu_machine = "ubuntu@%s" % self.machines[thread_id][0]
 
                 cmd = "scp %s %s:~/" % (sh_file, ubuntu_machine)
-                print cmd
                 os.system(cmd)
                 cmd = 'ssh %s "killall parameter_server; chmod +x %s; ./%s &"' % (ubuntu_machine, sh_file, sh_file)
                 os.system(cmd)

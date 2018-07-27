@@ -94,10 +94,6 @@ class BaseTask(object):
         return string
 
     def get_cost_per_second(self):
-        
-        elapsed = time.time() - self.start_time
-        cps = self.cost_model.get_cost_per_second()
-        self.time_cps_lst.append((time.time() - self.start_time, cps))
         return self.time_cps_lst
 
     def get_num_lambdas(self, fetch=True):
@@ -109,7 +105,7 @@ class BaseTask(object):
                 self.last_num_lambdas = out
             return self.last_num_lambdas
         else:
-            return self.num_lambdas
+            return self.last_num_lambdas
 
     def get_updates_per_second(self, fetch=True):
         if self.is_dead():
@@ -118,6 +114,11 @@ class BaseTask(object):
             t = time.time() - self.start_time
             ups = messenger.get_num_updates(self.ps_ip_public, self.ps_ip_port)
             self.time_ups_lst.append((t, ups))
+
+            cost_per_second = self.cost_model.get_cost(t)
+            if ups is not None and not (ups == 0):
+                self.time_cps_lst.append((t, cost_per_second / ups))
+
             return self.time_ups_lst
         else:
             return self.time_ups_lst
@@ -128,7 +129,6 @@ class BaseTask(object):
 
         num_lambdas = self.get_num_lambdas()
         self.get_updates_per_second()
-        self.get_cost_per_second()
         num_task = 3
 
         if num_lambdas == None:
@@ -150,7 +150,7 @@ class BaseTask(object):
                     print "client.invoke exception caught"
                     print str(e)
 
-    def get_time_loss(self, rtl=False):
+    def get_time_loss(self, rtl=True):
 
         if self.is_dead():
             if rtl:
@@ -207,7 +207,7 @@ class BaseTask(object):
 
     def launch_ps(self, command_dict=None):
         cmd = 'nohup ./parameter_server --config config_%d.txt --nworkers %d --rank 1 --ps_port %d &> ps_out_%d & ' % (
-            self.ps_ip_port, self.n_workers * 2, self.ps_ip_port, self.ps_ip_port)
+            self.ps_ip_port, self.n_workers * 100, self.ps_ip_port, self.ps_ip_port)
         if command_dict is not None:
             command_dict[self.ps_ip_public].append(cmd)
         else:

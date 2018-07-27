@@ -66,7 +66,7 @@ void ErrorSparseTask::error_response() {
 
     if (operation == GET_LAST_TIME_ERROR) {
       double time_error[3] = {last_time, last_error, curr_error};
-
+      std::cout << "Current error: " << curr_error << std::endl;
       ret = sendto(fd, time_error, 3 * sizeof(double), 0,
                    (struct sockaddr*) &remaddr, addrlen);
       if (ret < 0) {
@@ -164,10 +164,11 @@ void ErrorSparseTask::run(const Configuration& config) {
         total_num_features += ds.num_features();
         start_index += config.get_minibatch_size();
         if (config.get_model_type() == Configuration::LOGISTICREGRESSION) {
-          curr_error = (total_loss / total_num_features);
+          curr_error = (total_loss / total_num_samples);
+          std::cout << "Measured: " << curr_error << std::endl;
         } else if (config.get_model_type() ==
                    Configuration::COLLABORATIVE_FILTERING) {
-          curr_error = std::sqrt(total_loss / total_num_features);
+          curr_error = std::sqrt(total_loss / total_num_samples);
         }
       }
 
@@ -180,7 +181,7 @@ void ErrorSparseTask::run(const Configuration& config) {
                   << " time(us): " << get_time_us()
                   << " time from start (sec): " << last_time << std::endl;
       } else if (config.get_model_type() == Configuration::COLLABORATIVE_FILTERING) {
-        last_error = std::sqrt(total_loss / total_num_features);
+        last_error = std::sqrt(total_loss / total_num_samples);
         std::cout << "[ERROR_TASK] RMSE (Total): " << last_error
                   << " time(us): " << get_time_us()
                   << " time from start (sec): " << last_time << std::endl;

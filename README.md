@@ -22,6 +22,7 @@ In the Amazon AMI please do:
     $ sudo yum install zlib-static.x86_64
 
 In Ubuntu please do:
+
     $ sudo apt-get install build-essential cmake automake zlib1g-dev libssl-dev libcurl4-nss-dev bison
 
 Building

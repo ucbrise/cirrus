@@ -150,7 +150,7 @@ class BaseTask(object):
                     print "client.invoke exception caught"
                     print str(e)
 
-    def get_time_loss(self, rtl=True):
+    def get_time_loss(self, rtl=False):
 
         if self.is_dead():
             if rtl:

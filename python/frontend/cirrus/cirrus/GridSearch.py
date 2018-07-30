@@ -62,7 +62,8 @@ class GridSearch:
 
         existing_lambdas = []
         for f in lc.list_functions()['Functions']:
-            print f['FunctionName']
+            pass
+            #print f['FunctionName']
 
         for p in possibilities:
             configuration = zip(hyper_vars, p)

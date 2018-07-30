@@ -193,6 +193,7 @@ def get_info_for(i):
 
 # Callbacks
 
+
 # Kill and Info logic
 @app.callback(
     Output('kill-all-button', 'children'),

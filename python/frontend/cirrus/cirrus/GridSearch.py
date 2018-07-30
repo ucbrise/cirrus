@@ -3,6 +3,7 @@ import logging
 import os
 import threading
 import time
+import boto3
 
 import graph
 from utils import *
@@ -56,6 +57,13 @@ class GridSearch:
         base_port = 1337
         index = 0
         num_machines = len(machines)
+
+        lc = boto3.client('lambda')
+
+        existing_lambdas = []
+        for f in lc.list_functions()['Functions']:
+            print f['FunctionName']
+
         for p in possibilities:
             configuration = zip(hyper_vars, p)
             modified_config = param_base.copy()
@@ -64,6 +72,9 @@ class GridSearch:
             modified_config['ps_ip_port'] = base_port
             modified_config['ps_ip_public'] = machines[index][0]
             modified_config['ps_ip_private'] = machines[index][1]
+
+
+
             index = (index + 1) % num_machines
             base_port += 2
             c = task(**modified_config)

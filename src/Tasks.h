@@ -65,7 +65,7 @@ class LogisticSparseTaskS3 : public MLTask {
         const std::vector<std::string> ps_ip) :
       MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
-          nworkers, worker_id, ""), psint(nullptr), ps_ips(ps_ip)
+          nworkers, worker_id, ""), ps_ips(ps_ip)
   {}
 
     /**
@@ -90,7 +90,6 @@ class LogisticSparseTaskS3 : public MLTask {
           model = psi->get_lr_sparse_model(ds, config);
         }
 
-      private:
         std::unique_ptr<MultiplePSSparseServerInterface> psi;
         std::vector<std::string> ps_ips;
     };
@@ -103,7 +102,6 @@ class LogisticSparseTaskS3 : public MLTask {
     std::mutex redis_lock;
   
     std::unique_ptr<SparseModelGet> sparse_model_get;
-    MultiplePSSparseServerInterface* psint;
 };
 
 class PSSparseTask : public MLTask {

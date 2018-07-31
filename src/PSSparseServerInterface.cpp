@@ -39,7 +39,7 @@ PSSparseServerInterface::PSSparseServerInterface(const std::string& ip, int port
         "Client could not connect to server."
         " Address: " + ip + " port: " + std::to_string(port));
   }
-  std::cout << "Connection established" << std::endl;
+  std::cout << "Connection established " << ip << " " << port << std::endl;
 }
 
 PSSparseServerInterface::~PSSparseServerInterface() {
@@ -168,6 +168,7 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace(const SparseDataset& d
 #endif
   // 1. Send operation
   uint32_t operation = GET_LR_SPARSE_MODEL;
+  std::cout << "Operation num: " << operation << std::endl;
   if (send_all(sock, &operation, sizeof(uint32_t)) == -1) {
     throw std::runtime_error("Error getting sparse lr model");
   }

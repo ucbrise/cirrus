@@ -138,9 +138,9 @@ void store_value(C*& data, T value) {
 template<typename T, typename C>
 void put_value(C*& data, T value, uint64_t offset_bytes) {
 
-  const char* ptr = reinterpret_cast<const char*>(p);
+  const char* ptr = reinterpret_cast<const char*>(data);
   ptr += offset_bytes;
-  data = (T*)
+  data = (T*)ptr;
 
   T* v_ptr = reinterpret_cast<T*>(data);
   *v_ptr = value;

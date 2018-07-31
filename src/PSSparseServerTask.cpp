@@ -193,6 +193,8 @@ bool PSSparseServerTask::process_get_lr_sparse_model(
   assert(to_send_size < 1024 * 1024);
   char data_to_send[1024 * 1024]; // 1MB
   char* data_to_send_ptr = data_to_send;
+  std::cout << "Receiving " << to_send_size << " bytes" << std::endl;
+
 #ifdef DEBUG
   std::cout << "Sending back: " << num_entries
     << " weights from model. Size: " << to_send_size
@@ -274,6 +276,7 @@ void PSSparseServerTask::gradient_f() {
 
     uint32_t operation = 0;
     if (read_all(sock, &operation, sizeof(uint32_t)) == 0) {
+      std::cout << "Processing request: " << operation << std::endl;
       if (close(req.poll_fd.fd) != 0) {
         std::cout << "Error closing socket. errno: " << errno << std::endl;
       }
@@ -285,6 +288,7 @@ void PSSparseServerTask::gradient_f() {
     }
 
     req.req_id = operation;
+    std::cout << "Processing request: " << req.req_id << std::endl;
     if (operation == SEND_LR_GRADIENT || operation == SEND_MF_GRADIENT ||
         operation == GET_LR_SPARSE_MODEL || operation == GET_MF_SPARSE_MODEL) {
       uint32_t incoming_size = 0;
@@ -302,9 +306,6 @@ void PSSparseServerTask::gradient_f() {
 
     }
 
-#ifdef DEBUG
-    std::cout << "Processing request: " << req.req_id << std::endl;
-#endif
 
     if (req.req_id == SEND_LR_GRADIENT) {
       if (!process_send_lr_gradient(req, thread_buffer)) {
@@ -397,10 +398,8 @@ bool PSSparseServerTask::process(struct pollfd& poll_fd, int thread_id) {
   //if (read_all(sock, &operation, sizeof(uint32_t)) == 0) { // read operation
   //  return false;
   //}
-#ifdef DEBUG 
   std::cout << "Operation: " << operation << " - "
       << operation_to_name[operation] << std::endl;
-#endif
 
   uint32_t incoming_size = 0;
 #ifdef DEBUG 

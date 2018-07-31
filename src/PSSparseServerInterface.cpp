@@ -39,6 +39,7 @@ PSSparseServerInterface::PSSparseServerInterface(const std::string& ip, int port
         "Client could not connect to server."
         " Address: " + ip + " port: " + std::to_string(port));
   }
+  std::cout << "Connection established" << std::endl;
 }
 
 PSSparseServerInterface::~PSSparseServerInterface() {
@@ -80,6 +81,62 @@ int PSSparseServerInterface::send_wrapper(uint32_t num, std::size_t size) {
 
 int PSSparseServerInterface::send_all_wrapper(char* data, uint32_t size) {
   return send_all(sock, data, size);
+}
+
+void PSSparseServerInterface::get_lr_sparse_model_inplace_sharded(SparseLRModel& lr_model,
+    const Configuration& config, char* msg_begin, uint32_t num_weights, int server_id, int num_ps) {
+#ifdef DEBUG
+  std::cout << "Getting LR sparse model inplace sharded" << std::endl;
+#endif
+
+  char* msg = msg_begin;
+  store_value<uint32_t>(msg, num_weights); // store correct value here
+#ifdef DEBUG
+  assert(std::distance(msg_begin, msg) < MAX_MSG_SIZE);
+  std::cout << std::endl;
+#endif
+
+#ifdef DEBUG
+  std::cout << "Sending operation and size" << std::endl;
+#endif
+  // 1. Send operation
+  uint32_t operation = GET_LR_SPARSE_MODEL;
+  if (send(sock, &operation, sizeof(uint32_t), 0) == -1) {
+    throw std::runtime_error("Error getting sparse lr model");
+  }
+  // 2. Send msg size
+  uint32_t msg_size = sizeof(uint32_t) + sizeof(uint32_t) * num_weights;
+#ifdef DEBUG
+  std::cout << "msg_size: " << msg_size
+    << " num_weights: " << num_weights
+    << std::endl;
+#endif
+  send(sock, &msg_size, sizeof(uint32_t), 0);
+  // 3. Send num_weights + weights
+  if (send_all(sock, msg_begin, msg_size) == -1) {
+    throw std::runtime_error("Error getting sparse lr model");
+  }
+  
+  //4. receive weights from PS
+  uint32_t to_receive_size = sizeof(FEATURE_TYPE) * num_weights;
+  //std::cout << "Model sent. Receiving: " << num_weights << " weights" << std::endl;
+
+#ifdef DEBUG
+  std::cout << "Receiving " << to_receive_size << " bytes" << std::endl;
+#endif
+  std::cout << "Receiving " << to_receive_size << " bytes" << std::endl;
+  char* buffer = new char[to_receive_size];
+  read_all(sock, buffer, to_receive_size); //XXX this takes 2ms once every 5 runs
+
+#ifdef DEBUG
+  std::cout << "Loading model from memory" << std::endl;
+#endif
+  // build a truly sparse model and return
+  // XXX this copy could be avoided
+  lr_model.loadSerializedSparse((FEATURE_TYPE*)buffer, (uint32_t*)msg, num_weights, config, server_id, num_ps);
+  
+  delete[] msg_begin;
+  delete[] buffer;
 }
 
 void PSSparseServerInterface::get_lr_sparse_model_inplace(const SparseDataset& ds, SparseLRModel& lr_model,

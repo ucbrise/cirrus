@@ -21,13 +21,13 @@ class MultiplePSSparseServerInterface {
  
  public:
   MultiplePSSparseServerInterface(std::vector<std::string> param_ips);
-  void send_gradient(const cirrus::LRSparseGradient*);
-  std::unique_ptr<cirrus::CirrusModel> get_full_model();
-  cirrus::SparseLRModel get_lr_sparse_model(const cirrus::SparseDataset& ds, const cirrus::Configuration& config);
+  void send_gradient(const LRSparseGradient& gradient);
+  std::unique_ptr<CirrusModel> get_full_model();
+  SparseLRModel get_lr_sparse_model(const SparseDataset& ds, const Configuration& config);
 
 
  private:
-  std::vector<cirrus::PSSparseServerInterface> psints;
+  std::vector<PSSparseServerInterface> psints;
 
 
 };

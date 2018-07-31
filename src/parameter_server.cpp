@@ -52,7 +52,7 @@ void run_tasks(int rank, int nworkers,
             == cirrus::Configuration::COLLABORATIVE_FILTERING) {
       cirrus::MFNetflixTask lt(0,
           batch_size, samples_per_batch, features_per_sample,
-          nworkers, rank, ps_ips);
+          nworkers, rank, ps_ips[0]);
       lt.run(config, rank - WORKERS_BASE);
     } else {
       exit(-1);
@@ -61,23 +61,28 @@ void run_tasks(int rank, int nworkers,
     * SPARSE tasks
     */
   } else if (rank == ERROR_SPARSE_TASK_RANK) {
-    cirrus::ErrorSparseTask et((1 << config.get_model_bits()),
+    /*cirrus::ErrorSparseTask et((1 << config.get_model_bits()),
         batch_size, samples_per_batch, features_per_sample,
         nworkers, rank, ps_ip);
     et.run(config);
     cirrus::sleep_forever();
+    */
   } else if (rank == LOADING_SPARSE_TASK_RANK) {
+    
     if (config.get_model_type() == cirrus::Configuration::LOGISTICREGRESSION) {
-      cirrus::LoadingSparseTaskS3 lt((1 << config.get_model_bits()),
+    /*  cirrus::LoadingSparseTaskS3 lt((1 << config.get_model_bits()),
           batch_size, samples_per_batch, features_per_sample,
           nworkers, rank, ps_ip);
       lt.run(config);
+      */
     } else if (config.get_model_type() ==
             cirrus::Configuration::COLLABORATIVE_FILTERING) {
+      /*
       cirrus::LoadingNetflixTask lt(0,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, rank, ps_ip);
       lt.run(config);
+      */
     } else {
       exit(-1);
     }
@@ -174,7 +179,7 @@ int main(int argc, char** argv) {
 
   // call the right task for this process
   std::cout << "Running task" << std::endl;
-  run_tasks(rank, nworkers, batch_size, config, FLAGS_ps_ip);
+  run_tasks(rank, nworkers, batch_size, config, param_ips);
 
   std::cout << "Test successful" << std::endl;
 

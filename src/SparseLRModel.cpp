@@ -356,14 +356,14 @@ void SparseLRModel::check() const {
 void SparseLRModel::loadSerializedSparse(const FEATURE_TYPE* weights,
     const uint32_t* weight_indices,
     uint64_t num_weights,
-    const Configuration& config) {
+    const Configuration& config, int server_id, int num_ps) {
   is_sparse_ = true;
   
   assert(num_weights > 0 && num_weights < 10000000);
 
   weights_sparse_.reserve((1 << config.get_model_bits()));
   for (uint64_t i = 0; i < num_weights; ++i) {
-    uint32_t index = load_value<uint32_t>(weight_indices);
+    uint32_t index = load_value<uint32_t>(weight_indices) * num_ps + server_id;
     FEATURE_TYPE value = load_value<FEATURE_TYPE>(weights);
     weights_sparse_[index] = value;
   }

@@ -8,6 +8,7 @@
 #include "MFModel.h"
 #include "SparseLRModel.h"
 #include "PSSparseServerInterface.h"
+#include "MultiplePSSparseServerInterface.h"
 #include "S3SparseIterator.h"
 
 #include <string>
@@ -61,36 +62,37 @@ class LogisticSparseTaskS3 : public MLTask {
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
         uint64_t worker_id,
-        const std::string& ps_ip) :
+        const std::vector<std::string> ps_ip) :
       MLTask(model_size,
           batch_size, samples_per_batch, features_per_sample,
-          nworkers, worker_id, ps_ip), psint(nullptr)
+          nworkers, worker_id, ""), psint(nullptr), ps_ips(ps_ip)
   {}
 
     /**
      * Worker here is a value 0..nworkers - 1
      */
     void run(const Configuration& config, int worker);
+    std::vector<std::string> ps_ips;
+    
 
   private:
     class SparseModelGet {
       public:
-        SparseModelGet(const std::string& ps_ip, int ps_port) :
-          ps_ip(ps_ip), ps_port(ps_port) {
-            psi = std::make_unique<PSSparseServerInterface>(ps_ip, ps_port);
+        SparseModelGet(std::vector<std::string> ps_ips) :
+          ps_ips(ps_ips) {
+            psi = std::make_unique<MultiplePSSparseServerInterface>(ps_ips);
           }
 
         SparseLRModel get_new_model(const SparseDataset& ds, const Configuration& config) {
           return std::move(psi->get_lr_sparse_model(ds, config));
         }
         void get_new_model_inplace(const SparseDataset& ds, SparseLRModel& model, const Configuration& config) {
-          psi->get_lr_sparse_model_inplace(ds, model, config);
+          model = psi->get_lr_sparse_model(ds, config);
         }
 
       private:
-        std::unique_ptr<PSSparseServerInterface> psi;
-        std::string ps_ip;
-        int ps_port;
+        std::unique_ptr<MultiplePSSparseServerInterface> psi;
+        std::vector<std::string> ps_ips;
     };
 
     bool get_dataset_minibatch(
@@ -101,7 +103,7 @@ class LogisticSparseTaskS3 : public MLTask {
     std::mutex redis_lock;
   
     std::unique_ptr<SparseModelGet> sparse_model_get;
-    PSSparseServerInterface* psint;
+    MultiplePSSparseServerInterface* psint;
 };
 
 class PSSparseTask : public MLTask {

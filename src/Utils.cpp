@@ -121,20 +121,14 @@ int64_t send_all(int sock, void* data, size_t len) {
 }
 
 ssize_t read_all(int sock, void* data, size_t len) {
-#ifdef DEBUG
   std::cout << "read_all len: " << len << std::endl;
-#endif
   uint64_t bytes_read = 0;
 
   while (bytes_read < len) {
-#ifdef DEBUG
     std::cout << "calling read().." << std::endl;
-#endif
     int64_t retval = read(sock, reinterpret_cast<char*>(data) + bytes_read,
         len - bytes_read);
-#ifdef DEBUG
     std::cout << "read_all told to read: " << (len - bytes_read) << " retval: " << retval << std::endl;
-#endif
 
     if (retval == -1) {
       std::string error_str = "Error reading from client. errno: "
@@ -146,9 +140,7 @@ ssize_t read_all(int sock, void* data, size_t len) {
     }
     bytes_read += retval;
   }
-#ifdef DEBUG
   std::cout << "read_all done" << std::endl;
-#endif
   return bytes_read;
 }
 

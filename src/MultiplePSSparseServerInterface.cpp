@@ -14,7 +14,7 @@ MultiplePSSparseServerInterface::MultiplePSSparseServerInterface(std::vector<std
   for (int i = 0; i < param_ips.size(); i++) { // replace 2 with num_servers
 
     // FIXME: need to un-hardcode this port number
-    psints.push_back(PSSparseServerInterface(param_ips[i], 1337 + i));
+    psints.push_back(PSSparseServerInterface("127.0.0.1", 1337 + i*2));
   }
 }
 
@@ -62,10 +62,10 @@ SparseLRModel MultiplePSSparseServerInterface::get_lr_sparse_model(const SparseD
   //std::unique_ptr<CirrusModel> model = std::make_unique<SparseLRModel>(0);
   // we don't know the number of weights to start with
   int num_servers = psints.size();
-  char** msg_lst = new char*[this->num_servers];
-  char** msg_begin_lst = new char*[this->num_servers];
-  uint32_t* num_weights_lst = new uint32_t[this->num_servers];
-  for (int i = 0; i < this->num_servers; i++) {
+  char** msg_lst = new char*[num_servers];
+  char** msg_begin_lst = new char*[num_servers];
+  uint32_t* num_weights_lst = new uint32_t[num_servers];
+  for (int i = 0; i < num_servers; i++) {
     msg_lst[i] = new char[MAX_MSG_SIZE];
     msg_begin_lst[i] = msg_lst[i];
     num_weights_lst[i] = 0;
@@ -77,7 +77,7 @@ SparseLRModel MultiplePSSparseServerInterface::get_lr_sparse_model(const SparseD
   // XXX consider optimizing this
   for (const auto& sample : ds.data_) {
     for (const auto& w : sample) {
-      int server_index = w.first % this->num_servers;
+      int server_index = w.first % num_servers;
       int data_index = (w.first - server_index) / num_servers;
       //std::cout << "[converted] " << w.first << " to " << data_index << std::endl;
       store_value<uint32_t>(msg_lst[server_index], data_index);
@@ -86,14 +86,13 @@ SparseLRModel MultiplePSSparseServerInterface::get_lr_sparse_model(const SparseD
   }
 
   // we get the model subset with just the right amount of weights
-  for (int i = 0; i < NUM_PS; i++) {
-    psint[i]->get_lr_sparse_model_inplace_sharded(model, config, msg_begin_lst[i], num_weights_lst[i], i);
+  for (int i = 0; i < num_servers; i++) {
+    psints[i].get_lr_sparse_model_inplace_sharded(model, config, msg_begin_lst[i], num_weights_lst[i], i, num_servers);
   }
 
-  for (int i = 0; i < this->num_servers; i++) {
+  for (int i = 0; i < num_servers; i++) {
     delete[] msg_begin_lst[i];
   }
-
 
   delete[] msg_begin_lst;
   delete[] msg_lst;
@@ -107,11 +106,12 @@ std::unique_ptr<CirrusModel> MultiplePSSparseServerInterface::get_full_model() {
   //SparseLRModel model(0);
   std::unique_ptr<CirrusModel> model = std::make_unique<SparseLRModel>(0);
   // placeholder for now NOT CORRECT
-  for (int i = 0; i < NUM_PS; i++) {
-    model = psint[i]->get_full_model(false, i, std::move(model));
+  for (int i = 0; i < psints.size(); i++) {
+    //model = psints[i].get_full_model(false, i, std::move(model));
 
   }
   return model;
+
 }
 
 

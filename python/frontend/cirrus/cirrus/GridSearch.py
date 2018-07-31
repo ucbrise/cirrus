@@ -10,6 +10,11 @@ from utils import *
 
 logging.basicConfig(filename="cirrusbundle.log", level=logging.WARNING)
 
+# NOTE: This is a temporary measure. Ideally this zip would be on the cloud.
+# Due to constant updates to bundle.zip, its more convienient to have it local
+
+bundle_zip_location="/home/camus/code/cirrus-1/python/frontend/cirrus/cirrus/bundle.zip"
+
 class GridSearch:
 
 
@@ -60,9 +65,10 @@ class GridSearch:
 
         lc = boto3.client('lambda')
 
-        existing_lambdas = []
-        for f in lc.list_functions()['Functions']:
-            existing_lambdas.append(f['FunctionName'])
+        
+        lambdas = get_all_lambdas()
+        
+        
 
         for p in possibilities:
             configuration = zip(hyper_vars, p)
@@ -80,10 +86,11 @@ class GridSearch:
             self.infos.append({'color': get_random_color()})
             self.loss_lst.append({})
             self.param_lst.append(modified_config)
-            lambda_name = "testfunct1_%d" % c.worker_size
-            if lambda_name not in existing_lambdas:
-                existing_lambdas.append(lambda_name)
-                create_lambda(size=c.worker_size)
+            lambda_name = "testfunc1_%d" % c.worker_size
+            if not lambda_exists(lambdas, lambda_name, c.worker_size, bundle_zip_location):
+                print lambda_name + "Does not exist"
+                lambdas.append({'FunctionName': lambda_name})
+                create_lambda(bundle_zip_location, size=c.worker_size)
 
     def get_info_for(self, i):
         string = ""

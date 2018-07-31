@@ -50,7 +50,7 @@ if __name__ == "__main__":
     gs = cirrus.GridSearch(task=cirrus.LogisticRegression,
                            param_base=basic_params,
                            hyper_vars=["learning_rate", "worker_size"],
-                           hyper_params=[learning_rates, [128, 246, 512]],
+                           hyper_params=[learning_rates, [256, 1000, 2000]],
                            machines=machines)
     gs.set_threads(10)
     gs.run(UI=True)

@@ -14,7 +14,9 @@ MultiplePSSparseServerInterface::MultiplePSSparseServerInterface(std::vector<std
   for (int i = 0; i < param_ips.size(); i++) { // replace 2 with num_servers
 
     // FIXME: need to un-hardcode this port number
-    psints.push_back(PSSparseServerInterface("127.0.0.1", 1337 + i*2));
+    std::cout << "Connecting to " << "127.0.0.1" << " " << 1337 + 2*i << std::endl;
+    auto ptr = new PSSparseServerInterface("127.0.0.1", 1337);
+    psints.push_back(ptr);
   }
 }
 
@@ -26,7 +28,7 @@ void MultiplePSSparseServerInterface::send_gradient(const LRSparseGradient& grad
 #endif
   int ret;
   for (auto psint : psints) {
-    ret = psint.send_wrapper(operation, sizeof(uint32_t));
+    ret = psint->send_wrapper(operation, sizeof(uint32_t));
     if (ret == -1)
       throw std::runtime_error("Error sending operation");
 
@@ -34,18 +36,18 @@ void MultiplePSSparseServerInterface::send_gradient(const LRSparseGradient& grad
 
   uint32_t size = gradient.getShardSerializedSize(num_ps);
   char data[size];
-
+  std::cout << "Size " << size << std::endl;
   auto starts_and_size = gradient.shard_serialize(data, num_ps);
 
   for (int i = 0; i < num_ps; i++) {
     auto psint = psints[i];
     auto sas = starts_and_size[i];
 
-    ret = psint.send_wrapper(std::get<1>(sas), sizeof(uint32_t));
+    ret = psint->send_wrapper(std::get<1>(sas), sizeof(uint32_t));
     if (ret == -1) {
       throw std::runtime_error("Error sending grad size");
     }
-    ret = psint.send_all_wrapper(data + std::get<0>(sas), std::get<1>(sas));
+    ret = psint->send_all_wrapper(data + std::get<0>(sas), std::get<1>(sas));
     if (ret == 0) {
       throw std::runtime_error("Error sending grad");
     }
@@ -68,6 +70,7 @@ SparseLRModel MultiplePSSparseServerInterface::get_lr_sparse_model(const SparseD
   for (int i = 0; i < num_servers; i++) {
     msg_lst[i] = new char[MAX_MSG_SIZE];
     msg_begin_lst[i] = msg_lst[i];
+    std::cout << "msg_begin_list[i] is " << i << " " << static_cast<void*>(msg_begin_lst[i]) << std::endl;
     num_weights_lst[i] = 0;
     store_value<uint32_t>(msg_lst[i], num_weights_lst[i]); // just make space for the number of weights
   }
@@ -87,12 +90,16 @@ SparseLRModel MultiplePSSparseServerInterface::get_lr_sparse_model(const SparseD
 
   // we get the model subset with just the right amount of weights
   for (int i = 0; i < num_servers; i++) {
-    psints[i].get_lr_sparse_model_inplace_sharded(model, config, msg_begin_lst[i], num_weights_lst[i], i, num_servers);
+    std::cout << "msg_begin_list[i] is " << i << " " << static_cast<void*>(msg_begin_lst[i]) << std::endl;
+    psints[i]->get_lr_sparse_model_inplace_sharded(model, config, msg_begin_lst[i], num_weights_lst[i], i, num_servers);
   }
 
+  /*
   for (int i = 0; i < num_servers; i++) {
+    std::cout << "msg_begin_list[i] is " << i << " " << static_cast<void*>(msg_begin_lst[i]) << std::endl;
     delete[] msg_begin_lst[i];
   }
+  */
 
   delete[] msg_begin_lst;
   delete[] msg_lst;

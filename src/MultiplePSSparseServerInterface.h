@@ -27,7 +27,7 @@ class MultiplePSSparseServerInterface {
 
 
  private:
-  std::vector<PSSparseServerInterface> psints;
+  std::vector<PSSparseServerInterface*> psints;
 
 
 };

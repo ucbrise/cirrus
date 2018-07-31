@@ -152,17 +152,8 @@ class ErrorSparseTask : public MLTask {
                    uint64_t nworkers,
                    uint64_t worker_id,
                    const std::string& ps_ip,
-                   uint64_t ps_port)
-       : MLTask(model_size,
-                batch_size,
-                samples_per_batch,
-                features_per_sample,
-                nworkers,
-                worker_id,
-                ps_ip,
-                ps_port) {
-     this->ps_port = ps_port;
-   }
+                   uint64_t ps_port);
+
    void run(const Configuration& config);
    void error_response();
 

@@ -52,7 +52,6 @@ class S3Iterator {
   uint64_t s3_rows;
   uint64_t s3_cols;
   uint64_t minibatch_rows;
-  uint64_t features_per_sample;
 
   std::string s3_bucket_name;
 

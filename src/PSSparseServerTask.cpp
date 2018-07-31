@@ -26,7 +26,9 @@ PSSparseServerTask::PSSparseServerTask(
     uint64_t ps_port) :
   MLTask(model_size,
       batch_size, samples_per_batch, features_per_sample,
-      nworkers, worker_id, ps_ip, ps_port) {
+      nworkers, worker_id, ps_ip, ps_port),
+  kill_signal(false),
+  main_thread(0) {
     std::cout << "PSSparseServerTask is built" << std::endl;
 
     std::atomic_init(&gradientUpdatesCount, 0UL);
@@ -47,7 +49,6 @@ PSSparseServerTask::PSSparseServerTask(
       thread_msg_buffer[i] =
           new char[THREAD_MSG_BUFFER_SIZE]; // per-thread buffer
     }
-    kill_signal = false;
 }
 
 std::shared_ptr<char> PSSparseServerTask::serialize_lr_model(
@@ -677,7 +678,7 @@ void PSSparseServerTask::run(const Configuration& config) {
 
   for (int i = 0; i < NUM_POLL_THREADS; i++) {
     assert(pipe(pipefds[i]) != -1);
-    curr_indexes[i] == 0;
+    curr_indexes[i] = 0;
     fdses[i].resize(max_fds);
   }
 

@@ -101,7 +101,10 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace_sharded(SparseLRModel&
 #endif
   // 1. Send operation
   uint32_t operation = GET_LR_SPARSE_MODEL;
-  if (send(sock, &operation, sizeof(uint32_t), 0) == -1) {
+  
+  std::cout << "Sending " << operation << std::endl;
+
+  if (send_all(sock, &operation, sizeof(uint32_t)) == -1) {
     throw std::runtime_error("Error getting sparse lr model");
   }
   // 2. Send msg size
@@ -111,7 +114,7 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace_sharded(SparseLRModel&
     << " num_weights: " << num_weights
     << std::endl;
 #endif
-  send(sock, &msg_size, sizeof(uint32_t), 0);
+  send_all(sock, &msg_size, sizeof(uint32_t));
   // 3. Send num_weights + weights
   if (send_all(sock, msg_begin, msg_size) == -1) {
     throw std::runtime_error("Error getting sparse lr model");

@@ -62,8 +62,7 @@ class GridSearch:
 
         existing_lambdas = []
         for f in lc.list_functions()['Functions']:
-            pass
-            #print f['FunctionName']
+            existing_lambdas.append(f['FunctionName'])
 
         for p in possibilities:
             configuration = zip(hyper_vars, p)
@@ -74,8 +73,6 @@ class GridSearch:
             modified_config['ps_ip_public'] = machines[index][0]
             modified_config['ps_ip_private'] = machines[index][1]
 
-
-
             index = (index + 1) % num_machines
             base_port += 2
             c = task(**modified_config)
@@ -83,6 +80,10 @@ class GridSearch:
             self.infos.append({'color': get_random_color()})
             self.loss_lst.append({})
             self.param_lst.append(modified_config)
+            lambda_name = "testfunct1_%d" % c.worker_size
+            if lambda_name not in existing_lambdas:
+                existing_lambdas.append(lambda_name)
+                create_lambda(size=c.worker_size)
 
     def get_info_for(self, i):
         string = ""

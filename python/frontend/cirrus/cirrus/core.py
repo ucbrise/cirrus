@@ -142,7 +142,7 @@ class BaseTask(object):
             for i in range(shortage):
                 try:
                     response = lambda_client.invoke(
-                        FunctionName=lambda_name,
+                        FunctionName="%s_%d" % (lambda_name, self.worker_size),
                         InvocationType='Event',
                         LogType='Tail',
                         Payload=payload)

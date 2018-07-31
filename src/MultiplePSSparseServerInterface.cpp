@@ -1,6 +1,7 @@
 #include <cassert>
 #include "PSSparseServerInterface.h"
 #include "MultiplePSSparseServerInterface.h"
+#include "Constants.h"
 
 #undef DEBUG
 
@@ -13,38 +14,44 @@ MultiplePSSparseServerInterface::MultiplePSSparseServerInterface(std::vector<std
   for (int i = 0; i < param_ips.size(); i++) { // replace 2 with num_servers
 
     // FIXME: need to un-hardcode this port number
-    psints.push_back(PSSparseServerInterface(param_ips[i], 1337));
+    psints.push_back(PSSparseServerInterface(param_ips[i], 1337 + i));
   }
 }
 
-void MultiplePSSparseServerInterface::send_gradient(const LRSparseGradient* gradient) {
-  int num_ps = psint.size();
+void MultiplePSSparseServerInterface::send_gradient(const LRSparseGradient& gradient) {
+  int num_ps = psints.size();
   uint32_t operation = SEND_LR_GRADIENT;
 #ifdef DEBUG
   std::cout << "Sending gradient" << std::endl;
 #endif
+  int ret;
   for (auto psint : psints) {
-    int ret = psint.send_wrapper(&operation, sizeof(uint32_t));
+    ret = psint.send_wrapper(operation, sizeof(uint32_t));
     if (ret == -1)
       throw std::runtime_error("Error sending operation");
+
   }
 
-  
-  uint32_t size = gradient.getSerializedSize();
-#ifdef DEBUG
-  std::cout << "Sending gradient with size: " << size << std::endl;
-#endif
-  ret = send(sock, &size, sizeof(uint32_t), 0);
-  if (ret == -1) {
-    throw std::runtime_error("Error sending grad size");
-  }
-  
+  uint32_t size = gradient.getShardSerializedSize(num_ps);
   char data[size];
-  gradient.serialize(data);
-  ret = send_all(sock, data, size);
-  if (ret == 0) {
-    throw std::runtime_error("Error sending grad");
+
+  auto starts_and_size = gradient.shard_serialize(data, num_ps);
+
+  for (int i = 0; i < num_ps; i++) {
+    auto psint = psints[i];
+    auto sas = starts_and_size[i];
+
+    ret = psint.send_wrapper(std::get<1>(sas), sizeof(uint32_t));
+    if (ret == -1) {
+      throw std::runtime_error("Error sending grad size");
+    }
+    ret = psint.send_all_wrapper(data + std::get<0>(sas), std::get<1>(sas));
+    if (ret == 0) {
+      throw std::runtime_error("Error sending grad");
+    }
+
   }
+
     
 }
 
@@ -54,6 +61,7 @@ SparseLRModel MultiplePSSparseServerInterface::get_lr_sparse_model(const SparseD
   SparseLRModel model(0);
   //std::unique_ptr<CirrusModel> model = std::make_unique<SparseLRModel>(0);
   // we don't know the number of weights to start with
+  int num_servers = psints.size();
   char** msg_lst = new char*[this->num_servers];
   char** msg_begin_lst = new char*[this->num_servers];
   uint32_t* num_weights_lst = new uint32_t[this->num_servers];

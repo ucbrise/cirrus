@@ -136,6 +136,17 @@ void store_value(C*& data, T value) {
 }
 
 template<typename T, typename C>
+void put_value(C*& data, T value, uint64_t offset_bytes) {
+
+  const char* ptr = reinterpret_cast<const char*>(p);
+  ptr += offset_bytes;
+  data = (T*)
+
+  T* v_ptr = reinterpret_cast<T*>(data);
+  *v_ptr = value;
+}
+
+template<typename T, typename C>
 T load_value(const C*& data) {
   const T* v_ptr = reinterpret_cast<const T*>(data);
   T ret = *v_ptr;

@@ -103,7 +103,7 @@ void InputReader::process_lines(
     thread_lines.pop_back();
     /*
      * We have the line, now split it into features
-     */ 
+     */
     assert(line.size() < MAX_STR_SIZE);
     strncpy(str, line.c_str(), MAX_STR_SIZE - 1);
     char* s = str;
@@ -204,15 +204,15 @@ InputReader::read_mnist_csv(const std::string& input_file,
     std::string line;
     char str[MAX_STR_SIZE + 1] = {0};
     while (fgets(str, MAX_STR_SIZE, fin) != NULL) {
-        char* s = str;
+      char* s = str;
 
-        std::vector<FEATURE_TYPE> sample;
-        while (char* l = strsep(&s, delimiter.c_str())) {
-            FEATURE_TYPE v = string_to<FEATURE_TYPE>(l);
-            sample.push_back(v);
-        }
+      std::vector<FEATURE_TYPE> sample;
+      while (char* l = strsep(&s, delimiter.c_str())) {
+        FEATURE_TYPE v = string_to<FEATURE_TYPE>(l);
+        sample.push_back(v);
+      }
 
-        samples.push_back(sample);
+      samples.push_back(sample);
     }
 
     fclose(fin);
@@ -536,7 +536,8 @@ void InputReader::parse_criteo_sparse_line(
 
   if (line.size() > MAX_STR_SIZE) {
     throw std::runtime_error(
-        "Criteo input line is too big: " + std::to_string(line.size()) + " " + std::to_string(MAX_STR_SIZE)) ;
+        "Criteo input line is too big: " + std::to_string(line.size()) + " " +
+        std::to_string(MAX_STR_SIZE));
   }
 
   strncpy(str, line.c_str(), MAX_STR_SIZE - 1);
@@ -835,7 +836,8 @@ void InputReader::parse_criteo_kaggle_sparse_line(
 
   if (line.size() > MAX_STR_SIZE) {
     throw std::runtime_error(
-        "Criteo input line is too big: " + std::to_string(line.size()) + " " + std::to_string(MAX_STR_SIZE)) ;
+        "Criteo input line is too big: " + std::to_string(line.size()) + " " +
+        std::to_string(MAX_STR_SIZE));
   }
 
   strncpy(str, line.c_str(), MAX_STR_SIZE - 1);

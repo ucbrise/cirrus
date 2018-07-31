@@ -18,20 +18,17 @@ SparseDataset::SparseDataset() {
 }
 
 SparseDataset::SparseDataset(
-    std::vector<std::vector<std::pair<int, FEATURE_TYPE>>>& samples) :
-    data_(samples) {
-}
+    std::vector<std::vector<std::pair<int, FEATURE_TYPE>>>& samples)
+    : data_(samples) {}
 
 SparseDataset::SparseDataset(
-    std::vector<std::vector<std::pair<int, FEATURE_TYPE>>>&& samples) :
-    data_(std::move(samples)) {
-}
+    std::vector<std::vector<std::pair<int, FEATURE_TYPE>>>&& samples)
+    : data_(std::move(samples)) {}
 
-SparseDataset::SparseDataset(std::vector<std::vector<std::pair<int, FEATURE_TYPE>>>&& samples,
-    std::vector<FEATURE_TYPE>&& labels) :
-    data_(std::move(samples)), labels_(std::move(labels)) {
-}
-
+SparseDataset::SparseDataset(
+    std::vector<std::vector<std::pair<int, FEATURE_TYPE>>>&& samples,
+    std::vector<FEATURE_TYPE>&& labels)
+    : data_(std::move(samples)), labels_(std::move(labels)) {}
 
 SparseDataset::SparseDataset(const char* data, uint64_t n_samples, bool has_labels) {
   //throw std::runtime_error("Is this used");

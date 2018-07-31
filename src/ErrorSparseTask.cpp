@@ -16,23 +16,23 @@
 #define ERROR_INTERVAL_USEC (100000)  // time between error checks
 
 namespace cirrus {
-   
+
 ErrorSparseTask::ErrorSparseTask(uint64_t model_size,
-                   uint64_t batch_size,
-                   uint64_t samples_per_batch,
-                   uint64_t features_per_sample,
-                   uint64_t nworkers,
-                   uint64_t worker_id,
-                   const std::string& ps_ip,
-                   uint64_t ps_port)
-       : MLTask(model_size,
-                batch_size,
-                samples_per_batch,
-                features_per_sample,
-                nworkers,
-                worker_id,
-                ps_ip,
-                ps_port) {
+                                 uint64_t batch_size,
+                                 uint64_t samples_per_batch,
+                                 uint64_t features_per_sample,
+                                 uint64_t nworkers,
+                                 uint64_t worker_id,
+                                 const std::string& ps_ip,
+                                 uint64_t ps_port)
+    : MLTask(model_size,
+             batch_size,
+             samples_per_batch,
+             features_per_sample,
+             nworkers,
+             worker_id,
+             ps_ip,
+             ps_port) {
   ps_port = ps_port;
   std::atomic_init(&curr_error, 0.0);
 }

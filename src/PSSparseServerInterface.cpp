@@ -121,7 +121,7 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace_sharded(SparseLRModel&
   }
   
   //4. receive weights from PS
-  uint32_t to_receive_size = sizeof(FEATURE_TYPE) * num_weights;
+  uint32_t to_receive_size = sizeof(uint32_t) + sizeof(FEATURE_TYPE) * num_weights;
   //std::cout << "Model sent. Receiving: " << num_weights << " weights" << std::endl;
 
 #ifdef DEBUG
@@ -213,6 +213,29 @@ SparseLRModel PSSparseServerInterface::get_lr_sparse_model(const SparseDataset& 
   SparseLRModel model(0);
   get_lr_sparse_model_inplace(ds, model, config);
   return std::move(model);
+}
+
+
+void PSSparseServerInterface::get_full_model_inplace(std::shared_ptr<SparseLRModel> model, int server_id, int num_ps) {
+
+  // 1. Send operation
+  uint32_t operation = GET_LR_FULL_MODEL;
+  send_all(sock, &operation, sizeof(uint32_t));
+  //2. receive size from PS
+  int model_size;
+  if (read_all(sock, &model_size, sizeof(int)) == 0) {
+    throw std::runtime_error("Error talking to PS");
+  }
+  char* model_data = new char[sizeof(int) + model_size * sizeof(FEATURE_TYPE)];
+  char*model_data_ptr = model_data;
+  store_value<int>(model_data_ptr, model_size);
+
+  if (read_all(sock, model_data_ptr, model_size * sizeof(FEATURE_TYPE)) == 0) {
+    throw std::runtime_error("Error talking to PS");
+  }
+  model->loadSerialized(model_data, server_id, num_ps);
+
+  delete[] model_data;
 }
 
 std::unique_ptr<CirrusModel> PSSparseServerInterface::get_full_model(

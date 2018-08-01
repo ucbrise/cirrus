@@ -15,6 +15,7 @@ DEFINE_string(config, "", "config");
 
 DEFINE_int64(num_ps, 1, "number of parameter servers");
 DEFINE_string(ps_ip, PS_IP, "parameter server ips comma separated");
+DEFINE_int64(ps_port, PS_PORT, "parameter server ips comma separated");
 
 static const uint64_t GB = (1024*1024*1024);
 static const uint32_t SIZE = 1;
@@ -61,12 +62,12 @@ void run_tasks(int rank, int nworkers,
     * SPARSE tasks
     */
   } else if (rank == ERROR_SPARSE_TASK_RANK) {
-    /*cirrus::ErrorSparseTask et((1 << config.get_model_bits()),
+    cirrus::ErrorSparseTask et((1 << config.get_model_bits()),
         batch_size, samples_per_batch, features_per_sample,
-        nworkers, rank, ps_ip);
+        nworkers, rank, ps_ips);
     et.run(config);
     cirrus::sleep_forever();
-    */
+    
   } else if (rank == LOADING_SPARSE_TASK_RANK) {
     
     if (config.get_model_type() == cirrus::Configuration::LOGISTICREGRESSION) {

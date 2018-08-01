@@ -5,7 +5,7 @@
 #include "S3SparseIterator.h"
 #include "Utils.h"
 #include "SparseLRModel.h"
-#include "PSSparseServerInterface.h"
+#include "MultiplePSSparseServerInterface.h"
 #include "Configuration.h"
 
 #define DEBUG
@@ -13,18 +13,18 @@
 
 namespace cirrus {
 
-std::unique_ptr<CirrusModel> get_model(const Configuration& config,
-        const std::string& ps_ip) {
-  static PSSparseServerInterface* psi;
+std::shared_ptr<CirrusModel> get_model(const Configuration& config,
+        std::vector<std::string> ps_ips) {
+  static MultiplePSSparseServerInterface* psi;
   static bool first_time = true;
   if (first_time) {
     first_time = false;
-    psi = new PSSparseServerInterface(ps_ip, PS_PORT);
+    psi = new MultiplePSSparseServerInterface(ps_ips);
   }
 
   bool use_col_filtering =
     config.get_model_type() == Configuration::COLLABORATIVE_FILTERING;
-  return psi->get_full_model(use_col_filtering);
+  return psi->get_full_model();
 }
 
 void ErrorSparseTask::run(const Configuration& config) {
@@ -87,7 +87,7 @@ void ErrorSparseTask::run(const Configuration& config) {
       std::cout << "[ERROR_TASK] getting the full model"
         << "\n";
 #endif
-      std::unique_ptr<CirrusModel> model = get_model(config, ps_ip);
+      std::shared_ptr<CirrusModel> model = get_model(config, ps_ips);
 
 #ifdef DEBUG
       std::cout << "[ERROR_TASK] received the model" << std::endl;

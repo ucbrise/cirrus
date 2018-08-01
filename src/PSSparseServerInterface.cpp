@@ -23,7 +23,6 @@ PSSparseServerInterface::PSSparseServerInterface(const std::string& ip, int port
     throw std::runtime_error("Error setting socket options.");
   }
 
-  struct sockaddr_in serv_addr;
   serv_addr.sin_family = AF_INET;
   if (inet_pton(AF_INET, ip.c_str(), &serv_addr.sin_addr) != 1) {
     throw std::runtime_error("Address family invalid or invalid "
@@ -32,12 +31,13 @@ PSSparseServerInterface::PSSparseServerInterface(const std::string& ip, int port
   // Save the port in the info
   serv_addr.sin_port = htons(port);
   std::memset(serv_addr.sin_zero, 0, sizeof(serv_addr.sin_zero));
+}
 
-  // Connect to the server
-  if (::connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-    throw std::runtime_error(
-        "Client could not connect to server."
-        " Address: " + ip + " port: " + std::to_string(port));
+void PSSparseServerInterface::connect() {
+  int ret = ::connect(sock, (struct sockaddr*) &serv_addr, sizeof(serv_addr));
+  if (ret < 0) {
+    throw std::runtime_error("Failed to make contact with server with ip: " +
+                             ip + " port: " + std::to_string(port) + "\n");
   }
 }
 

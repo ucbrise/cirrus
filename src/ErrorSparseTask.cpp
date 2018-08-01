@@ -22,6 +22,15 @@ std::unique_ptr<CirrusModel> get_model(const Configuration& config,
   if (first_time) {
     first_time = false;
     psi = new PSSparseServerInterface(ps_ip, ps_port);
+
+    while (true) {
+      try {
+        psi->connect();
+        break;
+      } catch (const std::exception& exc) {
+        std::cout << exc.what();
+      }
+    }
   }
 
   bool use_col_filtering =
@@ -65,9 +74,9 @@ void ErrorSparseTask::error_response() {
     std::cout << "Received: " << operation << std::endl;
 
     if (operation == GET_LAST_TIME_ERROR) {
-      double time_error[2] = {last_time, last_error};
+      double time_error[3] = {last_time, last_error, curr_error};
 
-      ret = sendto(fd, time_error, 2 * sizeof(double), 0,
+      ret = sendto(fd, time_error, 3 * sizeof(double), 0,
                    (struct sockaddr*) &remaddr, addrlen);
       if (ret < 0) {
         throw std::runtime_error("Error in sending response");
@@ -130,6 +139,7 @@ void ErrorSparseTask::run(const Configuration& config) {
 
   std::cout << "[ERROR_TASK] Computing accuracies"
     << "\n";
+
   while (1) {
     usleep(ERROR_INTERVAL_USEC);
 
@@ -153,6 +163,7 @@ void ErrorSparseTask::run(const Configuration& config) {
       uint64_t total_num_samples = 0;
       uint64_t total_num_features = 0;
       uint64_t start_index = 0;
+
       for (auto& ds : minibatches_vec) {
         std::pair<FEATURE_TYPE, FEATURE_TYPE> ret =
           model->calc_loss(ds, start_index);
@@ -161,6 +172,12 @@ void ErrorSparseTask::run(const Configuration& config) {
         total_num_samples += ds.num_samples();
         total_num_features += ds.num_features();
         start_index += config.get_minibatch_size();
+        if (config.get_model_type() == Configuration::LOGISTICREGRESSION) {
+          curr_error = (total_loss / total_num_features);
+        } else if (config.get_model_type() ==
+                   Configuration::COLLABORATIVE_FILTERING) {
+          curr_error = std::sqrt(total_loss / total_num_features);
+        }
       }
 
       last_time = (get_time_us() - start_time) / 1000000.0;

@@ -1,9 +1,9 @@
 #include <Tasks.h>
 
-#include <Serializers.h>
 #include <InputReader.h>
 #include <S3.h>
 #include <S3Client.h>
+#include <Serializers.h>
 #include <Utils.h>
 #include <config.h>
 
@@ -26,10 +26,8 @@ SparseDataset LoadingSparseTaskS3::read_dataset(
   }
 
   // READ the kaggle criteo dataset
-  return input.read_input_criteo_kaggle_sparse(
-      config.get_load_input_path(),
-      delimiter,
-      config);
+  return input.read_input_criteo_kaggle_sparse(config.get_load_input_path(),
+                                               delimiter, config);
 }
 
 void LoadingSparseTaskS3::check_label(FEATURE_TYPE label) {

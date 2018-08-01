@@ -1,13 +1,13 @@
 #ifndef _S3_SPARSEITERATOR_H_
 #define _S3_SPARSEITERATOR_H_
 
-#include <S3Client.h>
-#include <Configuration.h>
-#include <config.h>
-#include <S3Iterator.h>
-#include <Synchronization.h>
-#include <Serializers.h>
 #include <CircularBuffer.h>
+#include <Configuration.h>
+#include <S3Client.h>
+#include <S3Iterator.h>
+#include <Serializers.h>
+#include <Synchronization.h>
+#include <config.h>
 
 #include <thread>
 #include <list>

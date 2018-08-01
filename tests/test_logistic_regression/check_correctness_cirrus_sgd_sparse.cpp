@@ -11,8 +11,8 @@
 #include <SparseLRModel.h>
 #include <S3SparseIterator.h>
 
-#include <config.h>
 #include <Utils.h>
+#include <config.h>
 
 const std::string INPUT_PATH = "criteo_data/train.csv_100K_sparse";
 

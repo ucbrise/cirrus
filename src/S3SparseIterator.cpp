@@ -12,26 +12,25 @@
 namespace cirrus {
   
 // s3_cad_size nmber of samples times features per sample
-S3SparseIterator::S3SparseIterator(
-        uint64_t left_id, uint64_t right_id, // right id is exclusive
-        const Configuration& c,
-        uint64_t s3_rows,
-        uint64_t minibatch_rows,
-        bool use_label,
-        int worker_id,
-        bool random_access) :
-    S3Iterator(c),
-    left_id(left_id), right_id(right_id),
-    s3_rows(s3_rows),
-    minibatch_rows(minibatch_rows),
-    //pm(REDIS_IP, REDIS_PORT),
-    minibatches_list(100000),
-    use_label(use_label),
-    worker_id(worker_id),
-    re(worker_id),
-    random_access(random_access)
-{
-      
+S3SparseIterator::S3SparseIterator(uint64_t left_id,
+                                   uint64_t right_id,  // right id is exclusive
+                                   const Configuration& c,
+                                   uint64_t s3_rows,
+                                   uint64_t minibatch_rows,
+                                   bool use_label,
+                                   int worker_id,
+                                   bool random_access)
+    : S3Iterator(c),
+      left_id(left_id),
+      right_id(right_id),
+      s3_rows(s3_rows),
+      minibatch_rows(minibatch_rows),
+      // pm(REDIS_IP, REDIS_PORT),
+      minibatches_list(100000),
+      use_label(use_label),
+      worker_id(worker_id),
+      re(worker_id),
+      random_access(random_access) {
   std::cout << "S3SparseIterator::Creating S3SparseIterator"
     << " left_id: " << left_id
     << " right_id: " << right_id

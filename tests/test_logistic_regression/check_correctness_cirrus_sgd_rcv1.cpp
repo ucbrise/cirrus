@@ -11,8 +11,8 @@
 #include <SparseLRModel.h>
 #include <S3SparseIterator.h>
 
-#include <config.h>
 #include <Utils.h>
+#include <config.h>
 
 //typedef float FEATURE_TYPE;
 const std::string INPUT_PATH = "../../data/rcv1/train.vw";

@@ -47,11 +47,8 @@ void learning_function(const cirrus::Dataset& dataset) {
 
 int main() {
   cirrus::InputReader input;
-  cirrus::Dataset dataset = input.read_input_csv(
-      INPUT_PATH,
-      "\t", 1,
-      10000,
-      14, true); // normalize=true
+  cirrus::Dataset dataset = input.read_input_csv(INPUT_PATH, "\t", 1, 10000, 14,
+                                                 true);  // normalize=true
   dataset.check();
   dataset.print_info();
 

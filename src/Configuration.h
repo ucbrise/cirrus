@@ -176,8 +176,8 @@ class Configuration {
     uint64_t num_features = 0;   //< number of features in each sample
 
     std::string dataset_format;  //< format of the dataset in S3
-    std::string s3_dataset_key;   //< key name in the s3 bucket
-    std::string s3_bucket_name;   //< bucket used for training dataset
+    std::string s3_dataset_key;  //< key name in the s3 bucket
+    std::string s3_bucket_name;  //< bucket used for training dataset
 
     std::pair<int, int> train_set_range; // range of S3 ids for training
     std::pair<int, int> test_set_range;  // range of S3 ids for testing

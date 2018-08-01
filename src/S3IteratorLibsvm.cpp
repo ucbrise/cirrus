@@ -1,13 +1,13 @@
 #include <S3IteratorLibsvm.h>
 #include <Utils.h>
 #include <unistd.h>
-#include <vector>
 #include <iostream>
+#include <vector>
 
 #include <pthread.h>
 #include <semaphore.h>
 
-#define FETCH_SIZE (10 * 1024 * 1024) //  amount of data to fetch each time
+#define FETCH_SIZE (10 * 1024 * 1024)  //  amount of data to fetch each time
 
 //#define DEBUG
 
@@ -17,29 +17,26 @@
 // at each iteration we read ~10MB of data
 
 namespace cirrus {
-  
-S3IteratorLibsvm::S3IteratorLibsvm(
-        const Configuration& c,
-        const std::string& s3_bucket,
-        const std::string& s3_key,
-        uint64_t file_size,
-        uint64_t minibatch_rows,
-        int worker_id,
-        bool random_access) :
-  S3Iterator(c),
-  s3_bucket(s3_bucket),
-  s3_key(s3_key),
-  file_size(file_size),
-  //s3_rows(s3_rows),
-  minibatch_rows(minibatch_rows),
-  minibatches_list(100000),
-  worker_id(worker_id),
-  re(worker_id),
-  random_access(random_access),
-  cur_index(0)
-{
-  std::cout << "S3IteratorLibsvm::Creating S3IteratorLibsvm"
-    << std::endl;
+
+S3IteratorLibsvm::S3IteratorLibsvm(const Configuration& c,
+                                   const std::string& s3_bucket,
+                                   const std::string& s3_key,
+                                   uint64_t file_size,
+                                   uint64_t minibatch_rows,
+                                   int worker_id,
+                                   bool random_access)
+    : S3Iterator(c),
+      s3_bucket(s3_bucket),
+      s3_key(s3_key),
+      file_size(file_size),
+      // s3_rows(s3_rows),
+      minibatch_rows(minibatch_rows),
+      minibatches_list(100000),
+      worker_id(worker_id),
+      re(worker_id),
+      random_access(random_access),
+      cur_index(0) {
+  std::cout << "S3IteratorLibsvm::Creating S3IteratorLibsvm" << std::endl;
 
   // initialize s3
   s3_client = std::make_shared<S3Client>();
@@ -50,7 +47,8 @@ S3IteratorLibsvm::S3IteratorLibsvm(
 
   sem_init(&semaphore, 0, 0);
 
-  thread = new std::thread(std::bind(&S3IteratorLibsvm::threadFunction, this, c));
+  thread =
+      new std::thread(std::bind(&S3IteratorLibsvm::threadFunction, this, c));
 
   // we fix the random seed but make it different for every worker
   // to ensure each worker receives a different minibatch
@@ -73,7 +71,7 @@ std::shared_ptr<SparseDataset> S3IteratorLibsvm::getNext() {
   ring_lock.unlock();
 
   // FIXME this should be calculating the local amount of memory
-  if (num_minibatches_ready < 200 && pref_sem.getvalue() < (int)read_ahead) {
+  if (num_minibatches_ready < 200 && pref_sem.getvalue() < (int) read_ahead) {
 #ifdef DEBUG
     std::cout << "getNext::pref_sem.signal" << std::endl;
 #endif
@@ -84,9 +82,9 @@ std::shared_ptr<SparseDataset> S3IteratorLibsvm::getNext() {
 }
 
 /**
-  * Moves index forward while data[index] is a space
-  * returns true if it ended on a digit, otherwise returns false
-  */
+ * Moves index forward while data[index] is a space
+ * returns true if it ended on a digit, otherwise returns false
+ */
 bool S3IteratorLibsvm::ignoreSpaces(uint64_t& index, const std::string& data) {
   while (isspace(data[index])) {
     index++;
@@ -94,7 +92,8 @@ bool S3IteratorLibsvm::ignoreSpaces(uint64_t& index, const std::string& data) {
   return isdigit(data[index]);
 }
 
-bool S3IteratorLibsvm::ignoreSpacesNotNewline(uint64_t& index, const std::string& data) {
+bool S3IteratorLibsvm::ignoreSpacesNotNewline(uint64_t& index,
+                                              const std::string& data) {
   while (data[index] != '\n' && isspace(data[index])) {
     index++;
   }
@@ -106,7 +105,7 @@ T S3IteratorLibsvm::readNum(uint64_t& index, std::string& data) {
   if (!isdigit(data[index])) {
     throw std::runtime_error("Error in the dataset");
   }
-  
+
   uint64_t index_fw = index;
   // if float or double also accept dots
   if constexpr (std::is_same<T, double>::value ||
@@ -125,41 +124,44 @@ T S3IteratorLibsvm::readNum(uint64_t& index, std::string& data) {
 
   T result;
   if constexpr (std::is_same<T, int>::value) {
-      sscanf(&data[index], "%d", &result);
+    sscanf(&data[index], "%d", &result);
   } else if constexpr (std::is_same<T, double>::value) {
-      sscanf(&data[index], "%lf", &result);
+    sscanf(&data[index], "%lf", &result);
   } else if constexpr (std::is_same<T, float>::value) {
-      sscanf(&data[index], "%f", &result);
-  } else if constexpr (std::is_same<T, uint64_t>::value) { 
-      sscanf(&data[index], "%lu", &result);
+    sscanf(&data[index], "%f", &result);
+  } else if constexpr (std::is_same<T, uint64_t>::value) {
+    sscanf(&data[index], "%lu", &result);
   } else {
     throw std::runtime_error("Data type not supported");
   }
 
-  data[index_fw] = c; // repair
+  data[index_fw] = c;  // repair
   index = index_fw;
   return result;
 }
 
 bool S3IteratorLibsvm::buildDatasetCsv(
-    const std::string& data, uint64_t index,
+    const std::string& data,
+    uint64_t index,
     std::shared_ptr<SparseDataset>& minibatch) {
-    return false;
+  return false;
 }
 
 bool S3IteratorLibsvm::buildDatasetVowpalWabbit(
-    const std::string& data, uint64_t index,
+    const std::string& data,
+    uint64_t index,
     std::shared_ptr<SparseDataset>& minibatch) {
-    return false;
+  return false;
 }
 
 /**
-  * Build minibatch from text in libsvm format
-  * We assume index is at a start of a line
-  * index moves forward
-  */
+ * Build minibatch from text in libsvm format
+ * We assume index is at a start of a line
+ * index moves forward
+ */
 bool S3IteratorLibsvm::buildDatasetLibsvm(
-    std::string& data, uint64_t& index,
+    std::string& data,
+    uint64_t& index,
     std::shared_ptr<SparseDataset>& minibatch) {
 #ifdef DEBUG
   std::cout << "building dataset libsvm index: " << index << std::endl;
@@ -178,38 +180,39 @@ bool S3IteratorLibsvm::buildDatasetLibsvm(
       // ignore spaces
       if (!ignoreSpaces(index, data)) {
 #ifdef DEBUG
-        std::cout << "ignoreSpaces did not find dig index: " << index << std::endl;
+        std::cout << "ignoreSpaces did not find dig index: " << index
+                  << std::endl;
 #endif
         // did not end up in a digit
         return false;
       }
       int label = readNum<int>(index, data);
 #ifdef DEBUG
-  std::cout << "read label: " << label << std::endl;
+      std::cout << "read label: " << label << std::endl;
 #endif
 
       // read pairs
       while (1) {
 #ifdef DEBUG
-        std::cout << "index: " << index << " reading new pair "  << std::endl;
+        std::cout << "index: " << index << " reading new pair " << std::endl;
 #endif
         if (!ignoreSpacesNotNewline(index, data)) {
           if (data[index] == '\n') {
 #ifdef DEBUG
             std::cout << "read line index: " << index << std::endl;
 #endif
-            break; // move to next sample
+            break;  // move to next sample
           } else if (data[index] == 0) {
 #ifdef DEBUG
             std::cout << "end of text index: " << index << std::endl;
 #endif
-            return false; // end of text
-          }
-          else throw std::runtime_error("Error parsing while reading pairs");
+            return false;  // end of text
+          } else
+            throw std::runtime_error("Error parsing while reading pairs");
         }
         uint64_t ind = readNum<uint64_t>(index, data);
 #ifdef DEBUG
-  std::cout << "index: " << index << " ind: " << ind << std::endl;
+        std::cout << "index: " << index << " ind: " << ind << std::endl;
 #endif
         if (data[index] != ':') {
           return false;
@@ -223,7 +226,7 @@ bool S3IteratorLibsvm::buildDatasetLibsvm(
 
         FEATURE_TYPE value = readNum<FEATURE_TYPE>(index, data);
 #ifdef DEBUG
-  std::cout << "index: " << index << " value: " << value << std::endl;
+        std::cout << "index: " << index << " value: " << value << std::endl;
 #endif
 
         samples[sample].push_back(std::make_pair(ind, value));
@@ -232,7 +235,7 @@ bool S3IteratorLibsvm::buildDatasetLibsvm(
     }
 
 #ifdef DEBUG
-  std::cout << "new minibatch" << std::endl;
+    std::cout << "new minibatch" << std::endl;
 #endif
     minibatch.reset(new SparseDataset(std::move(samples), std::move(labels)));
     return true;
@@ -242,7 +245,8 @@ bool S3IteratorLibsvm::buildDatasetLibsvm(
   }
 }
 
-void S3IteratorLibsvm::readUntilNewline(uint64_t* index, const std::string& data) {
+void S3IteratorLibsvm::readUntilNewline(uint64_t* index,
+                                        const std::string& data) {
 #ifdef DEBUG
   std::cout << "reading until new line index: " << (*index) << std::endl;
 #endif
@@ -258,8 +262,8 @@ void S3IteratorLibsvm::readUntilNewline(uint64_t* index, const std::string& data
   }
 }
 
-std::vector<std::shared_ptr<SparseDataset>>
-S3IteratorLibsvm::parseObjLibsvm(std::string& data) {
+std::vector<std::shared_ptr<SparseDataset>> S3IteratorLibsvm::parseObjLibsvm(
+    std::string& data) {
 #ifdef DEBUG
   std::cout << "parseObjLibsvm data size: " << data.size() << std::endl;
 #endif
@@ -278,7 +282,8 @@ S3IteratorLibsvm::parseObjLibsvm(std::string& data) {
     if (!buildDatasetLibsvm(data, index, minibatch)) {
       // could not build full minibatch
 #ifdef DEBUG
-      std::cout << "Finished text returning " << result.size() << " minibatches" << std::endl;
+      std::cout << "Finished text returning " << result.size() << " minibatches"
+                << std::endl;
 #endif
       return result;
     }
@@ -291,13 +296,12 @@ void S3IteratorLibsvm::pushSamples(std::shared_ptr<std::ostringstream> oss) {
   std::cout << "pushing samples.." << std::endl;
 #endif
 
-  //uint64_t n_minibatches = s3_rows / minibatch_rows;
+  // uint64_t n_minibatches = s3_rows / minibatch_rows;
 
   // we parse this piece of text
   // this returns a collection of minibatches
   auto data = oss->str();
-  std::vector<std::shared_ptr<SparseDataset>> dataset =
-    parseObjLibsvm(data);
+  std::vector<std::shared_ptr<SparseDataset>> dataset = parseObjLibsvm(data);
 
 #ifdef DEBUG
   std::cout << "adding minibatches to ring and setting sem.." << std::endl;
@@ -306,7 +310,7 @@ void S3IteratorLibsvm::pushSamples(std::shared_ptr<std::ostringstream> oss) {
   minibatches_list.add(dataset);
   ring_lock.unlock();
   for (const auto& d : dataset) {
-    (void)d;
+    (void) d;
     num_minibatches_ready++;
     sem_post(&semaphore);
   }
@@ -317,10 +321,10 @@ static int sstreamSize(std::ostringstream& ss) {
 }
 
 /**
-  * Returns a range of bytes (right side is exclusive)
-  */
-std::pair<uint64_t, uint64_t>
-S3IteratorLibsvm::getFileRange(uint64_t file_size) {
+ * Returns a range of bytes (right side is exclusive)
+ */
+std::pair<uint64_t, uint64_t> S3IteratorLibsvm::getFileRange(
+    uint64_t file_size) {
   // given the size of the file we return a random file index
   if (file_size < FETCH_SIZE) {
     // file is small so we get the whole file
@@ -339,14 +343,16 @@ S3IteratorLibsvm::getFileRange(uint64_t file_size) {
     return std::make_pair(left_index, left_index + FETCH_SIZE);
   } else {
 #ifdef DEBUG
-    std::cout << "cur_index: " << cur_index << " file_size: " << file_size << std::endl;
+    std::cout << "cur_index: " << cur_index << " file_size: " << file_size
+              << std::endl;
 #endif
     if (cur_index >= file_size) {
       // we reached the end
       cur_index = 0;
     }
     // we return <cur, cur + FETCH_SIZE>
-    auto ret = std::make_pair(cur_index, std::min(cur_index + FETCH_SIZE, file_size));
+    auto ret =
+        std::make_pair(cur_index, std::min(cur_index + FETCH_SIZE, file_size));
     cur_index += FETCH_SIZE;
     cur_index = std::min(cur_index, file_size);
     return ret;
@@ -367,8 +373,7 @@ void S3IteratorLibsvm::reportBandwidth(uint64_t elapsed, uint64_t size) {
 }
 
 void S3IteratorLibsvm::threadFunction(const Configuration& config) {
-  std::cout << "Building S3 deser. with size: "
-            << std::endl;
+  std::cout << "Building S3 deser. with size: " << std::endl;
 
   while (1) {
     // if we can go it means there is a slot
@@ -379,23 +384,21 @@ void S3IteratorLibsvm::threadFunction(const Configuration& config) {
     std::pair<uint64_t, uint64_t> range = getFileRange(file_size);
 
     std::shared_ptr<std::ostringstream> s3_obj;
-try_start:
+  try_start:
     try {
       std::cout << "S3IteratorLibsvm: getting object" << std::endl;
       uint64_t start = get_time_us();
 
-      s3_obj = s3_client->s3_get_object_range_ptr(
-          s3_key, s3_bucket, range);
+      s3_obj = s3_client->s3_get_object_range_ptr(s3_key, s3_bucket, range);
 
 #ifdef DEBUG
-      std::cout << "Read object with size: " << sstreamSize(*s3_obj) << std::endl;
+      std::cout << "Read object with size: " << sstreamSize(*s3_obj)
+                << std::endl;
 #endif
 
       reportBandwidth(get_time_us() - start, sstreamSize(*s3_obj));
-    } catch(...) {
-      std::cout
-        << "S3IteratorLibsvm: error in s3_get_object"
-        << std::endl;
+    } catch (...) {
+      std::cout << "S3IteratorLibsvm: error in s3_get_object" << std::endl;
       goto try_start;
       exit(-1);
     }
@@ -403,5 +406,4 @@ try_start:
   }
 }
 
-} // namespace cirrus
-
+}  // namespace cirrus

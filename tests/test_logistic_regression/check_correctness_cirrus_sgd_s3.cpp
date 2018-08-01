@@ -36,10 +36,8 @@ SparseDataset read_dataset(
   }
 
   // READ the kaggle criteo dataset
-  return input.read_input_criteo_kaggle_sparse(
-      config.get_load_input_path(),
-      delimiter,
-      config);
+  return input.read_input_criteo_kaggle_sparse(config.get_load_input_path(),
+                                               delimiter, config);
 }
 
 void print_info(const auto& samples) {

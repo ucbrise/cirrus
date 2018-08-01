@@ -7,7 +7,7 @@ namespace cirrus {
 
 class S3Iterator {
  public:
-    S3Iterator(const Configuration& c);
+  S3Iterator(const Configuration& c);
 
  private:
   Configuration config;

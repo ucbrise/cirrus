@@ -2,15 +2,15 @@
 #define _CIRRUS_S3CLIENT_H_
 
 #include <aws/core/Aws.h>
+#include <aws/core/client/ClientConfiguration.h>
 #include <aws/s3/S3Client.h>
 #include <aws/s3/model/CreateBucketRequest.h>
-#include <aws/s3/model/PutObjectRequest.h>
-#include <aws/s3/model/GetObjectRequest.h>
 #include <aws/s3/model/DeleteBucketRequest.h>
 #include <aws/s3/model/DeleteObjectRequest.h>
-#include <aws/core/client/ClientConfiguration.h>
-#include <string>
+#include <aws/s3/model/GetObjectRequest.h>
+#include <aws/s3/model/PutObjectRequest.h>
 #include <memory>
+#include <string>
 
 using namespace Aws::S3;
 
@@ -35,7 +35,6 @@ class S3Client {
       const std::string& key_name,
       const std::string& bucket_name,
       std::pair<uint64_t, uint64_t> range);
-                      
 
  private:
   std::unique_ptr<Aws::S3::S3Client> s3_client;

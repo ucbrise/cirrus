@@ -280,7 +280,6 @@ std::vector<std::shared_ptr<SparseDataset>> S3IteratorLibsvm::parseObjLibsvm(
   while (1) {
     std::shared_ptr<SparseDataset> minibatch;
     if (!buildDatasetLibsvm(data, index, minibatch)) {
-      // could not build full minibatch
 #ifdef DEBUG
       std::cout << "Finished text returning " << result.size() << " minibatches"
                 << std::endl;

@@ -23,10 +23,10 @@
 
 namespace cirrus {
 
-static const int REPORT_LINES = 10000;  // how often to report readin progress
+static const int REPORT_LINES = 10000;    // how often to report readin progress
 static const int REPORT_THREAD = 100000;  // how often proc. threads report
-static const int STR_SIZE = 10000;        // max size for dataset line
-static const int RCV1_STR_SIZE = 20000;        // max size for dataset line
+static const int MAX_STR_SIZE = 10000;    // max size for dataset line
+static const int RCV1_STR_SIZE = 20000;   // max size for dataset line
 
 Dataset InputReader::read_input_criteo(const std::string& samples_input_file,
     const std::string& labels_input_file) {
@@ -97,15 +97,15 @@ void InputReader::process_lines(
     uint64_t limit_cols,
     std::vector<std::vector<FEATURE_TYPE>>& thread_samples,
     std::vector<FEATURE_TYPE>& thread_labels) {
-  char str[STR_SIZE];
+  char str[MAX_STR_SIZE];
   while (!thread_lines.empty()) {
     std::string line = thread_lines.back();
     thread_lines.pop_back();
     /*
      * We have the line, now split it into features
-     */ 
-    assert(line.size() < STR_SIZE);
-    strncpy(str, line.c_str(), STR_SIZE - 1);
+     */
+    assert(line.size() < MAX_STR_SIZE);
+    strncpy(str, line.c_str(), MAX_STR_SIZE - 1);
     char* s = str;
 
     uint64_t k = 0;
@@ -202,17 +202,17 @@ InputReader::read_mnist_csv(const std::string& input_file,
     std::vector<std::vector<FEATURE_TYPE>> samples;
 
     std::string line;
-    char str[STR_SIZE + 1] = {0};
-    while (fgets(str, STR_SIZE, fin) != NULL) {
-        char* s = str;
+    char str[MAX_STR_SIZE + 1] = {0};
+    while (fgets(str, MAX_STR_SIZE, fin) != NULL) {
+      char* s = str;
 
-        std::vector<FEATURE_TYPE> sample;
-        while (char* l = strsep(&s, delimiter.c_str())) {
-            FEATURE_TYPE v = string_to<FEATURE_TYPE>(l);
-            sample.push_back(v);
-        }
+      std::vector<FEATURE_TYPE> sample;
+      while (char* l = strsep(&s, delimiter.c_str())) {
+        FEATURE_TYPE v = string_to<FEATURE_TYPE>(l);
+        sample.push_back(v);
+      }
 
-        samples.push_back(sample);
+      samples.push_back(sample);
     }
 
     fclose(fin);
@@ -423,9 +423,9 @@ SparseDataset InputReader::read_movielens_ratings(const std::string& input_file,
   std::string line;
   getline(fin, line); // read the header 
   while (getline(fin, line)) {
-    char str[STR_SIZE];
-    assert(line.size() < STR_SIZE - 1);
-    strncpy(str, line.c_str(), STR_SIZE);
+    char str[MAX_STR_SIZE];
+    assert(line.size() < MAX_STR_SIZE - 1);
+    strncpy(str, line.c_str(), MAX_STR_SIZE - 1);
 
     char* s = str;
     char* l = strsep(&s, ",");
@@ -532,19 +532,20 @@ void InputReader::parse_criteo_sparse_line(
     std::vector<std::pair<int, FEATURE_TYPE>>& output_features,
     FEATURE_TYPE& label,
     const Configuration& config) {
-  char str[STR_SIZE];
+  char str[MAX_STR_SIZE];
 
-  if (line.size() > STR_SIZE) {
+  if (line.size() > MAX_STR_SIZE) {
     throw std::runtime_error(
-        "Criteo input line is too big: " + std::to_string(line.size()) + " " + std::to_string(STR_SIZE)) ;
+        "Criteo input line is too big: " + std::to_string(line.size()) + " " +
+        std::to_string(MAX_STR_SIZE));
   }
 
-  strncpy(str, line.c_str(), STR_SIZE - 1);
+  strncpy(str, line.c_str(), MAX_STR_SIZE - 1);
   char* s = str;
 
   std::map<uint64_t, int> features;
 
-  uint64_t hash_size = 1 << config.get_model_bits();
+  uint64_t hash_size = (1ULL << config.get_model_bits());
 
   uint64_t col = 0;
   while (char* l = strsep(&s, delimiter.c_str())) {
@@ -707,7 +708,7 @@ void InputReader::parse_rcv1_vw_sparse_line(
 
   //static int static_count = 0;
   //std::cout << "Parsing line: " << ++static_count << std::endl;
-  strncpy(rcv1_line, line.c_str(), RCV1_STR_SIZE);
+  strncpy(rcv1_line, line.c_str(), RCV1_STR_SIZE - 1);
   char* s = rcv1_line;
 
   std::vector<FEATURE_TYPE> num_features; // numerical features
@@ -829,21 +830,22 @@ void InputReader::parse_criteo_kaggle_sparse_line(
     const std::string& line, const std::string& delimiter,
     std::vector<std::pair<int, FEATURE_TYPE>>& output_features,
     FEATURE_TYPE& label, const Configuration& config) {
-  char str[STR_SIZE];
+  char str[MAX_STR_SIZE];
 
   //std::cout << "line: " << line << std::endl;
 
-  if (line.size() > STR_SIZE) {
+  if (line.size() > MAX_STR_SIZE) {
     throw std::runtime_error(
-        "Criteo input line is too big: " + std::to_string(line.size()) + " " + std::to_string(STR_SIZE)) ;
+        "Criteo input line is too big: " + std::to_string(line.size()) + " " +
+        std::to_string(MAX_STR_SIZE));
   }
 
-  strncpy(str, line.c_str(), STR_SIZE - 1);
+  strncpy(str, line.c_str(), MAX_STR_SIZE - 1);
   char* s = str;
 
   std::map<uint64_t, int> features;
 
-  uint64_t hash_size = 1 << config.get_model_bits();
+  uint64_t hash_size = (1ULL << config.get_model_bits());
 
   uint64_t col = 0;
   while (char* l = strsep(&s, delimiter.c_str())) {
@@ -960,9 +962,9 @@ void InputReader::read_netflix_input_thread(
     }
     fin_lock.unlock();
 
-    char str[STR_SIZE];
-    assert(line.size() < STR_SIZE);
-    strncpy(str, line.c_str(), STR_SIZE - 1);
+    char str[MAX_STR_SIZE];
+    assert(line.size() < MAX_STR_SIZE);
+    strncpy(str, line.c_str(), MAX_STR_SIZE - 1);
 
     char* s = str;
     char* l = strsep(&s, ",");

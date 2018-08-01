@@ -42,7 +42,6 @@ class S3SparseIterator : public S3Iterator {
 
   std::shared_ptr<S3Client> s3_client;
 
-  uint64_t cur;
   std::list<std::shared_ptr<FEATURE_TYPE>> ring;
 
   uint64_t read_ahead = 1;

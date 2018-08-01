@@ -38,6 +38,9 @@ int main() {
     auto gradient = model.minibatch_grad_sparse(minibatch, config);
     gradient->setVersion(version++);
     LRSparseGradient* lrg = dynamic_cast<LRSparseGradient*>(gradient.get());
+    if (lrg == nullptr) {
+      throw std::runtime_error("Error in dynamic cast");
+    }
     psi->send_lr_gradient(*lrg);
   }
 }

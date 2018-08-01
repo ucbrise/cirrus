@@ -267,7 +267,6 @@ try_start:
         << " obj_id_str: " << obj_id_str
         << std::endl;
       goto try_start;
-      exit(-1);
     }
     
     uint64_t num_passes = (count / (right_id - left_id));

@@ -121,7 +121,7 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace_sharded(SparseLRModel&
   }
   
   //4. receive weights from PS
-  uint32_t to_receive_size = sizeof(uint32_t) + sizeof(FEATURE_TYPE) * num_weights;
+  uint32_t to_receive_size = sizeof(FEATURE_TYPE) * num_weights;
   //std::cout << "Model sent. Receiving: " << num_weights << " weights" << std::endl;
 
 #ifdef DEBUG
@@ -136,8 +136,10 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace_sharded(SparseLRModel&
 #endif
   // build a truly sparse model and return
   // XXX this copy could be avoided
+  std::cout << "Prepping serialization" << std::endl;
   lr_model.loadSerializedSparse((FEATURE_TYPE*)buffer, (uint32_t*)msg, num_weights, config, server_id, num_ps);
   
+  std::cout << "Done serializing" << std::endl;
   delete[] msg_begin;
   delete[] buffer;
 }

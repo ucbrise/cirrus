@@ -154,6 +154,28 @@ void SparseLRModel::sgd_update_adagrad(double learning_rate,
   }
 }
 
+void SparseLRModel::sgd_update_momentum(double learning_rate, double momentum_beta,
+        const ModelGradient* gradient) {
+    const LRSparseGradient* grad =
+        dynamic_cast<const LRSparseGradient*>(gradient);
+
+    if (grad == nullptr) {
+        throw std::runtime_error("Error in dynamic cast");
+    }
+
+    for (const auto& w : grad->weights) {
+        int index = w.first;
+        FEATURE_TYPE value = w.second;
+        if (momentum_avg == 0.0) {
+            momentum_avg = value;
+        } else {
+            momentum_avg = momentum_beta * momentum_avg + (1.0 - momentum_beta) * learning_rate * value;
+        }
+        weights_[index] +=  momentum_avg;
+    }
+}
+   
+
 void SparseLRModel::sgd_update(double learning_rate,
     const ModelGradient* gradient) {
   const LRSparseGradient* grad =

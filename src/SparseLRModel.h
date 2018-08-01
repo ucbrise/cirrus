@@ -17,6 +17,10 @@ namespace cirrus {
   */
 class SparseLRModel : public CirrusModel {
  public:
+    friend class AdaGrad;
+    friend class Momentum;
+    friend class Nesterov;
+    friend class SGD;
     /**
       * SparseLRModel constructor
       * @param d Features dimension
@@ -89,6 +93,15 @@ class SparseLRModel : public CirrusModel {
         double learning_rate, const ModelGradient* gradient);
 
     /**
+      * Performs an SGD update using MOMENTUM
+      * @param learning_rate Learning rate to be used
+      * @param gradient Gradient to be used for the update
+      */
+
+    void sgd_update_momentum(
+	double learning_rate, double momentum_beta, const ModelGradient* gradient);
+
+    /**
      * Returns the size of the model weights serialized
      * @returns Size of the model when serialized
      */
@@ -158,6 +171,29 @@ class SparseLRModel : public CirrusModel {
       return weights_[n];
     }
 
+    FEATURE_TYPE get_nth_weight_nesterov(
+            uint64_t n, double nesterov_beta) const {
+      return weights_[n] + (nesterov_beta * momentum_avg);
+    }
+
+    void update_weights(std::vector<FEATURE_TYPE> weights) {
+      weights_ = weights;
+    }
+
+    std::vector<FEATURE_TYPE> get_weights() {
+      return weights_;
+    }
+
+    std::vector<FEATURE_TYPE> get_weight_history() {
+      return weights_hist_;
+    }
+
+    void update_weight_history(std::vector<FEATURE_TYPE> weight_hist) {
+      weights_hist_ = weight_hist;
+    }
+ protected:
+    std::vector<FEATURE_TYPE> weights_;
+    std::vector<FEATURE_TYPE> weights_hist_;
 
  private:
     void ensure_preallocated_vectors(const Configuration&) const;
@@ -168,11 +204,10 @@ class SparseLRModel : public CirrusModel {
 
     bool is_sparse_ = false;
 
-    std::vector<FEATURE_TYPE> weights_;  //< vector of the model weights
-    std::vector<FEATURE_TYPE> weights_hist_;  //< vector of the model weights
     //mutable std::unordered_map<uint32_t, FEATURE_TYPE> weights_sparse_;
     mutable std::vector<FEATURE_TYPE> weights_sparse_;
 
+    FEATURE_TYPE momentum_avg = 0.0;
     double grad_threshold_ = 0;
 
     // we keep these vectors preallocated for performance reasons

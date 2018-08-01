@@ -1,5 +1,6 @@
 #include "Redis.h"
 #include "S3.h"
+#include "S3Client.h"
 #include <stdio.h>
 #include <iostream>
 #include <string>
@@ -59,17 +60,17 @@ int test_redis() {
 
 void test_s3() {
     std::cout << "Initializing aws" << std::endl;
-    s3_initialize_aws();
+    cirrus::s3_initialize_aws();
 
     std::cout << "Creating client" << std::endl;
-    auto client = s3_create_client();
+    auto client = new cirrus::S3Client();
     std::cout << "Putting object" << std::endl;
-    s3_put_object(0, client, S3_BUCKET, "JOAO");
+    client->s3_put_object(0, S3_BUCKET, "JOAO");
     std::cout << "Getting object" << std::endl;
-    auto res = s3_get_object(0, client, S3_BUCKET);
+    auto res = client->s3_get_object(0, S3_BUCKET);
     std::cout << "Received: " << res << std::endl;
 
-    s3_shutdown_aws();
+    cirrus::s3_shutdown_aws();
 }
 
 int main() {

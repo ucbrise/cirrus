@@ -73,8 +73,8 @@ void LogisticSparseTaskS3::run(const Configuration& config, int worker) {
   uint64_t num_s3_batches = config.get_limit_samples() / config.get_s3_size();
   this->config = config;
 
-  //psint = new MultiplePSSparseServerInterface(ps_ips);
-  sparse_model_get = std::make_unique<SparseModelGet>(ps_ips);
+  psint = new MultiplePSSparseServerInterface(ps_ip, ps_port);
+  sparse_model_get = std::make_unique<SparseModelGet>(ps_ip, ps_port);
   
   std::cout << "[WORKER] " << "num s3 batches: " << num_s3_batches
     << std::endl;

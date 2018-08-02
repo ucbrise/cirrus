@@ -43,7 +43,7 @@ void LoadingSparseTaskS3::check_loading(const Configuration& config,
                                         std::unique_ptr<S3Client>& s3_client) {
   std::cout << "[LOADER] Trying to get sample with id: " << 0 << std::endl;
 
-  std::string obj_id = std::to_string(hash_f(std::to_string(SAMPLE_BASE).c_str()));
+  std::string obj_id = std::to_string(SAMPLE_BASE);
   std::string data =
       s3_client->s3_get_object_value(obj_id, config.get_s3_bucket());
 
@@ -107,7 +107,7 @@ void LoadingSparseTaskS3::run(const Configuration& config) {
 
     std::cout << "Putting object in S3 with size: " << len << std::endl;
     // we hash names to help with scaling in S3
-    std::string obj_id = std::to_string(hash_f(std::to_string(SAMPLE_BASE + i).c_str()));
+    std::string obj_id = std::to_string(SAMPLE_BASE + i);
     s3_client->s3_put_object(obj_id, config.get_s3_bucket(),
                              std::string(s3_obj.get(), len));
   }

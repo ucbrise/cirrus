@@ -18,36 +18,44 @@
 
 namespace cirrus {
 
-PSSparseServerTask::PSSparseServerTask(
-    uint64_t model_size,
-    uint64_t batch_size, uint64_t samples_per_batch,
-    uint64_t features_per_sample, uint64_t nworkers,
-    uint64_t worker_id, const std::string& ps_ip,
-    uint64_t ps_port) :
-  MLTask(model_size,
-      batch_size, samples_per_batch, features_per_sample,
-      nworkers, worker_id, ps_ip, ps_port) {
-    std::cout << "PSSparseServerTask is built" << std::endl;
+PSSparseServerTask::PSSparseServerTask(uint64_t model_size,
+                                       uint64_t batch_size,
+                                       uint64_t samples_per_batch,
+                                       uint64_t features_per_sample,
+                                       uint64_t nworkers,
+                                       uint64_t worker_id,
+                                       const std::string& ps_ip,
+                                       uint64_t ps_port)
+    : MLTask(model_size,
+             batch_size,
+             samples_per_batch,
+             features_per_sample,
+             nworkers,
+             worker_id,
+             ps_ip,
+             ps_port),
+      kill_signal(false),
+      main_thread(0) {
+  std::cout << "PSSparseServerTask is built" << std::endl;
 
-    std::atomic_init(&gradientUpdatesCount, 0UL);
-    std::atomic_init(&thread_count, 0);
+  std::atomic_init(&gradientUpdatesCount, 0UL);
+  std::atomic_init(&thread_count, 0);
 
-    operation_to_name[0] = "SEND_LR_GRADIENT";
-    operation_to_name[1] = "SEND_MF_GRADIENT";
-    operation_to_name[2] = "GET_LR_FULL_MODEL";
-    operation_to_name[3] = "GET_MF_FULL_MODEL";
-    operation_to_name[4] = "GET_LR_SPARSE_MODEL";
-    operation_to_name[5] = "GET_MF_SPARSE_MODEL";
-    operation_to_name[6] = "SET_TASK_STATUS";
-    operation_to_name[7] = "GET_TASK_STATUS";
-    operation_to_name[8] = "REGISTER_TASK";
-    operation_to_name[9] = "GET_NUM_CONNS";
+  operation_to_name[0] = "SEND_LR_GRADIENT";
+  operation_to_name[1] = "SEND_MF_GRADIENT";
+  operation_to_name[2] = "GET_LR_FULL_MODEL";
+  operation_to_name[3] = "GET_MF_FULL_MODEL";
+  operation_to_name[4] = "GET_LR_SPARSE_MODEL";
+  operation_to_name[5] = "GET_MF_SPARSE_MODEL";
+  operation_to_name[6] = "SET_TASK_STATUS";
+  operation_to_name[7] = "GET_TASK_STATUS";
+  operation_to_name[8] = "REGISTER_TASK";
+  operation_to_name[9] = "GET_NUM_CONNS";
 
-    for (int i = 0; i < NUM_PS_WORK_THREADS; i++) {
-      thread_msg_buffer[i] =
-          new char[THREAD_MSG_BUFFER_SIZE]; // per-thread buffer
-    }
-    kill_signal = false;
+  for (int i = 0; i < NUM_PS_WORK_THREADS; i++) {
+    thread_msg_buffer[i] =
+        new char[THREAD_MSG_BUFFER_SIZE];  // per-thread buffer
+  }
 }
 
 std::shared_ptr<char> PSSparseServerTask::serialize_lr_model(
@@ -673,7 +681,7 @@ void PSSparseServerTask::run(const Configuration& config) {
 
   for (int i = 0; i < NUM_POLL_THREADS; i++) {
     assert(pipe(pipefds[i]) != -1);
-    curr_indexes[i] == 0;
+    curr_indexes[i] = 0;
     fdses[i].resize(max_fds);
   }
 

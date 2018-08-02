@@ -102,8 +102,6 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace_sharded(SparseLRModel&
   // 1. Send operation
   uint32_t operation = GET_LR_SPARSE_MODEL;
   
-  std::cout << "Sending " << operation << std::endl;
-
   if (send_all(sock, &operation, sizeof(uint32_t)) == -1) {
     throw std::runtime_error("Error getting sparse lr model");
   }
@@ -127,7 +125,6 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace_sharded(SparseLRModel&
 #ifdef DEBUG
   std::cout << "Receiving " << to_receive_size << " bytes" << std::endl;
 #endif
-  std::cout << "Receiving " << to_receive_size << " bytes" << std::endl;
   char* buffer = new char[to_receive_size];
   read_all(sock, buffer, to_receive_size); //XXX this takes 2ms once every 5 runs
 
@@ -136,10 +133,7 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace_sharded(SparseLRModel&
 #endif
   // build a truly sparse model and return
   // XXX this copy could be avoided
-  std::cout << "Prepping serialization" << std::endl;
   lr_model.loadSerializedSparse((FEATURE_TYPE*)buffer, (uint32_t*)msg, num_weights, config, server_id, num_ps);
-  
-  std::cout << "Done serializing" << std::endl;
   delete[] msg_begin;
   delete[] buffer;
 }
@@ -173,7 +167,6 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace(const SparseDataset& d
 #endif
   // 1. Send operation
   uint32_t operation = GET_LR_SPARSE_MODEL;
-  std::cout << "Operation num: " << operation << std::endl;
   if (send_all(sock, &operation, sizeof(uint32_t)) == -1) {
     throw std::runtime_error("Error getting sparse lr model");
   }

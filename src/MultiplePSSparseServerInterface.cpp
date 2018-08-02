@@ -9,15 +9,17 @@
 
 namespace cirrus {
 
-MultiplePSSparseServerInterface::MultiplePSSparseServerInterface(std::vector<std::string> param_ips ) {
-
+MultiplePSSparseServerInterface::MultiplePSSparseServerInterface(std::vector<std::string> param_ips, std::vector<uint64_t> ps_ports ) {
+  
+  std::cout << "Starting Multiple PS " << param_ips.size() << std::endl;
   for (int i = 0; i < param_ips.size(); i++) { // replace 2 with num_servers
-
-    // FIXME: need to un-hardcode this port number
-    std::cout << "Connecting to " << "127.0.0.1" << " " << 1337 + 2*i << std::endl;
-    auto ptr = new PSSparseServerInterface("127.0.0.1", 1337);
+    std::cout << "Attempting connection to " << param_ips[i] << ":" << ps_ports[i] << std::endl;
+    auto ptr = new PSSparseServerInterface(param_ips[i], ps_ports[i]);
+        ptr->connect();
     psints.push_back(ptr);
+    std::cout << "Connected!!!" << std::endl;
   }
+
 }
 
 void MultiplePSSparseServerInterface::send_gradient(const LRSparseGradient& gradient) {
@@ -36,7 +38,6 @@ void MultiplePSSparseServerInterface::send_gradient(const LRSparseGradient& grad
 
   uint32_t size = gradient.getShardSerializedSize(num_ps);
   char data[size];
-  std::cout << "Size " << size << std::endl;
   auto starts_and_size = gradient.shard_serialize(data, num_ps);
 
   for (int i = 0; i < num_ps; i++) {
@@ -70,7 +71,6 @@ SparseLRModel MultiplePSSparseServerInterface::get_lr_sparse_model(const SparseD
   for (int i = 0; i < num_servers; i++) {
     msg_lst[i] = new char[MAX_MSG_SIZE];
     msg_begin_lst[i] = msg_lst[i];
-    std::cout << "msg_begin_list[i] is " << i << " " << static_cast<void*>(msg_begin_lst[i]) << std::endl;
     num_weights_lst[i] = 0;
     store_value<uint32_t>(msg_lst[i], num_weights_lst[i]); // just make space for the number of weights
   }
@@ -90,7 +90,6 @@ SparseLRModel MultiplePSSparseServerInterface::get_lr_sparse_model(const SparseD
 
   // we get the model subset with just the right amount of weights
   for (int i = 0; i < num_servers; i++) {
-    std::cout << "msg_begin_list[i] is " << i << " " << static_cast<void*>(msg_begin_lst[i]) << std::endl;
     psints[i]->get_lr_sparse_model_inplace_sharded(model, config, msg_begin_lst[i], num_weights_lst[i], i, num_servers);
   }
 

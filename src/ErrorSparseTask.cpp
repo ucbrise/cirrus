@@ -16,13 +16,14 @@
 namespace cirrus {
 
 std::shared_ptr<CirrusModel> get_model(const Configuration& config,
-        const std::string& ps_ip, uint64_t ps_port) {
-  static PSSparseServerInterface* psi;
+        const std::vector<std::string> ps_ips, std::vector<uint64_t> ps_ports) {
+  static MultiplePSSparseServerInterface* psi;
   static bool first_time = true;
   if (first_time) {
     first_time = false;
-    psi = new PSSparseServerInterface(ps_ip, ps_port);
+    psi = new MultiplePSSparseServerInterface(ps_ips, ps_ports);
 
+    /*
     while (true) {
       try {
         psi->connect();
@@ -31,6 +32,7 @@ std::shared_ptr<CirrusModel> get_model(const Configuration& config,
         std::cout << exc.what();
       }
     }
+    */
   }
 
   bool use_col_filtering =
@@ -149,7 +151,7 @@ void ErrorSparseTask::run(const Configuration& config) {
       std::cout << "[ERROR_TASK] getting the full model"
         << "\n";
 #endif
-      std::shared_ptr<CirrusModel> model = get_model(config, ps_ip, ps_port);
+      std::shared_ptr<CirrusModel> model = get_model(config, ps_ips, ps_ports);
 
 #ifdef DEBUG
       std::cout << "[ERROR_TASK] received the model" << std::endl;

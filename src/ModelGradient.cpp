@@ -206,7 +206,6 @@ std::vector<std::tuple<int, int>> LRSparseGradient::shard_serialize(void* mem, u
 
     uint64_t offset = ((ps_num + 1) * (sizeof(int) + sizeof(int))) +     // Number of (version, count) variables
                       position * (sizeof(int) + sizeof(FEATURE_TYPE));   // 
-    std::cout << static_cast<void*>(mem) << " index " << index <<  "parts " << parts << "psnum " << ps_num << "pos " << position << "offset " << offset << std::endl;
     put_value<int>(mem, index / parts, offset);
     put_value<FEATURE_TYPE>(mem, v, offset + sizeof(int));
     starts[ps_num]++;    

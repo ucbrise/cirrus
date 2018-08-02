@@ -5,7 +5,7 @@
 #include "S3SparseIterator.h"
 #include "PSSparseServerInterface.h"
 #include "MultiplePSSparseServerInterface.h"
-
+#include <memory>
 #include <pthread.h>
 
 #undef DEBUG
@@ -14,7 +14,6 @@ namespace cirrus {
 
 void LogisticSparseTaskS3::push_gradient(LRSparseGradient* lrg) {
   auto before_push_us = get_time_us();
-  std::cout << "Publishing gradients" << std::endl;
 
   sparse_model_get->psi->send_gradient(*lrg);
 #ifdef DEBUG
@@ -68,13 +67,12 @@ bool LogisticSparseTaskS3::get_dataset_minibatch(
 }
 
 void LogisticSparseTaskS3::run(const Configuration& config, int worker) {
-  std::cout << "Starting LogisticSparseTaskS3"
+  std::cout << "Starting LogisticSparseTaskS3 " << ps_ips.size()
     << std::endl;
   uint64_t num_s3_batches = config.get_limit_samples() / config.get_s3_size();
   this->config = config;
 
-  psint = new MultiplePSSparseServerInterface(ps_ip, ps_port);
-  sparse_model_get = std::make_unique<SparseModelGet>(ps_ip, ps_port);
+  sparse_model_get = std::make_unique<SparseModelGet>(ps_ips, ps_ports);
   
   std::cout << "[WORKER] " << "num s3 batches: " << num_s3_batches
     << std::endl;
@@ -115,7 +113,6 @@ void LogisticSparseTaskS3::run(const Configuration& config, int worker) {
 
     // we get the model subset with just the right amount of weights
     sparse_model_get->get_new_model_inplace(*dataset, model, config);
-    std::cout << "FIN INIT GET" << std::endl;
 #ifdef DEBUG
     std::cout << "get model elapsed(us): " << get_time_us() - now << std::endl;
     std::cout << "Checking model" << std::endl;

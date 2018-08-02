@@ -328,9 +328,9 @@ void PSSparseServerTask::gradient_f() {
       continue;
     }
 
-#ifdef DEBUG 
-  std::cout << "Operation: " << operation << " - "
-      << operation_to_name[operation] << std::endl;
+#ifdef DEBUG
+    std::cout << "Operation: " << operation << " - "
+              << operation_to_name[operation] << std::endl;
 #endif
 
     if (operation == REGISTER_TASK) {

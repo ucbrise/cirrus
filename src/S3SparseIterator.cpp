@@ -228,7 +228,7 @@ void S3SparseIterator::thread_function(const Configuration& config) {
     std::cout << "Waiting for pref_sem" << std::endl;
     pref_sem.wait();
 
-    std::string obj_id_str = std::to_string( get_obj_id(left_id, right_id));
+    std::string obj_id_str = std::to_string(get_obj_id(left_id, right_id));
 
     std::ostringstream* s3_obj;
 try_start:

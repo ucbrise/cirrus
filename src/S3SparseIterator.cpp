@@ -230,13 +230,8 @@ void S3SparseIterator::thread_function(const Configuration& config) {
 
     uint64_t obj_id = get_obj_id(left_id, right_id);
 
-    std::string obj_id_str;
-    if (config.get_s3_bucket() == "cirrus-criteo-kaggle-19b-random" ||
-      config.get_s3_bucket() == "cirrus-criteo-kaggle-20b-random") {
-      obj_id_str = std::to_string(hash_f(std::to_string(obj_id).c_str())) + "-CRITEO";
-    } else {
-      obj_id_str = "CIRRUS" + std::to_string(obj_id);
-    }
+    std::string obj_id_str =
+        std::to_string(hash_f(std::to_string(obj_id).c_str()));
 
     std::ostringstream* s3_obj;
 try_start:

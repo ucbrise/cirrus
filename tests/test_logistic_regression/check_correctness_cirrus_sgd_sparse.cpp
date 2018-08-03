@@ -26,11 +26,9 @@ void check_error(auto model, auto dataset) {
   auto total_loss = ret.first;
   auto avg_loss = 1.0 * total_loss / dataset.num_samples();
   auto acc = ret.second;
-  std::cout
-    << "time: " << cirrus::get_time_us()
-    << " total/avg loss: " << total_loss << "/" << avg_loss
-    << " accuracy: " << acc
-    << std::endl;
+  std::cout << "time: " << cirrus::get_time_us()
+            << " total/avg loss: " << total_loss << "/" << avg_loss
+            << " accuracy: " << acc << std::endl;
 }
 
 std::mutex model_lock;
@@ -40,7 +38,7 @@ double learning_rate = 0.001;
 
 void learning_function_once(const cirrus::SparseDataset& dataset) {
   cirrus::SparseDataset ds = dataset.random_sample(20);
-  
+
   auto gradient = model->minibatch_grad(
       ds, epsilon);
 
@@ -87,14 +85,13 @@ int main() {
   config.test_set_range = std::make_pair(825, 840);
   config.use_bias = 1;
   config.limit_samples = 1000000;
-  cirrus::SparseDataset dataset = input.read_input_criteo_kaggle_sparse(
-      INPUT_PATH,
-      ",",
-      config);
+  cirrus::SparseDataset dataset =
+      input.read_input_criteo_kaggle_sparse(INPUT_PATH, ",", config);
   dataset.check();
   dataset.print_info();
-  
-  //cirrus::S3SparseIterator* s3_iter = new cirrus::S3SparseIterator(0, 10, config,
+
+  // cirrus::S3SparseIterator* s3_iter = new cirrus::S3SparseIterator(0, 10,
+  // config,
   //    config.get_s3_size(),
   //    config.get_minibatch_size());
 

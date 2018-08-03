@@ -11,7 +11,6 @@
 #include <InputReader.h>
 #include <SparseLRModel.h>
 #include "S3SparseIterator.h"
-   
 
 std::unique_ptr<cirrus::S3SparseIterator> s3_iter;
 std::mutex model_lock;
@@ -20,8 +19,7 @@ cirrus::Configuration config;
 double epsilon = 0.00001;
 double learning_rate = 0.00000001;
 
-cirrus::SparseDataset read_dataset(
-    const cirrus::Configuration& config) {
+cirrus::SparseDataset read_dataset(const cirrus::Configuration& config) {
   cirrus::InputReader input;
 
   std::string delimiter;
@@ -57,8 +55,8 @@ void check_error(auto model, auto dataset) {
 bool get_dataset_minibatch(
     auto& dataset, auto& s3_iter) {
   const void* minibatch = s3_iter->get_next_fast();
-  dataset.reset(new cirrus::SparseDataset(reinterpret_cast<const char*>(minibatch),
-        config.get_minibatch_size()));
+  dataset.reset(new cirrus::SparseDataset(
+      reinterpret_cast<const char*>(minibatch), config.get_minibatch_size()));
   return true;
 }
 
@@ -71,7 +69,8 @@ void learning_function() {
     std::unique_ptr<cirrus::ModelGradient> gradient;
     // we get the model subset with just the right amount of weights
     gradient = model->minibatch_grad(*dataset, epsilon);
-    cirrus::LRSparseGradient* lrg = dynamic_cast<cirrus::LRSparseGradient*>(gradient.get());
+    cirrus::LRSparseGradient* lrg =
+        dynamic_cast<cirrus::LRSparseGradient*>(gradient.get());
     model->sgd_update(learning_rate, lrg);
   }
 }
@@ -86,11 +85,10 @@ int main() {
   // Create iterator that goes from 0 to num_s3_batches
   auto train_range = config.get_train_range();
   s3_iter = std::make_unique<cirrus::S3SparseIterator>(
-      train_range.first, train_range.second,
-      config, config.get_s3_size(), config.get_minibatch_size(),
-      true, 0, false); // make this sequential
+      train_range.first, train_range.second, config, config.get_s3_size(),
+      config.get_minibatch_size(), true, 0, false);  // make this sequential
 
-  model.reset(new cirrus::SparseLRModel( (1 << config.get_model_bits()) ));
+  model.reset(new cirrus::SparseLRModel((1 << config.get_model_bits())));
 
   uint64_t num_threads = 1;
   std::vector<std::shared_ptr<std::thread>> threads;

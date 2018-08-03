@@ -27,11 +27,9 @@ void check_error(auto model, auto dataset) {
   auto total_loss = ret.first;
   auto avg_loss = 1.0 * total_loss / dataset.num_samples();
   auto acc = ret.second;
-  std::cout
-    << "time: " << cirrus::get_time_us()
-    << " total/avg loss: " << total_loss << "/" << avg_loss
-    << " accuracy: " << acc
-    << std::endl;
+  std::cout << "time: " << cirrus::get_time_us()
+            << " total/avg loss: " << total_loss << "/" << avg_loss
+            << " accuracy: " << acc << std::endl;
 }
 
 std::mutex model_lock;
@@ -54,7 +52,6 @@ void learning_function(const cirrus::SparseDataset& dataset) {
   }
 }
 
-  
 cirrus::Configuration config;
 cirrus::S3SparseIterator* s3_iter;
 void learning_function_from_s3(const cirrus::SparseDataset& dataset) {
@@ -68,8 +65,9 @@ void learning_function_from_s3(const cirrus::SparseDataset& dataset) {
     s3_lock.lock();
     const void* data = s3_iter->get_next_fast();
     s3_lock.unlock();
-    cirrus::SparseDataset ds(reinterpret_cast<const char*>(data),
-        config.get_minibatch_size()); // construct dataset with data from s3
+    cirrus::SparseDataset ds(
+        reinterpret_cast<const char*>(data),
+        config.get_minibatch_size());  // construct dataset with data from s3
 
     auto gradient = model->minibatch_grad(dataset, epsilon);
 
@@ -84,16 +82,14 @@ void learning_function_from_s3(const cirrus::SparseDataset& dataset) {
   */
 int main() {
   cirrus::InputReader input;
-  cirrus::SparseDataset dataset = input.read_input_rcv1_sparse(
-      INPUT_PATH,
-      " ",
-      100000,
-      true); // normalize=true
+  cirrus::SparseDataset dataset =
+      input.read_input_rcv1_sparse(INPUT_PATH, " ", 100000,
+                                   true);  // normalize=true
   dataset.check();
   dataset.print_info();
 
   //config.read("criteo_aws_lambdas_s3.cfg");
-  //s3_iter = new cirrus::S3SparseIterator(0, 10, config,
+  // s3_iter = new cirrus::S3SparseIterator(0, 10, config,
   //    config.get_s3_size(),
   //    config.get_minibatch_size());
 

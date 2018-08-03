@@ -88,7 +88,7 @@ int main() {
   dataset.check();
   dataset.print_info();
 
-  //config.read("criteo_aws_lambdas_s3.cfg");
+  // config.read("criteo_aws_lambdas_s3.cfg");
   // s3_iter = new cirrus::S3SparseIterator(0, 10, config,
   //    config.get_s3_size(),
   //    config.get_minibatch_size());

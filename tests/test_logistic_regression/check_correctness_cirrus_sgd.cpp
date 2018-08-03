@@ -27,7 +27,7 @@ void check_error(auto model, auto dataset) {
 }
 
 std::mutex model_lock;
-std::unique_ptr<LRModel> model;
+std::unique_ptr<cirrus::LRModel> model;
 double epsilon = 0.00001;
 double learning_rate = 0.00000001;
 
@@ -53,7 +53,7 @@ int main() {
   dataset.print_info();
 
   uint64_t num_cols = 13;
-  model.reset(new LRModel(num_cols));
+  model.reset(new cirrus::LRModel(num_cols));
 
   uint64_t num_threads = 20;
   std::vector<std::shared_ptr<std::thread>> threads;

@@ -21,6 +21,7 @@ CIRRUS_SRC_FILES=$(CIRRUS_SRC_DIR)/Configuration.cpp \
 		    $(CIRRUS_SRC_DIR)/PSSparseServerInterface.cpp \
 		    $(CIRRUS_SRC_DIR)/SparseMFModel.cpp \
 		    $(CIRRUS_SRC_DIR)/MFModel.cpp \
+		    $(CIRRUS_SRC_DIR)/S3Client.cpp \
 		    $(CIRRUS_SRC_DIR)/SparseDataset.cpp
 
 
@@ -28,15 +29,18 @@ LIBFLAGS =-static-libgcc  -static \
 	  -Wl,--whole-archive -lpthread -Wl,--no-whole-archive \
 	  -L$(THIRD_PARTY_DIR)/aws-sdk-cpp/build/aws-cpp-sdk-core/ \
 	  -L$(THIRD_PARTY_DIR)/aws-sdk-cpp/build/aws-cpp-sdk-s3 \
-	  -L/home/ec2-user/kerberos/krb5-1.15.2/src/lib \
-	  -L/home/ec2-user/keyutils/keyutils-1.5.10 \
+	  -L$(THIRD_PARTY_DIR)/kerberos/src/lib \
+	  -L$(THIRD_PARTY_DIR)/keyutils/ \
+	  -L$(THIRD_PARTY_DIR)/gflags/lib/ \
+	  -L$(THIRD_PARTY_DIR)/curl/curl/lib/.libs/ \
 	  -laws-cpp-sdk-s3 -laws-cpp-sdk-core \
-	  -lutils -lcurl -lssl -lcrypto -lz -ldl -lkrb5 -lk5crypto \
-	  -lall -lkeyutils -lhiredis
+	  -lcurl -lssl -lcrypto -lz -ldl -lkrb5 -lk5crypto \
+	  -lall
 
 INCLUDES=-I$(CIRRUS_SRC_DIR) \
 	 -I$(THIRD_PARTY_DIR)/aws-sdk-cpp/aws-cpp-sdk-s3/include/ \
-	 -I$(THIRD_PARTY_DIR)/aws-sdk-cpp/aws-cpp-sdk-core/include/
+	 -I$(THIRD_PARTY_DIR)/aws-sdk-cpp/aws-cpp-sdk-core/include/ \
+	 -I$(THIRD_PARTY_DIR)/eigen_source
 
 PROJ1=check_correctness_cirrus_gd
 PROJ2=check_correctness_cirrus_sgd

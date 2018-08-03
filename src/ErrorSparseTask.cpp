@@ -37,9 +37,9 @@ ErrorSparseTask::ErrorSparseTask(uint64_t model_size,
   std::atomic_init(&curr_error, 0.0);
 }
 
-std::unique_ptr<CirrusModel> get_model(const Configuration& config,
-        const std::vector<std::string> ps_ip, std::vector<uint64_t> ps_port) {
-  static PSSparseServerInterface* psi;
+std::shared_ptr<CirrusModel> get_model(const Configuration& config,
+        const std::vector<std::string> ps_ips, std::vector<uint64_t> ps_ports) {
+  static MultiplePSSparseServerInterface* psi;
   static bool first_time = true;
   if (first_time) {
     first_time = false;
@@ -71,7 +71,8 @@ void ErrorSparseTask::error_response() {
   struct sockaddr_in serveraddr;
   serveraddr.sin_family = AF_INET;
   serveraddr.sin_addr.s_addr = INADDR_ANY;
-  serveraddr.sin_port = htons(ps_port + 1);
+  int port_num = ps_ports.at(ps_ports.size() - 1) + 1; // error response will bind to the port after the last PS
+  serveraddr.sin_port = htons(port_num);
   std::memset(serveraddr.sin_zero, 0, sizeof(serveraddr.sin_zero));
 
   int ret =
@@ -79,7 +80,7 @@ void ErrorSparseTask::error_response() {
 
   if (ret < 0) {
     throw std::runtime_error("Error in binding in port " +
-                             std::to_string((ps_port + 1)));
+                             std::to_string((port_num)));
   }
 
   uint32_t operation;

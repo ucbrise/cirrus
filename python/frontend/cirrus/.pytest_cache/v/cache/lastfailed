@@ -1,5 +1,0 @@
-{
-  "examples/launch_instance_test.py": true, 
-  "examples/test_vm_manager.py": true, 
-  "tests/cirrus_test.py::test_foo": true
-}

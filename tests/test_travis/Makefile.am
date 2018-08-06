@@ -17,11 +17,14 @@ CIRRUS_SRC_FILES=$(CIRRUS_SRC_DIR)/Configuration.cpp \
 		    $(CIRRUS_SRC_DIR)/Utils.cpp \
 		    $(CIRRUS_SRC_DIR)/MlUtils.cpp \
 		    $(CIRRUS_SRC_DIR)/S3.cpp \
+		    $(CIRRUS_SRC_DIR)/OptimizationMethod.cpp \
+		    $(CIRRUS_SRC_DIR)/SGD.cpp \
 		    $(CIRRUS_SRC_DIR)/Checksum.cpp \
 		    $(CIRRUS_SRC_DIR)/MurmurHash3.cpp \
 		    $(CIRRUS_SRC_DIR)/ModelGradient.cpp \
 		    $(CIRRUS_SRC_DIR)/InputReader.cpp \
 		    $(CIRRUS_SRC_DIR)/PSSparseServerInterface.cpp \
+		    $(CIRRUS_SRC_DIR)/PSSparseServerTask.cpp \
 		    $(CIRRUS_SRC_DIR)/SparseMFModel.cpp \
 		    $(CIRRUS_SRC_DIR)/MFModel.cpp \
 		    $(CIRRUS_SRC_DIR)/S3Iterator.cpp \

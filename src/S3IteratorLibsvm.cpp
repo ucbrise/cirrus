@@ -188,18 +188,18 @@ bool S3IteratorLibsvm::buildDatasetLibsvm(
       }
       int label = readNum<int>(index, data);
 #ifdef DEBUG
-      std::cout << "read label: " << label << std::endl;
+      //std::cout << "read label: " << label << std::endl;
 #endif
 
       // read pairs
       while (1) {
 #ifdef DEBUG
-        std::cout << "index: " << index << " reading new pair " << std::endl;
+        //std::cout << "index: " << index << " reading new pair " << std::endl;
 #endif
         if (!ignoreSpacesNotNewline(index, data)) {
           if (data[index] == '\n') {
 #ifdef DEBUG
-            std::cout << "read line index: " << index << std::endl;
+            //std::cout << "read line index: " << index << std::endl;
 #endif
             break;  // move to next sample
           } else if (data[index] == 0) {
@@ -212,7 +212,7 @@ bool S3IteratorLibsvm::buildDatasetLibsvm(
         }
         uint64_t ind = readNum<uint64_t>(index, data);
 #ifdef DEBUG
-        std::cout << "index: " << index << " ind: " << ind << std::endl;
+        //std::cout << "index: " << index << " ind: " << ind << std::endl;
 #endif
         if (data[index] != ':') {
           return false;
@@ -221,12 +221,12 @@ bool S3IteratorLibsvm::buildDatasetLibsvm(
 
 #ifdef DEBUG
         std::string num_data = data.substr(index, 10);
-        std::cout << "reading value: " << num_data << std::endl;
+        //std::cout << "reading value: " << num_data << std::endl;
 #endif
 
         FEATURE_TYPE value = readNum<FEATURE_TYPE>(index, data);
 #ifdef DEBUG
-        std::cout << "index: " << index << " value: " << value << std::endl;
+        //std::cout << "index: " << index << " value: " << value << std::endl;
 #endif
 
         samples[sample].push_back(std::make_pair(ind, value));
@@ -279,6 +279,8 @@ std::vector<std::shared_ptr<SparseDataset>> S3IteratorLibsvm::parseObjLibsvm(
   // create minibatches until we ran out of data
   while (1) {
     std::shared_ptr<SparseDataset> minibatch;
+
+    uint64_t start = get_time_us();
     if (!buildDatasetLibsvm(data, index, minibatch)) {
 #ifdef DEBUG
       std::cout << "Finished text returning " << result.size() << " minibatches"
@@ -286,6 +288,13 @@ std::vector<std::shared_ptr<SparseDataset>> S3IteratorLibsvm::parseObjLibsvm(
 #endif
       return result;
     }
+   
+#ifdef DEBUG
+    uint64_t elapsed_us = get_time_us() - start;
+    std::cout << "buildDatasetLibsvm elapsed: " << elapsed_us << std::endl;
+#endif
+
+
     result.push_back(minibatch);
   }
 }
@@ -358,14 +367,13 @@ std::pair<uint64_t, uint64_t> S3IteratorLibsvm::getFileRange(
   }
 }
 
-void S3IteratorLibsvm::reportBandwidth(uint64_t elapsed, uint64_t size) {
-#if 0
-  uint64_t elapsed_us = (get_time_us() - start);
-  double mb_s = sstreamSize(*s3_obj) / elapsed_us
+void S3IteratorLibsvm::reportBandwidth(uint64_t elapsed_us, uint64_t size) {
+#ifdef DEBUG
+  double mb_s = size / elapsed_us
     * 1000.0 * 1000 / 1024 / 1024;
   std::cout << "received s3 obj"
     << " elapsed: " << elapsed_us
-    << " size: " << sstreamSize(*s3_obj)
+    << " size: " << size
     << " BW (MB/s): " << mb_s
     << "\n";
 #endif

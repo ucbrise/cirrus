@@ -247,18 +247,9 @@ class PSSparseServerTask : public MLTask {
 
   struct Request {
    public:
-    Request(int req_id,
-            int sock,
-            int id,
-            uint32_t incoming_size,
-            struct pollfd& poll_fd)
-        : req_id(req_id),
-          sock(sock),
-          id(id),
-          incoming_size(incoming_size),
-          poll_fd(poll_fd) {}
+    Request(int sock, int id, uint32_t incoming_size, struct pollfd& poll_fd)
+        : sock(sock), id(id), incoming_size(incoming_size), poll_fd(poll_fd) {}
 
-    int req_id;
     int sock;
     int id;
     uint32_t incoming_size;

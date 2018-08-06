@@ -15,7 +15,10 @@ namespace cirrus {
 void LogisticSparseTaskS3::push_gradient(LRSparseGradient* lrg) {
   auto before_push_us = get_time_us();
 
-  sparse_model_get->psi->send_gradient(*lrg);
+  if (is_sharded)
+    sparse_model_get->mpsi->send_gradient(*lrg);
+  else
+    sparse_model_get->psi->send_lr_gradient(*lrg);
 #ifdef DEBUG
   std::cout << "Published gradients!" << std::endl;
   auto elapsed_push_us = get_time_us() - before_push_us;

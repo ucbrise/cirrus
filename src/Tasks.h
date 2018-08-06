@@ -87,6 +87,19 @@ class LogisticSparseTaskS3 : public MLTask {
         uint64_t batch_size, uint64_t samples_per_batch,
         uint64_t features_per_sample, uint64_t nworkers,
         uint64_t worker_id,
+        const std::string& ps_ip,
+        uint64_t ps_port) :
+      MLTask(model_size,
+          batch_size, samples_per_batch, features_per_sample,
+          nworkers, worker_id, ps_ip, ps_port)
+  {
+  
+  }
+    LogisticSparseTaskS3(
+        uint64_t model_size,
+        uint64_t batch_size, uint64_t samples_per_batch,
+        uint64_t features_per_sample, uint64_t nworkers,
+        uint64_t worker_id,
         std::vector<std::string> ps_ips,
         std::vector<uint64_t> ps_ports) :
       MLTask(model_size,
@@ -94,7 +107,6 @@ class LogisticSparseTaskS3 : public MLTask {
           nworkers, worker_id, ps_ips, ps_ports)
   {
   
-    std::cout << this->ps_ips.size() << std::endl;
   }
 
     /**
@@ -107,22 +119,40 @@ class LogisticSparseTaskS3 : public MLTask {
   private:
     class SparseModelGet {
       public:
+        SparseModelGet(const std::string& ps_ip, uint64_t ps_port)
+           {
+            is_sharded = false;
+            psi = std::make_unique<PSSparseServerInterface>(ps_ip, ps_port);
+        }
+        
         SparseModelGet(const std::vector<std::string> ps_ips, std::vector<uint64_t> ps_ports)
            {
-            psi = std::make_unique<MultiplePSSparseServerInterface>(ps_ips, ps_ports);
+            is_sharded = true;
+            mpsi = std::make_unique<MultiplePSSparseServerInterface>(ps_ips, ps_ports);
         }
 
         SparseLRModel get_new_model(const SparseDataset& ds,
                                     const Configuration& config) {
-          return std::move(psi->get_lr_sparse_model(ds, config));
+            if (is_sharded)
+                return std::move(mpsi->get_lr_sparse_model(ds, config));
+            else
+                return std::move(psi->get_lr_sparse_model(ds, config));
+
         }
         void get_new_model_inplace(const SparseDataset& ds,
                                    SparseLRModel& model,
                                    const Configuration& config) {
-          model = psi->get_lr_sparse_model(ds, config);
+          if (is_sharded)
+            model = mpsi->get_lr_sparse_model(ds, config);
+          else
+            psi->get_lr_sparse_model_inplace(ds, model, config);
+            
+
         }
 
-        std::unique_ptr<MultiplePSSparseServerInterface> psi;
+        bool is_sharded;
+        std::unique_ptr<MultiplePSSparseServerInterface> mpsi; 
+        std::unique_ptr<PSSparseServerInterface> psi;
     };
 
     bool get_dataset_minibatch(
@@ -130,8 +160,10 @@ class LogisticSparseTaskS3 : public MLTask {
         S3SparseIterator& s3_iter);
     void push_gradient(LRSparseGradient*);
 
+    bool is_sharded;
     std::mutex redis_lock;
-    std::unique_ptr<MultiplePSSparseServerInterface> psi; 
+    std::unique_ptr<PSSparseServerInterface> psi; 
+    std::unique_ptr<MultiplePSSparseServerInterface> mpsi; 
     std::unique_ptr<SparseModelGet> sparse_model_get;
 };
 

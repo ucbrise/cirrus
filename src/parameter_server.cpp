@@ -44,12 +44,18 @@ void run_tasks(int rank, int nworkers,
      * Number of tasks is determined by the value of nworkers
      */
     if (config.get_model_type() == cirrus::Configuration::LOGISTICREGRESSION) {
-
-      std::cout << "ALERT" << ps_ips.size() << std::endl;
-      cirrus::LogisticSparseTaskS3 lt(features_per_sample,
+      
+      if (ps_ips.size() > 1) {
+        cirrus::LogisticSparseTaskS3 lt(features_per_sample,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, rank, ps_ips, ps_ports);
-      lt.run(config, rank - WORKERS_BASE);
+        lt.run(config, rank - WORKERS_BASE);
+      } else {
+        cirrus::LogisticSparseTaskS3 lt(features_per_sample,
+          batch_size, samples_per_batch, features_per_sample,
+          nworkers, rank, ps_ips[0], ps_ports[0]);
+        lt.run(config, rank - WORKERS_BASE);
+      }
     } else if (config.get_model_type()
             == cirrus::Configuration::COLLABORATIVE_FILTERING) {
       cirrus::MFNetflixTask lt(0,
@@ -63,28 +69,37 @@ void run_tasks(int rank, int nworkers,
     * SPARSE tasks
     */
   } else if (rank == ERROR_SPARSE_TASK_RANK) {
-    cirrus::ErrorSparseTask et((1 << config.get_model_bits()),
-        batch_size, samples_per_batch, features_per_sample,
-        nworkers, rank, ps_ips, ps_ports);
-    et.run(config);
-    cirrus::sleep_forever();
+      if (ps_ips.size() > 1) {
+        cirrus::ErrorSparseTask et((1 << config.get_model_bits()),
+            batch_size, samples_per_batch, features_per_sample,
+            nworkers, rank, ps_ips, ps_ports);
+        et.run(config);
+        cirrus::sleep_forever();
+      } else {
+        cirrus::ErrorSparseTask et((1 << config.get_model_bits()),
+            batch_size, samples_per_batch, features_per_sample,
+            nworkers, rank, ps_ips[0], ps_ports[0]);
+        et.run(config);
+        cirrus::sleep_forever();
+
+      }
     
   } else if (rank == LOADING_SPARSE_TASK_RANK) {
     
     if (config.get_model_type() == cirrus::Configuration::LOGISTICREGRESSION) {
-    /*  cirrus::LoadingSparseTaskS3 lt((1 << config.get_model_bits()),
+      cirrus::LoadingSparseTaskS3 lt((1 << config.get_model_bits()),
           batch_size, samples_per_batch, features_per_sample,
-          nworkers, rank, ps_ip, ps_port);
+          nworkers, rank, ps_ips[0], ps_ports[0]);
       lt.run(config);
-      */
+      
     } else if (config.get_model_type() ==
             cirrus::Configuration::COLLABORATIVE_FILTERING) {
-      /*
+      
       cirrus::LoadingNetflixTask lt(0,
           batch_size, samples_per_batch, features_per_sample,
-          nworkers, rank, ps_ip, ps_port);
+          nworkers, rank, ps_ips[0], ps_ports[0]);
       lt.run(config);
-      */
+      
     } else {
       exit(-1);
     }

@@ -90,6 +90,7 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace_sharded(SparseLRModel&
 #endif
 
   char* msg = msg_begin;
+  /*
   store_value<uint32_t>(msg, num_weights); // store correct value here
 #ifdef DEBUG
   assert(std::distance(msg_begin, msg) < MAX_MSG_SIZE);
@@ -117,7 +118,7 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace_sharded(SparseLRModel&
   if (send_all(sock, msg_begin, msg_size) == -1) {
     throw std::runtime_error("Error getting sparse lr model");
   }
-  
+  */
   //4. receive weights from PS
   uint32_t to_receive_size = sizeof(FEATURE_TYPE) * num_weights;
   //std::cout << "Model sent. Receiving: " << num_weights << " weights" << std::endl;
@@ -134,6 +135,7 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace_sharded(SparseLRModel&
   // build a truly sparse model and return
   // XXX this copy could be avoided
   lr_model.loadSerializedSparse((FEATURE_TYPE*)buffer, (uint32_t*)msg, num_weights, config, server_id, num_ps);
+  
   delete[] msg_begin;
   delete[] buffer;
 }

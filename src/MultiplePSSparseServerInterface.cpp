@@ -94,23 +94,36 @@ void MultiplePSSparseServerInterface::get_lr_sparse_model(const SparseDataset& d
     for (const auto& w : sample) {
       int server_index = w.first % num_servers;
       int data_index = (w.first - server_index) / num_servers;
-      //std::cout << "[converted] " << w.first << " to " << data_index << std::endl;
       store_value<uint32_t>(msg_lst[server_index], data_index);
       num_weights_lst[server_index]++;
     }
   }
 
+  for (int i = 0; i < num_servers; i++) {
+    char* msg = msg_begin_lst[i];
+    store_value(msg, num_weights_lst[i]);
+
+    uint32_t operation = GET_LR_SPARSE_MODEL;
+    if (send_all(psints[i]->sock, &operation, sizeof(uint32_t)) == -1) {
+      throw std::runtime_error("Error getting sparse lr model");
+    }
+    
+    // 2. Send msg size
+    uint32_t msg_size = sizeof(uint32_t) + sizeof(uint32_t) * num_weights_lst[i];
+    send_all(psints[i]->sock, &msg_size, sizeof(uint32_t));
+    
+    // 3. Send num_weights + weights
+    if (send_all(psints[i]->sock, msg_begin_lst[i], msg_size) == -1) {
+        throw std::runtime_error("Error getting sparse lr model");
+    }
+    
+  }
+
+
   // we get the model subset with just the right amount of weights
   for (int i = 0; i < num_servers; i++) {
     psints[i]->get_lr_sparse_model_inplace_sharded(model, config, msg_begin_lst[i], num_weights_lst[i], i, num_servers);
   }
-
-  /*
-  for (int i = 0; i < num_servers; i++) {
-    std::cout << "msg_begin_list[i] is " << i << " " << static_cast<void*>(msg_begin_lst[i]) << std::endl;
-    delete[] msg_begin_lst[i];
-  }
-  */
 
   delete[] msg_begin_lst;
   delete[] msg_lst;

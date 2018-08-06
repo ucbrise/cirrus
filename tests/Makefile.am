@@ -1,3 +1,3 @@
 AUTOMAKE_OPTIONS = foreign
-SUBDIRS = iterator
+SUBDIRS = test_travis iterator
 

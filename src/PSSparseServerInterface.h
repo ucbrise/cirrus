@@ -44,8 +44,8 @@ class PSSparseServerInterface {
                                            int server_id,
                                            int num_ps);
   void get_full_model_inplace(std::unique_ptr<cirrus::SparseLRModel>& model,
-                              int a,
-                              int b);
+                              int server_id,
+                              int num_ps);
 
   std::unique_ptr<CirrusModel> get_full_model(bool isCollaborativeFiltering); //XXX use a better argument here
 

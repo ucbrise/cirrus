@@ -329,7 +329,10 @@ void PSSparseServerTask::gradient_f() {
       continue;
     }
 
-    req.req_id = operation;
+#ifdef DEBUG
+    std::cout << "Operation: " << operation << " - "
+              << operation_to_name[operation] << std::endl;
+#endif
 
     if (operation == REGISTER_TASK) {
       // read the task id
@@ -359,16 +362,15 @@ void PSSparseServerTask::gradient_f() {
       req.incoming_size = incoming_size;
     }
 
-
-    if (req.req_id == SEND_LR_GRADIENT) {
+    if (operation == SEND_LR_GRADIENT) {
       if (!process_send_lr_gradient(req, thread_buffer)) {
         break;
       }
-    } else if (req.req_id == SEND_MF_GRADIENT) {
+    } else if (operation == SEND_MF_GRADIENT) {
       if (!process_send_mf_gradient(req, thread_buffer)) {
         break;
       }
-    } else if (req.req_id == GET_LR_SPARSE_MODEL) {
+    } else if (operation == GET_LR_SPARSE_MODEL) {
 #ifdef DEBUG
       std::cout << "process_get_lr_sparse_model" << std::endl;
       auto before = get_time_us();
@@ -380,17 +382,17 @@ void PSSparseServerTask::gradient_f() {
       auto elapsed = get_time_us() - before;
       std::cout << "GET_LR_SPARSE_MODEL Elapsed(us): " << elapsed << std::endl;
 #endif
-    } else if (req.req_id == GET_MF_SPARSE_MODEL) {
+    } else if (operation == GET_MF_SPARSE_MODEL) {
       if (!process_get_mf_sparse_model(req, thread_buffer, thread_number)) {
         break;
       }
-    } else if (req.req_id == GET_LR_FULL_MODEL) {
+    } else if (operation == GET_LR_FULL_MODEL) {
       if (!process_get_lr_full_model(req, thread_buffer))
         break;
-    } else if (req.req_id == GET_MF_FULL_MODEL) {
+    } else if (operation == GET_MF_FULL_MODEL) {
       if (!process_get_mf_full_model(req, thread_buffer))
         break;
-    } else if (req.req_id == GET_TASK_STATUS) {
+    } else if (operation == GET_TASK_STATUS) {
       uint32_t task_id;
       if (read_all(sock, &task_id, sizeof (uint32_t)) == 0) {
         break;
@@ -456,7 +458,6 @@ void PSSparseServerTask::gradient_f() {
 
 /**
  * FORMAT
- * operation (uint32_t)
  * incoming size (uint32_t)
  * buffer with previous size
  */
@@ -466,19 +467,13 @@ bool PSSparseServerTask::process(struct pollfd& poll_fd, int thread_id) {
   std::cout << "Processing socket: " << sock << std::endl;
 #endif
 
-  uint32_t operation = 0;
-#ifdef DEBUG 
-  std::cout << "Operation: " << operation << " - "
-      << operation_to_name[operation] << std::endl;
-#endif
-
   uint32_t incoming_size = 0;
 #ifdef DEBUG 
   std::cout << "incoming size: " << incoming_size << std::endl;
 #endif
   to_process_lock.lock();
   poll_fd.events = 0; // explain this
-  to_process.push(Request(operation, sock, thread_id, incoming_size, poll_fd));
+  to_process.push(Request(sock, thread_id, incoming_size, poll_fd));
   to_process_lock.unlock();
   sem_post(&sem_new_req);
   return true;

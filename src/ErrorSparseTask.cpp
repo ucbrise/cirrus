@@ -100,7 +100,11 @@ void ErrorSparseTask::error_response() {
   struct sockaddr_in serveraddr;
   serveraddr.sin_family = AF_INET;
   serveraddr.sin_addr.s_addr = INADDR_ANY;
-  int port_num = ps_ports.at(ps_ports.size() - 1) + 1; // error response will bind to the port after the last PS
+  int port_num;
+  if (is_sharded)
+    port_num = ps_ports.at(ps_ports.size() - 1) + 1; // error response will bind to the port after the last PS
+  else
+    port_num = ps_port + 1;
   serveraddr.sin_port = htons(port_num);
   std::memset(serveraddr.sin_zero, 0, sizeof(serveraddr.sin_zero));
 

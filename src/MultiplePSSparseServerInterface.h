@@ -24,6 +24,7 @@ class MultiplePSSparseServerInterface {
   void send_gradient(const LRSparseGradient& gradient);
   std::unique_ptr<CirrusModel> get_full_model();
   SparseLRModel get_lr_sparse_model(const SparseDataset& ds, const Configuration& config);
+  void get_lr_sparse_model(const SparseDataset& ds, SparseLRModel& model, const Configuration& config);
 
 
  private:

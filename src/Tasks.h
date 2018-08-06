@@ -123,6 +123,14 @@ class LogisticSparseTaskS3 : public MLTask {
            {
             is_sharded = false;
             psi = std::make_unique<PSSparseServerInterface>(ps_ip, ps_port);
+            while (true) {
+              try {
+                psi->connect();
+                break;
+              } catch (const std::exception& exc) {
+                std::cout << exc.what();
+              }
+            }
         }
         
         SparseModelGet(const std::vector<std::string> ps_ips, std::vector<uint64_t> ps_ports)
@@ -143,7 +151,7 @@ class LogisticSparseTaskS3 : public MLTask {
                                    SparseLRModel& model,
                                    const Configuration& config) {
           if (is_sharded)
-            model = mpsi->get_lr_sparse_model(ds, config);
+            mpsi->get_lr_sparse_model(ds, model, config);
           else
             psi->get_lr_sparse_model_inplace(ds, model, config);
             
@@ -160,7 +168,6 @@ class LogisticSparseTaskS3 : public MLTask {
         S3SparseIterator& s3_iter);
     void push_gradient(LRSparseGradient*);
 
-    bool is_sharded;
     std::mutex redis_lock;
     std::unique_ptr<PSSparseServerInterface> psi; 
     std::unique_ptr<MultiplePSSparseServerInterface> mpsi; 

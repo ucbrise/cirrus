@@ -15,7 +15,14 @@ MultiplePSSparseServerInterface::MultiplePSSparseServerInterface(std::vector<std
   for (int i = 0; i < param_ips.size(); i++) { // replace 2 with num_servers
     std::cout << "Attempting connection to " << param_ips[i] << ":" << ps_ports[i] << std::endl;
     auto ptr = new PSSparseServerInterface(param_ips[i], ps_ports[i]);
+    while (true) {
+      try {
         ptr->connect();
+        break;
+      } catch (std::exception& exc) {
+        std::cout << exc.what();
+      }
+    }
     psints.push_back(ptr);
     std::cout << "Connected!!!" << std::endl;
   }
@@ -58,12 +65,17 @@ void MultiplePSSparseServerInterface::send_gradient(const LRSparseGradient& grad
     
 }
 
-
 SparseLRModel MultiplePSSparseServerInterface::get_lr_sparse_model(const SparseDataset& ds, const Configuration& config) {
-  // Initialize variables
   SparseLRModel model(0);
-  //std::unique_ptr<CirrusModel> model = std::make_unique<SparseLRModel>(0);
-  // we don't know the number of weights to start with
+  get_lr_sparse_model(ds, model, config);
+  return std::move(model);
+}
+
+
+
+void MultiplePSSparseServerInterface::get_lr_sparse_model(const SparseDataset& ds, SparseLRModel& model, const Configuration& config) {
+  // Initialize variables
+  
   int num_servers = psints.size();
   char** msg_lst = new char*[num_servers];
   char** msg_begin_lst = new char*[num_servers];
@@ -103,8 +115,6 @@ SparseLRModel MultiplePSSparseServerInterface::get_lr_sparse_model(const SparseD
   delete[] msg_begin_lst;
   delete[] msg_lst;
   delete[] num_weights_lst;
-  //return psint[0]->get_lr_sparse_model(ds, config);
-  return model;
 }
 
 

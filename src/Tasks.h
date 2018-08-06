@@ -38,8 +38,9 @@ class MLTask {
       features_per_sample(features_per_sample),
       nworkers(nworkers), worker_id(worker_id),
       ps_ip(ps_ip), ps_port(ps_port)
-  {}
-    
+  {
+    this->is_sharded = false;
+  } 
     MLTask(
         uint64_t model_size,
         uint64_t batch_size, uint64_t samples_per_batch,
@@ -52,6 +53,7 @@ class MLTask {
       features_per_sample(features_per_sample),
       nworkers(nworkers), worker_id(worker_id)
   { 
+    this->is_sharded = true;
     this->ps_ports = ps_ports; 
     this->ps_ips = ps_ips;
     std::cout << "MLTASK" << this->ps_ips.size() << std::endl;
@@ -75,6 +77,7 @@ class MLTask {
     std::vector<std::string> ps_ips;
     std::vector<uint64_t> ps_ports;
     Configuration config;
+    bool is_sharded;
 };
 
 class LogisticSparseTaskS3 : public MLTask {
@@ -174,8 +177,7 @@ class ErrorSparseTask : public MLTask {
                    uint64_t worker_id,
                    const std::string& ps_ip,
                    uint64_t ps_port);
-
-
+   
    ErrorSparseTask(uint64_t model_size,
                    uint64_t batch_size,
                    uint64_t samples_per_batch,
@@ -183,16 +185,10 @@ class ErrorSparseTask : public MLTask {
                    uint64_t nworkers,
                    uint64_t worker_id,
                    std::vector<std::string> ps_ips,
-                   std::vector<uint64_t> ps_ports)
-       : MLTask(model_size,
-                batch_size,
-                samples_per_batch,
-                features_per_sample,
-                nworkers,
-                worker_id,
-                ps_ips,
-                ps_ports) {
-   }
+                   std::vector<uint64_t> ps_ports);
+
+
+
    void run(const Configuration& config);
    void error_response();
 

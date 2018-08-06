@@ -211,7 +211,7 @@ SparseLRModel PSSparseServerInterface::get_lr_sparse_model(const SparseDataset& 
 }
 
 
-void PSSparseServerInterface::get_full_model_inplace(std::shared_ptr<SparseLRModel> model, int server_id, int num_ps) {
+void PSSparseServerInterface::get_full_model_inplace(std::unique_ptr<SparseLRModel>& model, int server_id, int num_ps) {
 
   // 1. Send operation
   uint32_t operation = GET_LR_FULL_MODEL;

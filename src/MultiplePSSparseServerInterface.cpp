@@ -108,14 +108,13 @@ SparseLRModel MultiplePSSparseServerInterface::get_lr_sparse_model(const SparseD
 }
 
 
-std::shared_ptr<CirrusModel> MultiplePSSparseServerInterface::get_full_model() {
-  //SparseLRModel model(0);
-  std::shared_ptr<SparseLRModel> model = std::make_shared<SparseLRModel>(0);
+std::unique_ptr<CirrusModel> MultiplePSSparseServerInterface::get_full_model() {
+  std::unique_ptr<SparseLRModel> model = std::make_unique<SparseLRModel>(0);
   // placeholder for now NOT CORRECT
   for (int i = 0; i < psints.size(); i++) {
     psints[i]->get_full_model_inplace(model, i, psints.size());
   }
-  return model;
+  return std::move(model);
 
 }
 

@@ -6,6 +6,7 @@
 #include "S3SparseIterator.h"
 #include "Utils.h"
 #include "SparseLRModel.h"
+#include "PSSparseServerInterface.h"
 #include "MultiplePSSparseServerInterface.h"
 #include "Configuration.h"
 #include "Constants.h"
@@ -37,15 +38,34 @@ ErrorSparseTask::ErrorSparseTask(uint64_t model_size,
   std::atomic_init(&curr_error, 0.0);
 }
 
-std::shared_ptr<CirrusModel> get_model(const Configuration& config,
-        const std::vector<std::string> ps_ips, std::vector<uint64_t> ps_ports) {
-  static MultiplePSSparseServerInterface* psi;
+ErrorSparseTask::ErrorSparseTask(uint64_t model_size,
+                                 uint64_t batch_size,
+                                 uint64_t samples_per_batch,
+                                 uint64_t features_per_sample,
+                                 uint64_t nworkers,
+                                 uint64_t worker_id,
+                                 std::vector<std::string> ps_ips,
+                                 std::vector<uint64_t> ps_ports)
+    : MLTask(model_size,
+             batch_size,
+             samples_per_batch,
+             features_per_sample,
+             nworkers,
+             worker_id,
+             ps_ips,
+             ps_ports) {
+  ps_ports = ps_ports;
+  std::atomic_init(&curr_error, 0.0);
+}
+
+std::unique_ptr<CirrusModel> get_model(const Configuration& config,
+        const std::string& ps_ip, uint64_t ps_port) {
+  static PSSparseServerInterface* psi;
   static bool first_time = true;
   if (first_time) {
     first_time = false;
-    psi = new MultiplePSSparseServerInterface(ps_ips, ps_ports);
+    psi = new PSSparseServerInterface(ps_ip, ps_port);
 
-    /*
     while (true) {
       try {
         psi->connect();
@@ -54,11 +74,20 @@ std::shared_ptr<CirrusModel> get_model(const Configuration& config,
         std::cout << exc.what();
       }
     }
-    */
   }
 
   bool use_col_filtering =
     config.get_model_type() == Configuration::COLLABORATIVE_FILTERING;
+  return psi->get_full_model(use_col_filtering);
+}
+std::unique_ptr<CirrusModel> get_model(const Configuration& config,
+        const std::vector<std::string> ps_ips, std::vector<uint64_t> ps_ports) {
+  static MultiplePSSparseServerInterface* psi;
+  static bool first_time = true;
+  if (first_time) {
+    first_time = false;
+    psi = new MultiplePSSparseServerInterface(ps_ips, ps_ports);
+  }
   return psi->get_full_model();
 }
 
@@ -174,8 +203,12 @@ void ErrorSparseTask::run(const Configuration& config) {
       std::cout << "[ERROR_TASK] getting the full model"
         << "\n";
 #endif
-      std::shared_ptr<CirrusModel> model = get_model(config, ps_ips, ps_ports);
-
+      std::unique_ptr<CirrusModel> model;
+      if (is_sharded) {
+        model = get_model(config, ps_ips, ps_ports);
+      } else { 
+        model = get_model(config, ps_ip, ps_port);
+      }
 #ifdef DEBUG
       std::cout << "[ERROR_TASK] received the model" << std::endl;
 #endif

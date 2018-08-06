@@ -119,8 +119,8 @@ class SparseLRModel : public CirrusModel {
      * @return Newly computed gradient
      */
     std::unique_ptr<ModelGradient> minibatch_grad(
-            const SparseDataset& dataset,
-            const Configuration& config) const;
+        const SparseDataset& dataset,
+        const Configuration& config) const;
 
     std::unique_ptr<ModelGradient> minibatch_grad_sparse(
         const SparseDataset& dataset,

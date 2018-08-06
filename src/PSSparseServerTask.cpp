@@ -469,9 +469,9 @@ bool PSSparseServerTask::process(struct pollfd& poll_fd, int thread_id) {
 #endif
 
   uint32_t operation = 0;
-#ifdef DEBUG 
+#ifdef DEBUG
   std::cout << "Operation: " << operation << " - "
-      << operation_to_name[operation] << std::endl;
+            << operation_to_name[operation] << std::endl;
 #endif
 
   uint32_t incoming_size = 0;

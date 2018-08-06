@@ -174,8 +174,8 @@ double SparseLRModel::dot_product(
     int index = feat.first;
     FEATURE_TYPE value = feat.second;
     if ((uint64_t)index >= weights_.size()) {
-      std::cerr << "index: " << index << " weights.size: "
-                << weights_.size() << std::endl;
+      std::cerr << "index: " << index << " weights.size: " << weights_.size()
+                << std::endl;
       throw std::runtime_error("Index too high");
     }
     assert(index >= 0 && (uint64_t)index < weights_.size());
@@ -194,8 +194,8 @@ double SparseLRModel::dot_product(
 }
 
 std::unique_ptr<ModelGradient> SparseLRModel::minibatch_grad(
-        const SparseDataset& dataset,
-        const Configuration& config) const {
+    const SparseDataset& dataset,
+    const Configuration& config) const {
   if (is_sparse_) {
     throw std::runtime_error("This model is sparse");
   }
@@ -247,7 +247,7 @@ std::unique_ptr<ModelGradient> SparseLRModel::minibatch_grad(
       uint64_t index = v.first;
       FEATURE_TYPE value = v.second;
       res.push_back(std::make_pair(
-            index, value + weights_[index] * 2 * config.get_epsilon()));
+          index, value + weights_[index] * 2 * config.get_epsilon()));
     }
 #ifdef DEBUG
     auto after_3 = get_time_us();

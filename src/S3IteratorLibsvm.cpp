@@ -194,12 +194,12 @@ bool S3IteratorLibsvm::buildDatasetLibsvm(
       // read pairs
       while (1) {
 #ifdef DEBUG
-        // std::cout << "index: " << index << " reading new pair " << std::endl;
+        std::cout << "index: " << index << " reading new pair " << std::endl;
 #endif
         if (!ignoreSpacesNotNewline(index, data)) {
           if (data[index] == '\n') {
 #ifdef DEBUG
-            // std::cout << "read line index: " << index << std::endl;
+            std::cout << "read line index: " << index << std::endl;
 #endif
             break;  // move to next sample
           } else if (data[index] == 0) {

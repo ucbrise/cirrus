@@ -38,6 +38,7 @@ AC_CONFIG_FILES([Makefile
                  src/Makefile
                  tests/Makefile
                  tests/iterator/Makefile
+                 tests/test_s3/Makefile
                  tests/test_travis/Makefile])
 
 AC_OUTPUT

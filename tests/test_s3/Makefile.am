@@ -3,6 +3,11 @@ AUTOMAKE_OPTIONS = foreign
 CXX=g++
 CXXFLAGS=-Wall -ansi -O3 -std=c++17 -ggdb
 
+AM_CPPFLAGS=-I$(CIRRUS_SRC_DIR) \
+	 -I$(THIRD_PARTY_DIR)/aws-sdk-cpp/aws-cpp-sdk-s3/include/ \
+	 -I$(THIRD_PARTY_DIR)/aws-sdk-cpp/aws-cpp-sdk-core/include/ \
+	 -I$(THIRD_PARTY_DIR)/eigen_source/
+
 TOP_DIR=../../../..
 THIRD_PARTY_DIR=../../third_party
 CIRRUS_SRC_DIR=../../src
@@ -45,14 +50,9 @@ LDFLAGS  =-static-libgcc  -static \
 
 LDADD    = $(LINCLUDES) $(LIBS)
 
-AM_CPPFLAGS=-I$(CIRRUS_SRC_DIR) \
-	 -I$(THIRD_PARTY_DIR)/aws-sdk-cpp/aws-cpp-sdk-s3/include/ \
-	 -I$(THIRD_PARTY_DIR)/aws-sdk-cpp/aws-cpp-sdk-core/include/ \
-	 -I$(THIRD_PARTY_DIR)/eigen_source/
+bin_PROGRAMS = test_s3
 
-bin_PROGRAMS = test_libsvm_iterator
-
-test_libsvm_iterator_SOURCES  = test_libsvm_iterator.cpp $(CIRRUS_SRC_FILES)
+test_s3_SOURCES  = test_s3.cpp $(CIRRUS_SRC_FILES)
 
 clean:
-	rm -rf a.out test_iterator
+	rm -rf test_s3

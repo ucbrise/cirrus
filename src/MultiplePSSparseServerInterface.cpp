@@ -123,7 +123,9 @@ void MultiplePSSparseServerInterface::get_lr_sparse_model(const SparseDataset& d
   // we get the model subset with just the right amount of weights
   for (int i = 0; i < num_servers; i++) {
     psints[i]->get_lr_sparse_model_inplace_sharded(model, config, msg_begin_lst[i], num_weights_lst[i], i, num_servers);
+    delete[] msg_begin_lst[i];
   }
+
 
   delete[] msg_begin_lst;
   delete[] msg_lst;

@@ -70,8 +70,7 @@ bool LogisticSparseTaskS3::get_dataset_minibatch(
 }
 
 void LogisticSparseTaskS3::run(const Configuration& config, int worker) {
-  std::cout << "Starting LogisticSparseTaskS3 " << ps_ips.size()
-    << std::endl;
+  std::cout << "Starting LogisticSparseTaskS3 " << ps_ips.size() << std::endl;
   uint64_t num_s3_batches = config.get_limit_samples() / config.get_s3_size();
   this->config = config;
 

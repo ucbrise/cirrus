@@ -18,20 +18,19 @@
 namespace cirrus {
 
 class MultiplePSSparseServerInterface {
- 
  public:
-  MultiplePSSparseServerInterface(std::vector<std::string> ps_ips, std::vector<uint64_t> ps_ports);
+  MultiplePSSparseServerInterface(std::vector<std::string> ps_ips,
+                                  std::vector<uint64_t> ps_ports);
   void send_gradient(const LRSparseGradient& gradient);
   std::unique_ptr<CirrusModel> get_full_model();
-  SparseLRModel get_lr_sparse_model(const SparseDataset& ds, const Configuration& config);
-  void get_lr_sparse_model(const SparseDataset& ds, SparseLRModel& model, const Configuration& config);
-
+  SparseLRModel get_lr_sparse_model(const SparseDataset& ds,
+                                    const Configuration& config);
+  void get_lr_sparse_model(const SparseDataset& ds,
+                           SparseLRModel& model,
+                           const Configuration& config);
 
  private:
   std::vector<PSSparseServerInterface*> psints;
-
-
 };
-
 }
-#endif //  MULTIPLE_PS_SPARSE_SERVER_INTERFACE
+#endif  //  MULTIPLE_PS_SPARSE_SERVER_INTERFACE

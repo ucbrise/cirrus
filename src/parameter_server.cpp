@@ -19,24 +19,26 @@ DEFINE_string(ps_port, "1337", "parameter server ports comma separated");
 static const uint64_t GB = (1024*1024*1024);
 static const uint32_t SIZE = 1;
 
-void run_tasks(int rank, int nworkers,
-    int batch_size, const cirrus::Configuration& config,
-    std::vector<std::string> ps_ips, std::vector<uint64_t> ps_ports) {
-
+void run_tasks(int rank,
+               int nworkers,
+               int batch_size,
+               const cirrus::Configuration& config,
+               std::vector<std::string> ps_ips,
+               std::vector<uint64_t> ps_ports) {
   std::cout << "Run tasks rank: " << rank << std::endl;
   int features_per_sample = config.get_num_features();
   int samples_per_batch = config.get_minibatch_size();
 
   if (rank == PERFORMANCE_LAMBDA_RANK) {
-    cirrus::PerformanceLambdaTask lt(features_per_sample,
-        batch_size, samples_per_batch, features_per_sample,
-        nworkers, rank, ps_ips[0], ps_ports[0]);
+    cirrus::PerformanceLambdaTask lt(features_per_sample, batch_size,
+                                     samples_per_batch, features_per_sample,
+                                     nworkers, rank, ps_ips[0], ps_ports[0]);
     lt.run(config);
     cirrus::sleep_forever();
   } else if (rank == PS_SPARSE_SERVER_TASK_RANK) {
-    cirrus::PSSparseServerTask st((1 << config.get_model_bits()) + 1,
-        batch_size, samples_per_batch, features_per_sample,
-        nworkers, rank, ps_ips[0], ps_ports[0]);
+    cirrus::PSSparseServerTask st(
+        (1 << config.get_model_bits()) + 1, batch_size, samples_per_batch,
+        features_per_sample, nworkers, rank, ps_ips[0], ps_ports[0]);
     st.run(config);
   } else if (rank >= WORKERS_BASE && rank < WORKERS_BASE + nworkers) {
     /**
@@ -44,23 +46,22 @@ void run_tasks(int rank, int nworkers,
      * Number of tasks is determined by the value of nworkers
      */
     if (config.get_model_type() == cirrus::Configuration::LOGISTICREGRESSION) {
-      
       if (ps_ips.size() > 1) {
-        cirrus::LogisticSparseTaskS3 lt(features_per_sample,
-          batch_size, samples_per_batch, features_per_sample,
-          nworkers, rank, ps_ips, ps_ports);
+        cirrus::LogisticSparseTaskS3 lt(features_per_sample, batch_size,
+                                        samples_per_batch, features_per_sample,
+                                        nworkers, rank, ps_ips, ps_ports);
         lt.run(config, rank - WORKERS_BASE);
       } else {
-        cirrus::LogisticSparseTaskS3 lt(features_per_sample,
-          batch_size, samples_per_batch, features_per_sample,
-          nworkers, rank, ps_ips[0], ps_ports[0]);
+        cirrus::LogisticSparseTaskS3 lt(features_per_sample, batch_size,
+                                        samples_per_batch, features_per_sample,
+                                        nworkers, rank, ps_ips[0], ps_ports[0]);
         lt.run(config, rank - WORKERS_BASE);
       }
     } else if (config.get_model_type()
             == cirrus::Configuration::COLLABORATIVE_FILTERING) {
-      cirrus::MFNetflixTask lt(0,
-          batch_size, samples_per_batch, features_per_sample,
-          nworkers, rank, ps_ips[0], ps_ports[0]);
+      cirrus::MFNetflixTask lt(0, batch_size, samples_per_batch,
+                               features_per_sample, nworkers, rank, ps_ips[0],
+                               ps_ports[0]);
       lt.run(config, rank - WORKERS_BASE);
     } else {
       exit(-1);
@@ -69,37 +70,34 @@ void run_tasks(int rank, int nworkers,
     * SPARSE tasks
     */
   } else if (rank == ERROR_SPARSE_TASK_RANK) {
-      if (ps_ips.size() > 1) {
-        cirrus::ErrorSparseTask et((1 << config.get_model_bits()),
-            batch_size, samples_per_batch, features_per_sample,
-            nworkers, rank, ps_ips, ps_ports);
-        et.run(config);
-        cirrus::sleep_forever();
-      } else {
-        cirrus::ErrorSparseTask et((1 << config.get_model_bits()),
-            batch_size, samples_per_batch, features_per_sample,
-            nworkers, rank, ps_ips[0], ps_ports[0]);
-        et.run(config);
-        cirrus::sleep_forever();
+    if (ps_ips.size() > 1) {
+      cirrus::ErrorSparseTask et((1 << config.get_model_bits()), batch_size,
+                                 samples_per_batch, features_per_sample,
+                                 nworkers, rank, ps_ips, ps_ports);
+      et.run(config);
+      cirrus::sleep_forever();
+    } else {
+      cirrus::ErrorSparseTask et((1 << config.get_model_bits()), batch_size,
+                                 samples_per_batch, features_per_sample,
+                                 nworkers, rank, ps_ips[0], ps_ports[0]);
+      et.run(config);
+      cirrus::sleep_forever();
+    }
 
-      }
-    
   } else if (rank == LOADING_SPARSE_TASK_RANK) {
-    
     if (config.get_model_type() == cirrus::Configuration::LOGISTICREGRESSION) {
-      cirrus::LoadingSparseTaskS3 lt((1 << config.get_model_bits()),
-          batch_size, samples_per_batch, features_per_sample,
-          nworkers, rank, ps_ips[0], ps_ports[0]);
+      cirrus::LoadingSparseTaskS3 lt((1 << config.get_model_bits()), batch_size,
+                                     samples_per_batch, features_per_sample,
+                                     nworkers, rank, ps_ips[0], ps_ports[0]);
       lt.run(config);
-      
+
     } else if (config.get_model_type() ==
             cirrus::Configuration::COLLABORATIVE_FILTERING) {
-      
-      cirrus::LoadingNetflixTask lt(0,
-          batch_size, samples_per_batch, features_per_sample,
-          nworkers, rank, ps_ips[0], ps_ports[0]);
+      cirrus::LoadingNetflixTask lt(0, batch_size, samples_per_batch,
+                                    features_per_sample, nworkers, rank,
+                                    ps_ips[0], ps_ports[0]);
       lt.run(config);
-      
+
     } else {
       exit(-1);
     }
@@ -170,16 +168,16 @@ int main(int argc, char** argv) {
   std::string tmp;
   std::stringstream ss(ps_ip_string);
   while (ss) {
-    if (!getline( ss, tmp, ',' )) 
+    if (!getline(ss, tmp, ','))
       break;
     ps_ips.push_back(tmp);
   }
-  
+
   std::string ps_port_string = FLAGS_ps_port;
   std::vector<uint64_t> ps_ports;
   std::stringstream ss1(ps_port_string);
   while (ss1) {
-    if (!getline( ss1, tmp, ',' )) 
+    if (!getline(ss1, tmp, ','))
       break;
     std::istringstream iss(tmp);
     uint64_t tmp_port;
@@ -189,9 +187,9 @@ int main(int argc, char** argv) {
 
   assert(ps_ips.size() == ps_ports.size());
   std::cout << "Number of parameter servers: " << ps_ips.size() << std::endl;
-  std::cout << "Parameter servers: "; 
+  std::cout << "Parameter servers: ";
   for (int i = 0; i < ps_ips.size(); i++) {
-    std::cout << ps_ips[i] << ":" << ps_ports[i] << std::endl;  
+    std::cout << ps_ips[i] << ":" << ps_ports[i] << std::endl;
   }
 
   auto config = load_configuration(FLAGS_config);
@@ -205,7 +203,6 @@ int main(int argc, char** argv) {
     << " features_per_sample: " << config.get_num_features()
     << " batch_size: " << config.get_minibatch_size()
     << std::endl;
-
 
   // call the right task for this process
   std::cout << "Running task" << std::endl;

@@ -38,11 +38,16 @@ class PSSparseServerInterface {
   void get_lr_sparse_model_inplace(const SparseDataset& ds, SparseLRModel&, const Configuration& config);
   SparseMFModel get_sparse_mf_model(const SparseDataset& ds, uint32_t, uint32_t);
   void get_lr_sparse_model_inplace_sharded(SparseLRModel& lr_model,
-    const Configuration& config, char* msg_begin, uint32_t num_weights, int server_id, int num_ps);
-  void get_full_model_inplace(std::unique_ptr<cirrus::SparseLRModel>& model, int a, int b);
+                                           const Configuration& config,
+                                           char* msg_begin,
+                                           uint32_t num_weights,
+                                           int server_id,
+                                           int num_ps);
+  void get_full_model_inplace(std::unique_ptr<cirrus::SparseLRModel>& model,
+                              int a,
+                              int b);
 
   std::unique_ptr<CirrusModel> get_full_model(bool isCollaborativeFiltering); //XXX use a better argument here
-
 
   void set_status(uint32_t id, uint32_t status);
   uint32_t get_status(uint32_t id);

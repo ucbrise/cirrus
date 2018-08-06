@@ -81,7 +81,8 @@ std::unique_ptr<CirrusModel> get_model(const Configuration& config,
   return psi->get_full_model(use_col_filtering);
 }
 std::unique_ptr<CirrusModel> get_model(const Configuration& config,
-        const std::vector<std::string> ps_ips, std::vector<uint64_t> ps_ports) {
+                                       const std::vector<std::string> ps_ips,
+                                       std::vector<uint64_t> ps_ports) {
   static MultiplePSSparseServerInterface* psi;
   static bool first_time = true;
   if (first_time) {
@@ -102,7 +103,8 @@ void ErrorSparseTask::error_response() {
   serveraddr.sin_addr.s_addr = INADDR_ANY;
   int port_num;
   if (is_sharded)
-    port_num = ps_ports.at(ps_ports.size() - 1) + 1; // error response will bind to the port after the last PS
+    port_num = ps_ports.at(ps_ports.size() - 1) +
+               1;  // error response will bind to the port after the last PS
   else
     port_num = ps_port + 1;
   serveraddr.sin_port = htons(port_num);
@@ -210,7 +212,7 @@ void ErrorSparseTask::run(const Configuration& config) {
       std::unique_ptr<CirrusModel> model;
       if (is_sharded) {
         model = get_model(config, ps_ips, ps_ports);
-      } else { 
+      } else {
         model = get_model(config, ps_ip, ps_port);
       }
 #ifdef DEBUG

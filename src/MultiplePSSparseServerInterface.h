@@ -32,5 +32,6 @@ class MultiplePSSparseServerInterface {
  private:
   std::vector<PSSparseServerInterface*> psints;
 };
+
 }
 #endif  //  MULTIPLE_PS_SPARSE_SERVER_INTERFACE

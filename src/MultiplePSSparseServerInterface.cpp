@@ -28,7 +28,6 @@ MultiplePSSparseServerInterface::MultiplePSSparseServerInterface(
     psints.push_back(ptr);
     std::cout << "Connected!!!" << std::endl;
   }
-
 }
 
 void MultiplePSSparseServerInterface::send_gradient(
@@ -142,4 +141,5 @@ std::unique_ptr<CirrusModel> MultiplePSSparseServerInterface::get_full_model() {
   }
   return std::move(model);
 }
+
 }

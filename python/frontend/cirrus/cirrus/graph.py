@@ -129,7 +129,7 @@ def get_traces(num, metric="LOSS"):
                 name=get_name_for(i),
                 mode='markers+lines',
                 line = dict(color = bundle.get_info(i, 'color')),
-                customdata =str(i) * lll
+                customdata = [str(i)] * lll
             )
             trace_lst.append(trace)
     else:
@@ -147,7 +147,7 @@ def get_traces(num, metric="LOSS"):
                 name=get_name_for(i),
                 mode='markers+lines',
                 line = dict(color = (bundle.get_info(i, 'color'))),
-                customdata= str(i) * lll
+                customdata= [str(i)] * lll
             )
             if (len(ys) > 0):
                 q.append((ys[-1], trace))

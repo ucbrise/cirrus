@@ -8,7 +8,6 @@
 core
 .deps
 *.out
-*.txt
 config.*
 Makefile
 *.tgz

@@ -33,5 +33,5 @@ class MultiplePSSparseServerInterface {
   std::vector<PSSparseServerInterface*> psints;
 };
 
-} // namespace cirrus
+}  // namespace cirrus
 #endif  //  MULTIPLE_PS_SPARSE_SERVER_INTERFACE

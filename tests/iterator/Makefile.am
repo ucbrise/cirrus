@@ -32,9 +32,7 @@ LINCLUDES = -L$(THIRD_PARTY_DIR)/kerberos/src/lib \
 	    -L$(THIRD_PARTY_DIR)/gflags/lib/ \
 	    -L$(THIRD_PARTY_DIR)/curl/curl/lib/.libs/ \
 	    -L$(THIRD_PARTY_DIR)/aws-sdk-cpp/build/aws-cpp-sdk-core/ \
-	    -L$(THIRD_PARTY_DIR)/aws-sdk-cpp/build/aws-cpp-sdk-s3 \
-	    -L$(THIRD_PARTY_DIR)/kerberos/krb5-1.15.2/src/lib \
-	    -L$(THIRD_PARTY_DIR)/keyutils/keyutils-1.5.10
+	    -L$(THIRD_PARTY_DIR)/aws-sdk-cpp/build/aws-cpp-sdk-s3
 
 LIBS= -laws-cpp-sdk-s3 -laws-cpp-sdk-core \
       -lcurl -lssl -lcrypto -lz -ldl -lkrb5 -lk5crypto \

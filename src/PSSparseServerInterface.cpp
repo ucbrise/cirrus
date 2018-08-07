@@ -97,8 +97,6 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace_sharded(
   char* msg = msg_begin;
   // 4. receive weights from PS
   uint32_t to_receive_size = sizeof(FEATURE_TYPE) * num_weights;
-// std::cout << "Model sent. Receiving: " << num_weights << " weights" <<
-// std::endl;
 
 #ifdef DEBUG
   std::cout << "Receiving " << to_receive_size << " bytes" << std::endl;

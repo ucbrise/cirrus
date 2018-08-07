@@ -1,7 +1,7 @@
-#include <cassert>
-#include "PSSparseServerInterface.h"
 #include "MultiplePSSparseServerInterface.h"
+#include <cassert>
 #include "Constants.h"
+#include "PSSparseServerInterface.h"
 
 #undef DEBUG
 
@@ -28,6 +28,7 @@ MultiplePSSparseServerInterface::MultiplePSSparseServerInterface(
     psints.push_back(ptr);
     std::cout << "Connected!!!" << std::endl;
   }
+
 }
 
 void MultiplePSSparseServerInterface::send_gradient(

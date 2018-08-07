@@ -3,14 +3,14 @@
 
 #include <Configuration.h>
 
-#include "config.h"
 #include "LRModel.h"
 #include "MFModel.h"
-#include "SparseLRModel.h"
-#include "PSSparseServerInterface.h"
 #include "MultiplePSSparseServerInterface.h"
-#include "S3SparseIterator.h"
 #include "OptimizationMethod.h"
+#include "PSSparseServerInterface.h"
+#include "S3SparseIterator.h"
+#include "SparseLRModel.h"
+#include "config.h"
 
 #include <string>
 #include <vector>

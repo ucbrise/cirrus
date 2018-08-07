@@ -1,12 +1,12 @@
 #include <Tasks.h>
 
+#include <pthread.h>
+#include <memory>
+#include "MultiplePSSparseServerInterface.h"
+#include "PSSparseServerInterface.h"
+#include "S3SparseIterator.h"
 #include "Serializers.h"
 #include "Utils.h"
-#include "S3SparseIterator.h"
-#include "PSSparseServerInterface.h"
-#include "MultiplePSSparseServerInterface.h"
-#include <memory>
-#include <pthread.h>
 
 #undef DEBUG
 

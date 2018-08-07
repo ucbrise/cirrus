@@ -1,19 +1,19 @@
 #ifndef MULTIPLE_PS_SPARSE_SERVER_INTERFACE
 #define MULTIPLE_PS_SPARSE_SERVER_INTERFACE
 
+#include <arpa/inet.h>
+#include <netinet/tcp.h>
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <arpa/inet.h>
-#include <netinet/tcp.h>
 #include <unistd.h>
-#include <stdexcept>
 #include <cstring>
 #include <iostream>
+#include <stdexcept>
 #include "ModelGradient.h"
-#include "Utils.h"
-#include "SparseLRModel.h"
 #include "PSSparseServerInterface.h"
+#include "SparseLRModel.h"
+#include "Utils.h"
 
 namespace cirrus {
 

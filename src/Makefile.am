@@ -10,7 +10,7 @@ bin_PROGRAMS = parameter_server ps_test csv_to_libsvm $(TOP_DIR)/tests/test_trav
 
 LIBS         =  -laws-cpp-sdk-s3 -laws-cpp-sdk-core \
 		-lcurl -lssl -lcrypto -lz -ldl -lkrb5 -lk5crypto \
-		-lall -lkeyutils -lresolv -lldap -llber -lpthread -lgflags
+		-lall -lkeyutils -lresolv -lgflags
 
 LINCLUDES    = -L$(TOP_DIR)/third_party/aws-sdk-cpp/build/aws-cpp-sdk-core/ \
 	       -L$(TOP_DIR)/third_party/aws-sdk-cpp/build/aws-cpp-sdk-s3 \
@@ -20,9 +20,11 @@ LINCLUDES    = -L$(TOP_DIR)/third_party/aws-sdk-cpp/build/aws-cpp-sdk-core/ \
 	       -L$(TOP_DIR)/third_party/curl/curl/lib/.libs/
 
 LDADD    = $(LINCLUDES) $(LIBS)
-LDFLAGS  = -lpthread
+LDFLAGS  = -static-libgcc  -static  -Wl,--whole-archive \
+	   -lpthread -Wl,--no-whole-archive
 
-CPPFLAGS = -I$(TOP_DIR) \
+CPPFLAGS = -static -static-libgcc -static-libstdc++ \
+           -I$(TOP_DIR) \
            -I$(TOP_DIR)/third_party/flatbuffers/include \
            -I$(TOP_DIR)/third_party/eigen_source \
 	   -I$(TOP_DIR)/third_party/aws-sdk-cpp/aws-cpp-sdk-s3/include/ \
@@ -34,8 +36,8 @@ CPP_SOURCES = InputReader.cpp Utils.cpp \
               Dataset.cpp Matrix.cpp \
 	      OptimizationMethod.cpp AdaGrad.cpp \
 	      Momentum.cpp SGD.cpp Nesterov.cpp\
-              S3Client.cpp \
 	      Model.cpp LRModel.cpp SoftmaxModel.cpp SparseLRModel.cpp \
+	      S3Client.cpp \
 	      SparseMFModel.cpp MFModel.cpp\
               ModelGradient.cpp MlUtils.cpp Configuration.cpp \
               Checksum.cpp \

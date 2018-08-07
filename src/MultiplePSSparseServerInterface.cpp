@@ -142,4 +142,4 @@ std::unique_ptr<CirrusModel> MultiplePSSparseServerInterface::get_full_model() {
   return std::move(model);
 }
 
-}
+} // namespace cirrus

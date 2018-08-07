@@ -78,7 +78,7 @@ void LogisticSparseTaskS3::run(const Configuration& config, int worker) {
     sparse_model_get = std::make_unique<SparseModelGet>(ps_ips, ps_ports);
   else
     sparse_model_get = std::make_unique<SparseModelGet>(ps_ip, ps_port);
-  
+
   std::cout << "[WORKER] " << "num s3 batches: " << num_s3_batches
     << std::endl;
   wait_for_start(worker, nworkers);

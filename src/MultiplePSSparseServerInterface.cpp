@@ -92,10 +92,12 @@ void MultiplePSSparseServerInterface::get_lr_sparse_model(
 
   // Split the dataset based on which server data belongs to.
   // XXX consider optimizing this
+
+
   for (const auto& sample : ds.data_) {
     for (const auto& w : sample) {
-      int server_index = w.first % num_servers;
-      int data_index = (w.first - server_index) / num_servers;
+      uint32_t server_index = w.first % num_servers;
+      uint32_t data_index = (w.first - server_index) / num_servers;
       store_value<uint32_t>(msg_lst[server_index], data_index);
       num_weights_lst[server_index]++;
     }

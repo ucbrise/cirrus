@@ -401,7 +401,6 @@ void SparseLRModel::loadSerializedSparse(const FEATURE_TYPE* weights,
                                          int server_id,
                                          int num_ps) {
   is_sparse_ = true;
-  
   assert(num_weights > 0 && num_weights < 10000000);
   load_value<uint32_t>(weight_indices);
   weights_sparse_.reserve((1 << config.get_model_bits()));

@@ -176,7 +176,7 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace(const SparseDataset& d
 #endif
   // build a truly sparse model and return
   // XXX this copy could be avoided
-  lr_model.loadSerializedSparse((FEATURE_TYPE*)buffer, (uint32_t*)msg, num_weights, config);
+  lr_model.loadSerializedSparse((FEATURE_TYPE*)buffer, (uint32_t*)msg_begin, num_weights, config);
   
   delete[] msg_begin;
   delete[] buffer;

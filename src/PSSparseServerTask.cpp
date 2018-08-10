@@ -565,7 +565,7 @@ void PSSparseServerTask::loop(int poll_id) {
   struct sockaddr_in cli_addr;
   socklen_t clilen = sizeof(cli_addr);
 
-  buffer.resize(10 * 1024 * 1024); // reserve 10MB upfront
+  //buffer.resize(10 * 1024 * 1024); // reserve 10MB upfront
 
   std::cout << "Starting loop for id: " << poll_id << std::endl;
   while (!kill_signal) {

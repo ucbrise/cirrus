@@ -17,6 +17,14 @@ lambda_name = "testfunc1"
 class BaseTask(object):
     __metaclass__ = ABCMeta
 
+    # Keys for metrics
+    COST_PER_SECOND = "cost_per_second"
+    UPDATES_PER_SECOND = "updates_per_second"
+    LOSS_VS_TIME = "loss_vs_time"
+    REAL_TIME_LOSS_VS_TIME = "real_time_loss_vs_time"
+    TOTAL_LOSS_VS_TIME = "total_loss_vs_time"
+
+
     def __init__(self,
             n_workers,
             lambda_size,
@@ -82,11 +90,16 @@ class BaseTask(object):
                     self.n_workers,
                     self.worker_size)
 
-        self.time_cps_lst = []
-        self.time_ups_lst = []
-        self.time_loss_lst = []
-        self.real_time_loss_lst = []
         self.start_time = time.time()
+
+        self.metrics = {
+            self.COST_PER_SECOND: [],
+            self.UPDATES_PER_SECOND: [],
+            self.LOSS_VS_TIME: [],
+            self.REAL_TIME_LOSS_VS_TIME: [],
+            self.TOTAL_LOSS_VS_TIME: []
+        }
+
 
         # Stored values
         self.last_num_lambdas = 0
@@ -95,91 +108,8 @@ class BaseTask(object):
         string = "Rate %f" % self.learning_rate
         return string
 
-    def get_cost_per_second(self):
-        
-        elapsed = time.time() - self.start_time
-        cps = self.cost_model.get_cost_per_second()
-        self.time_cps_lst.append((time.time() - self.start_time, cps))
-        return self.time_cps_lst
 
-    def get_num_lambdas(self, fetch=True):
-        if self.is_dead():
-            return 0
-        if fetch:
-            out = messenger.get_num_lambdas(self.ps_ip_public, self.ps_ip_port)
-            if out is not None:
-                self.last_num_lambdas = out
-            return self.last_num_lambdas
-        else:
-            return self.num_lambdas
 
-    def get_updates_per_second(self, fetch=True):
-        if self.is_dead():
-            return self.time_ups_lst
-        if fetch:
-            t = time.time() - self.start_time
-            ups = messenger.get_num_updates(self.ps_ip_public, self.ps_ip_port)
-            self.time_ups_lst.append((t, ups))
-            return self.time_ups_lst
-        else:
-            return self.time_ups_lst
-
-    def relaunch_lambdas(self):
-        if self.is_dead():
-            return
-
-        num_lambdas = self.get_num_lambdas()
-        self.get_updates_per_second()
-        self.get_cost_per_second()
-        num_task = 3
-
-        if num_lambdas == None:
-            return
-
-        if num_lambdas < self.n_workers:
-            shortage = self.n_workers - num_lambdas
-
-            payload = '{"num_task": %d, "num_workers": %d, "ps_ip": \"%s\", "ps_port": %d}' \
-                        % (num_task, self.n_workers, self.ps_ip_private, self.ps_ip_port)
-            for i in range(shortage):
-                try:
-                    response = lambda_client.invoke(
-                        FunctionName=lambda_name,
-                        InvocationType='Event',
-                        LogType='Tail',
-                        Payload=payload)
-                except Exception as e:
-                    print "client.invoke exception caught"
-                    print str(e)
-
-    def get_time_loss(self, rtl=False):
-
-        if self.is_dead():
-            if rtl:
-                return self.real_time_loss_lst
-            else:
-                return self.time_loss_lst
-        out = messenger.get_last_time_error(self.ps_ip_public, self.ps_ip_port + 1)
-        if out == None:
-            if rtl:
-                return self.real_time_loss_lst
-            else:
-                return self.time_loss_lst
-        t, loss, real_time_loss = out
-
-        if t == 0:
-            if rtl:
-                return self.real_time_loss_lst
-            else:
-                return self.time_loss_lst
-
-        if len(self.time_loss_lst) == 0 or not ((t, loss) == self.time_loss_lst[-1]):
-            self.time_loss_lst.append((t, loss))
-        self.real_time_loss_lst.append((time.time() - self.start_time, real_time_loss))
-        if rtl:
-            return self.real_time_loss_lst
-        else:
-            return self.time_loss_lst
 
     def run(self):
         self.define_config(self.ps_ip_public)
@@ -226,3 +156,96 @@ class BaseTask(object):
     @abstractmethod
     def define_config(self, fetch=False):
         pass
+
+
+    def relaunch_lambdas(self):
+        if self.is_dead():
+            return
+
+        num_lambdas = self.get_num_lambdas()
+        self.get_updates_per_second()
+        self.get_cost_per_second()
+        num_task = 3
+
+        if num_lambdas == None:
+            return
+
+        if num_lambdas < self.n_workers:
+            shortage = self.n_workers - num_lambdas
+
+            payload = '{"num_task": %d, "num_workers": %d, "ps_ip": \"%s\", "ps_port": %d}' \
+                        % (num_task, self.n_workers, self.ps_ip_private, self.ps_ip_port)
+            for i in range(shortage):
+                try:
+                    response = lambda_client.invoke(
+                        FunctionName=lambda_name,
+                        InvocationType='Event',
+                        LogType='Tail',
+                        Payload=payload)
+                except Exception as e:
+                    print "client.invoke exception caught"
+                    print str(e)
+
+
+
+    def get_cost_per_second(self):
+
+        elapsed = time.time() - self.start_time
+        cps = self.cost_model.get_cost_per_second()
+        self.time_cps_lst.append((time.time() - self.start_time, cps))
+        return self.time_cps_lst
+
+    def get_num_lambdas(self, fetch=True):
+        if self.is_dead():
+            return 0
+        if fetch:
+            out = messenger.get_num_lambdas(self.ps_ip_public, self.ps_ip_port)
+            if out is not None:
+                self.last_num_lambdas = out
+            return self.last_num_lambdas
+        else:
+            return self.num_lambdas
+
+    def get_updates_per_second(self, fetch=True):
+        if self.is_dead():
+            return self.time_ups_lst
+        if fetch:
+            t = time.time() - self.start_time
+            ups = messenger.get_num_updates(self.ps_ip_public, self.ps_ip_port)
+            self.time_ups_lst.append((t, ups))
+            return self.time_ups_lst
+        else:
+            return self.time_ups_lst
+
+    def get_time_loss(self, rtl=False):
+        self.maintain_error()
+        if rtl:
+            return self.fetch_metrics(self.REAL_TIME_LOSS_VS_TIME)
+        else:
+            return self.fetch_metrics(self.LOSS_VS_TIME)
+
+
+    def fetch_metrics(self, key):
+        return metrics[key]
+
+    def maintain_error(self):
+        if self.is_dead():
+            return
+
+        out = messenger.get_last_time_error(self.ps_ip_public, self.ps_ip_port + 1)
+        if out is None:
+            return
+
+
+        t, loss, real_time_loss, total_loss = out
+        if t == 0:
+            return
+
+        if len(self.metrics[self.LOSS_VS_TIME]) == 0 or not ((t, loss) == self.metrics[self.LOSS_VS_TIME][-1]):
+            self.metrics[self.LOSS_VS_TIME].append((t, loss))
+
+            elapsed_time = time.time() - self.start_time
+            current_cost = self.cost_model.get_cost(elapsed_time)
+            self.metrics[self.TOTAL_LOSS_VS_TIME].append((t, total_loss / current_cost))
+
+        self.metrics[self.REAL_TIME_LOSS_VS_TIME].append((time.time() - self.start_time, real_time_loss))

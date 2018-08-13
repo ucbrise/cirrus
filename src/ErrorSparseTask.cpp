@@ -36,6 +36,7 @@ ErrorSparseTask::ErrorSparseTask(uint64_t model_size,
              ps_port) {
   ps_port = ps_port;
   std::atomic_init(&curr_error, 0.0);
+  std::atomic_init(&total_loss, 0.0);
 }
 
 ErrorSparseTask::ErrorSparseTask(uint64_t model_size,
@@ -56,6 +57,7 @@ ErrorSparseTask::ErrorSparseTask(uint64_t model_size,
              ps_ports) {
   ps_ports = ps_ports;
   std::atomic_init(&curr_error, 0.0);
+  std::atomic_init(&total_loss, 0.0);
 }
 
 std::unique_ptr<CirrusModel> get_model(const Configuration& config,
@@ -135,9 +137,9 @@ void ErrorSparseTask::error_response() {
     std::cout << "Received: " << operation << std::endl;
 
     if (operation == GET_LAST_TIME_ERROR) {
-      double time_error[3] = {last_time, last_error, curr_error};
+      double time_error[4] = {last_time, last_error, curr_error, total_loss};
 
-      ret = sendto(fd, time_error, 3 * sizeof(double), 0,
+      ret = sendto(fd, time_error, 4 * sizeof(double), 0,
                    (struct sockaddr*) &remaddr, addrlen);
       if (ret < 0) {
         throw std::runtime_error("Error in sending response");
@@ -220,7 +222,7 @@ void ErrorSparseTask::run(const Configuration& config) {
 #endif
 
       std::cout << "[ERROR_TASK] computing loss." << std::endl;
-      FEATURE_TYPE total_loss = 0;
+      total_loss = 0;
       FEATURE_TYPE total_accuracy = 0;
       uint64_t total_num_samples = 0;
       uint64_t total_num_features = 0;
@@ -229,7 +231,7 @@ void ErrorSparseTask::run(const Configuration& config) {
       for (auto& ds : minibatches_vec) {
         std::pair<FEATURE_TYPE, FEATURE_TYPE> ret =
             model->calc_loss(ds, start_index);
-        total_loss += ret.first;
+        total_loss = total_loss + ret.first;
         total_accuracy += ret.second;
         total_num_samples += ds.num_samples();
         total_num_features += ds.num_features();

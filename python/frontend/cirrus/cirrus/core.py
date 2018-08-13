@@ -190,10 +190,9 @@ class BaseTask(object):
 
     def get_cost_per_second(self):
 
-        elapsed = time.time() - self.start_time
         cps = self.cost_model.get_cost_per_second()
-        self.time_cps_lst.append((time.time() - self.start_time, cps))
-        return self.time_cps_lst
+        self.fetch_metric(self.COST_PER_SECOND).append((time.time() - self.start_time, cps))
+        return self.fetch_metric(self.COST_PER_SECOND)
 
     def get_num_lambdas(self, fetch=True):
         if self.is_dead():
@@ -204,7 +203,7 @@ class BaseTask(object):
                 self.last_num_lambdas = out
             return self.last_num_lambdas
         else:
-            return self.num_lambdas
+            return self.last_num_lambdas
 
     def get_updates_per_second(self, fetch=True):
         if self.is_dead():
@@ -212,21 +211,19 @@ class BaseTask(object):
         if fetch:
             t = time.time() - self.start_time
             ups = messenger.get_num_updates(self.ps_ip_public, self.ps_ip_port)
-            self.time_ups_lst.append((t, ups))
-            return self.time_ups_lst
-        else:
-            return self.time_ups_lst
+            self.fetch_metric(self.UPDATES_PER_SECOND).append((t, ups))
+        return self.fetch_metric(self.UPDATES_PER_SECOND)
 
     def get_time_loss(self, rtl=False):
         self.maintain_error()
         if rtl:
-            return self.fetch_metrics(self.REAL_TIME_LOSS_VS_TIME)
+            return self.fetch_metric(self.REAL_TIME_LOSS_VS_TIME)
         else:
-            return self.fetch_metrics(self.LOSS_VS_TIME)
+            return self.fetch_metric(self.LOSS_VS_TIME)
 
 
-    def fetch_metrics(self, key):
-        return metrics[key]
+    def fetch_metric(self, key):
+        return self.metrics[key]
 
     def maintain_error(self):
         if self.is_dead():

@@ -12,6 +12,8 @@ from IPython.display import IFrame
 from dash.dependencies import Input, Output, State
 from plotly.graph_objs import *
 
+from core import BaseTask
+
 process = psutil.Process(os.getpid())
 
 app = dash.Dash(__name__)
@@ -32,11 +34,11 @@ def div_graph(name):
         dcc.Dropdown(
             id='graph-type',
             options=[
-                {'label': 'Loss vs. Time', 'value': 'LOSS'},
-                {'label': 'Updates/Second', 'value': 'UPS'},
-                {'label': 'Cost/Second', 'value': 'CPS'}
+                {'label': 'Loss vs. Time', 'value': BaseTask.LOSS_VS_TIME},
+                {'label': 'Updates/Second', 'value': BaseTask.UPDATES_PER_SECOND},
+                {'label': 'Loss vs. Cost', 'value': BaseTask.TOTAL_LOSS_VS_TIME}
             ],
-            value='LOSS'
+            value=BaseTask.LOSS_VS_TIME
         ),
 
         dcc.Checklist(
@@ -116,7 +118,7 @@ def get_mem_usage():
     global process
     return process.memory_info().rss / 1000000
 
-def get_traces(num, metric="LOSS"):
+def get_traces(num, metric=BaseTask.LOSS_VS_TIME):
     trace_lst = []
     if num == 0:
         # Get all
@@ -166,11 +168,11 @@ def get_num_experiments():
     return bundle.get_number_experiments()
 
 
-def get_xs_for(i, metric="LOSS"):
+def get_xs_for(i, metric=BaseTask.LOSS_VS_TIME):
     return bundle.get_xs_for(i, metric)
 
 
-def get_ys_for(i, metric="LOSS"):
+def get_ys_for(i, metric=BaseTask.LOSS_VS_TIME):
     return bundle.get_ys_for(i, metric)
 
 
@@ -293,7 +295,10 @@ def gen_loss(interval, menu, graph_type, oldfig, relayoutData, lockCamera):
 
     trace_lst = get_traces(how_many, graph_type)
 
-    graph_names = {'LOSS': "Loss", 'UPS': "Updates/Second", 'CPS': "Cost/Second"}
+    graph_names = {
+            BaseTask.LOSS_VS_TIME : "Loss", 
+            BaseTask.UPDATES_PER_SECOND : "Updates/Second", 
+            BaseTask.TOTAL_LOSS_VS_TIME : "Loss/Cost"}
 
     if 'lock' in lockCamera:
         return oldfig

@@ -268,6 +268,10 @@ bool PSSparseServerTask::process_get_lr_full_model(
   model_lock.lock();
   auto lr_model_copy = *lr_model;
   model_lock.unlock();
+
+  // TODO: This should be largest non-zero weight in model. That way
+  // we can reduce the model size, espeically for a large model split across
+  // multiple PS
   uint32_t model_size = lr_model_copy.getSerializedSize();
 
   if (thread_buffer.size() < model_size) {

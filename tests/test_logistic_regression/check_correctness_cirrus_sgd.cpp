@@ -27,13 +27,13 @@ void check_error(auto model, auto dataset) {
 }
 
 std::mutex model_lock;
-std::unique_ptr<LRModel> model;
+std::unique_ptr<cirrus::LRModel> model;
 double epsilon = 0.00001;
 double learning_rate = 0.00000001;
 
-void learning_function(const Dataset& dataset) {
+void learning_function(const cirrus::Dataset& dataset) {
   for (uint64_t i = 0; 1; ++i) {
-    Dataset ds = dataset.random_sample(20);
+    cirrus::Dataset ds = dataset.random_sample(20);
 
     auto gradient = model->minibatch_grad(ds.samples_,
         const_cast<FEATURE_TYPE*>(ds.labels_.get()),
@@ -46,17 +46,14 @@ void learning_function(const Dataset& dataset) {
 }
 
 int main() {
-  InputReader input;
-  Dataset dataset = input.read_input_csv(
-      INPUT_PATH,
-      "\t", 1,
-      10000,
-      14, true); // normalize=true
+  cirrus::InputReader input;
+  cirrus::Dataset dataset = input.read_input_csv(INPUT_PATH, "\t", 1, 10000, 14,
+                                                 true);  // normalize=true
   dataset.check();
   dataset.print_info();
 
   uint64_t num_cols = 13;
-  model.reset(new LRModel(num_cols));
+  model.reset(new cirrus::LRModel(num_cols));
 
   uint64_t num_threads = 20;
   std::vector<std::shared_ptr<std::thread>> threads;

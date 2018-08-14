@@ -39,18 +39,16 @@ void LogisticSparseTaskS3::push_gradient(LRSparseGradient* lrg) {
 
 // get samples and labels data
 bool LogisticSparseTaskS3::get_dataset_minibatch(
-    std::unique_ptr<SparseDataset>& dataset,
+    std::shared_ptr<SparseDataset>& dataset,
     S3SparseIterator& s3_iter) {
 #ifdef DEBUG
   auto start = get_time_us();
 #endif
 
-  const void* minibatch = s3_iter.get_next_fast();
+  dataset = s3_iter.getNext();
 #ifdef DEBUG
   auto finish1 = get_time_us();
 #endif
-  dataset.reset(new SparseDataset(reinterpret_cast<const char*>(minibatch),
-        config.get_minibatch_size())); // this takes 11 us
 
 #ifdef DEBUG
   auto finish2 = get_time_us();
@@ -101,7 +99,7 @@ void LogisticSparseTaskS3::run(const Configuration& config, int worker) {
 #ifdef DEBUG
     std::cout << get_time_us() << " [WORKER] running phase 1" << std::endl;
 #endif
-    std::unique_ptr<SparseDataset> dataset;
+    std::shared_ptr<SparseDataset> dataset;
     if (!get_dataset_minibatch(dataset, s3_iter)) {
       continue;
     }

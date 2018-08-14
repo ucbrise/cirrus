@@ -1,11 +1,11 @@
 #include <Tasks.h>
 
-#include "Serializers.h"
-#include "InputReader.h"
-#include "S3.h"
-#include "S3Client.h"
-#include "Utils.h"
-#include "config.h"
+#include <InputReader.h>
+#include <S3.h>
+#include <S3Client.h>
+#include <Serializers.h>
+#include <Utils.h>
+#include <config.h>
 
 namespace cirrus {
 
@@ -15,21 +15,19 @@ SparseDataset LoadingSparseTaskS3::read_dataset(
   InputReader input;
 
   std::string delimiter;
-  if (config.get_input_type() == "csv_space") {
+  if (config.get_load_input_type() == "csv_space") {
     delimiter = "";
-  } else if (config.get_input_type() == "csv_tab") {
+  } else if (config.get_load_input_type() == "csv_tab") {
     delimiter = "\t";
-  } else if (config.get_input_type() == "csv") {
+  } else if (config.get_load_input_type() == "csv") {
     delimiter = ",";
   } else {
     throw std::runtime_error("unknown input type");
   }
 
   // READ the kaggle criteo dataset
-  return input.read_input_criteo_kaggle_sparse(
-      config.get_input_path(),
-      delimiter,
-      config);
+  return input.read_input_criteo_kaggle_sparse(config.get_load_input_path(),
+                                               delimiter, config);
 }
 
 void LoadingSparseTaskS3::check_label(FEATURE_TYPE label) {
@@ -45,7 +43,7 @@ void LoadingSparseTaskS3::check_loading(const Configuration& config,
                                         std::unique_ptr<S3Client>& s3_client) {
   std::cout << "[LOADER] Trying to get sample with id: " << 0 << std::endl;
 
-  std::string obj_id = std::to_string(hash_f(std::to_string(SAMPLE_BASE).c_str())) + "-CRITEO";
+  std::string obj_id = std::to_string(SAMPLE_BASE);
   std::string data =
       s3_client->s3_get_object_value(obj_id, config.get_s3_bucket());
 
@@ -108,7 +106,8 @@ void LoadingSparseTaskS3::run(const Configuration& config) {
       dataset.build_serialized_s3_obj(first_sample, last_sample, &len);
 
     std::cout << "Putting object in S3 with size: " << len << std::endl;
-    std::string obj_id = std::to_string(hash_f(std::to_string(SAMPLE_BASE + i).c_str())) + "-CRITEO";
+    // we hash names to help with scaling in S3
+    std::string obj_id = std::to_string(SAMPLE_BASE + i);
     s3_client->s3_put_object(obj_id, config.get_s3_bucket(),
                              std::string(s3_obj.get(), len));
   }

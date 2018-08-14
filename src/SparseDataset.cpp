@@ -31,7 +31,6 @@ SparseDataset::SparseDataset(
     : data_(std::move(samples)), labels_(std::move(labels)) {}
 
 SparseDataset::SparseDataset(const char* data, uint64_t n_samples, bool has_labels) {
-  //throw std::runtime_error("Is this used");
   const char* data_begin = data;
 
   data_.reserve(n_samples);

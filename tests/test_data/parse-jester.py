@@ -6,7 +6,7 @@ import xlrd
 import csv
 import random
 
-book = xlrd.open_workbook("jester-data-1.xls")
+book = xlrd.open_workbook("tests/test_data/jester-data-1.xls")
 sheet = book.sheet_by_index(0)
 
 train = []
@@ -24,12 +24,12 @@ for i in range(10000):
             train.append([i, j - 1, cell_val / 10.0])
 
 print("Writing data...")
-with open('jester_train.csv', 'w') as csvfile:
+with open('tests/test_data/jester_train.csv', 'w') as csvfile:
     writer = csv.writer(csvfile)
     for l in train:
         writer.writerow(l)
 
-with open('jester_test.csv', 'w') as csvfile:
+with open('tests/test_data/jester_test.csv', 'w') as csvfile:
     writer = csv.writer(csvfile)
     for l in test:
         writer.writerow(l)

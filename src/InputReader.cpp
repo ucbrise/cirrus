@@ -444,6 +444,44 @@ SparseDataset InputReader::read_movielens_ratings(const std::string& input_file,
   return SparseDataset(sparse_ds);
 }
 
+// TODO: Consolidate with read MovieLens function.
+SparseDataset InputReader::read_jester_ratings(const std::string& input_file,
+   int *number_users, int* number_jokes) {
+  std::ifstream fin(input_file, std::ifstream::in);
+  if (!fin) {
+    throw std::runtime_error("Error opening input file " + input_file);
+  }
+
+  *number_jokes = *number_users = 0;
+
+  std::vector<std::vector<std::pair<int, FEATURE_TYPE>>> sparse_ds;
+
+  // XXX Fix
+  sparse_ds.resize(10000);
+
+  std::string line;
+  while (getline(fin, line)) {
+    char str[MAX_STR_SIZE];
+    if (line.size() < 3) continue;
+    assert(line.size() < MAX_STR_SIZE - 1);
+    strncpy(str, line.c_str(), MAX_STR_SIZE - 1);
+    char* s = str;
+    char* l = strsep(&s, ",");
+    int userId = string_to<int>(l);
+    l = strsep(&s, ",");
+    int jokeId = string_to<int>(l);
+    l = strsep(&s, ",");
+    FEATURE_TYPE rating = string_to<FEATURE_TYPE>(l);
+
+    sparse_ds[userId].push_back(std::make_pair(jokeId, rating));
+
+    *number_users = std::max(*number_users, userId);
+    *number_jokes = std::max(*number_jokes, jokeId);
+  }
+
+  return SparseDataset(sparse_ds);
+}
+
 double InputReader::compute_mean(std::vector<std::pair<int, FEATURE_TYPE>>& user_ratings) {
   double mean = 0;
 

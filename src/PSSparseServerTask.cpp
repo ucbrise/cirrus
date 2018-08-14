@@ -147,7 +147,6 @@ bool PSSparseServerTask::process_send_lr_gradient(
 
 bool PSSparseServerTask::process_get_mf_sparse_model(
     const Request& req, std::vector<char>& thread_buffer, int thread_number) {
-  std::cout << "Called process_get_mf_sparse_model" << std::endl;
   uint32_t k_items = 0;
   uint32_t base_user_id = 0;
   uint32_t minibatch_size = 0;
@@ -175,14 +174,9 @@ bool PSSparseServerTask::process_get_mf_sparse_model(
 #endif
 
   SparseMFModel sparse_mf_model((uint64_t) 0, 0, 0);
-  std::cout << "Calling serializeFromDense" << std::endl;
-  std::cout << "base_user_id: " << base_user_id << std::endl;
-  std::cout << "minibatch_size: " << minibatch_size << std::endl;
-  std::cout << "k_items: " << k_items << std::endl;
   sparse_mf_model.serializeFromDense(
       *mf_model, base_user_id, minibatch_size,
       k_items, thread_buffer.data(), thread_msg_buffer[thread_number]);
-  std::cout << "Sending data..." << std::endl;
   //uint32_t to_send_size = data_to_send.size();
   if (send_all(req.sock, &to_send_size, sizeof(uint32_t)) == -1) {
     return false;
@@ -486,6 +480,10 @@ bool PSSparseServerTask::process(struct pollfd& poll_fd, int thread_id) {
 void PSSparseServerTask::start_server() {
   lr_model.reset(new SparseLRModel(model_size));
   lr_model->randomize();
+
+  mf_model.reset(new MFModel(task_config.get_users(), task_config.get_items(), 
+    NUM_FACTORS));
+  mf_model->randomize();
 
   sem_init(&sem_new_req, 0, 0);
 

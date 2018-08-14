@@ -24,8 +24,9 @@ S3IteratorLibsvm::S3IteratorLibsvm(const Configuration& c,
                                    uint64_t file_size,
                                    uint64_t minibatch_rows,
                                    int worker_id,
-                                   bool random_access)
-    : S3Iterator(c),
+                                   bool random_access,
+                                   bool has_labels)
+    : S3Iterator(c, has_labels),
       s3_bucket(s3_bucket),
       s3_key(s3_key),
       file_size(file_size),
@@ -82,9 +83,9 @@ std::shared_ptr<SparseDataset> S3IteratorLibsvm::getNext() {
 }
 
 /**
- * Moves index forward while data[index] is a space
- * returns true if it ended on a digit, otherwise returns false
- */
+  * Moves index forward while data[index] is a space
+  * returns true if it ended on a digit, otherwise returns false
+  */
 bool S3IteratorLibsvm::ignoreSpaces(uint64_t& index, const std::string& data) {
   while (isspace(data[index])) {
     index++;
@@ -92,6 +93,9 @@ bool S3IteratorLibsvm::ignoreSpaces(uint64_t& index, const std::string& data) {
   return isdigit(data[index]);
 }
 
+/**
+  * while data[index] is a space character move forward until newline is found
+  */
 bool S3IteratorLibsvm::ignoreSpacesNotNewline(uint64_t& index,
                                               const std::string& data) {
   while (data[index] != '\n' && isspace(data[index])) {
@@ -100,6 +104,10 @@ bool S3IteratorLibsvm::ignoreSpacesNotNewline(uint64_t& index,
   return isdigit(data[index]);
 }
 
+/** This function reads a number value of type T from data
+  * and moves index forward in the process
+  * Supports decimal values with dots (e.g., 3.14)
+  */
 template <class T>
 T S3IteratorLibsvm::readNum(uint64_t& index, std::string& data) {
   if (!isdigit(data[index])) {
@@ -120,21 +128,28 @@ T S3IteratorLibsvm::readNum(uint64_t& index, std::string& data) {
   }
 
   char c = data[index_fw];
+  // need to temporarily add null termination to use sscanf
   data[index_fw] = 0;
 
   T result;
+  int sscanf_ret = 0;
   if constexpr (std::is_same<T, int>::value) {
-    sscanf(&data[index], "%d", &result);
+    sscanf_ret = sscanf(&data[index], "%d", &result);
   } else if constexpr (std::is_same<T, double>::value) {
-    sscanf(&data[index], "%lf", &result);
+    sscanf_ret = sscanf(&data[index], "%lf", &result);
   } else if constexpr (std::is_same<T, float>::value) {
-    sscanf(&data[index], "%f", &result);
+    sscanf_ret = sscanf(&data[index], "%f", &result);
   } else if constexpr (std::is_same<T, uint64_t>::value) {
-    sscanf(&data[index], "%lu", &result);
+    sscanf_ret = sscanf(&data[index], "%lu", &result);
   } else {
     throw std::runtime_error("Data type not supported");
   }
 
+  if (sscanf_ret == EOF) {
+    throw std::runtime_error("Error reading number with sscanf");
+  }
+
+  // fix null-termination issue
   data[index_fw] = c;  // repair
   index = index_fw;
   return result;
@@ -155,10 +170,10 @@ bool S3IteratorLibsvm::buildDatasetVowpalWabbit(
 }
 
 /**
- * Build minibatch from text in libsvm format
- * We assume index is at a start of a line
- * index moves forward
- */
+  * Build minibatch from text in libsvm format
+  * We assume index is at a start of a line
+  * index moves forward
+  */
 bool S3IteratorLibsvm::buildDatasetLibsvm(
     std::string& data,
     uint64_t& index,
@@ -184,7 +199,13 @@ bool S3IteratorLibsvm::buildDatasetLibsvm(
                   << std::endl;
 #endif
         // did not end up in a digit
-        return false;
+        if (data[index] == 0) {
+          // we found a partially cut sample
+          return false;
+        } else {
+          // there should be a digit here
+          throw std::runtime_error("Expecting a digit here");
+        }
       }
       int label = readNum<int>(index, data);
 #ifdef DEBUG
@@ -207,8 +228,9 @@ bool S3IteratorLibsvm::buildDatasetLibsvm(
             std::cout << "end of text index: " << index << std::endl;
 #endif
             return false;  // end of text
-          } else
+          } else {
             throw std::runtime_error("Error parsing while reading pairs");
+          }
         }
         uint64_t ind = readNum<uint64_t>(index, data);
 #ifdef DEBUG
@@ -241,6 +263,7 @@ bool S3IteratorLibsvm::buildDatasetLibsvm(
     return true;
   } catch (...) {
     // readNum throws exception if it can't find a digit right away
+    std::cerr << "Error parsing" << std::endl;
     return false;
   }
 }
@@ -328,8 +351,8 @@ static int sstreamSize(std::ostringstream& ss) {
 }
 
 /**
- * Returns a range of bytes (right side is exclusive)
- */
+  * Returns a range of bytes (right side is exclusive)
+  */
 std::pair<uint64_t, uint64_t> S3IteratorLibsvm::getFileRange(
     uint64_t file_size) {
   // given the size of the file we return a random file index

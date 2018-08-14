@@ -27,13 +27,14 @@ class S3IteratorLibsvm : public S3Iterator {
       uint64_t file_size,       // FIXME we should calculate this automatically
       uint64_t minibatch_rows,  // number of samples in a minibatch
       int worker_id,            // id of this worker
-      bool random_access);      // whether to access samples in a rand. fashion
+      bool random_access,       // whether to access samples in a rand. fashion
+      bool has_labels = true);
 
-  std::shared_ptr<SparseDataset> getNext();
 
-  void threadFunction(const Configuration&);
+  std::shared_ptr<SparseDataset> getNext() override;
 
  private:
+  void threadFunction(const Configuration&);
   void reportBandwidth(uint64_t elapsed, uint64_t size);
   void pushSamples(std::shared_ptr<std::ostringstream> oss);
 

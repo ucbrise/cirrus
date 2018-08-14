@@ -7,6 +7,7 @@
 #include <sstream>
 #include <thread>
 
+#include <Configuration.h>
 #include <InputReader.h>
 #include <SparseLRModel.h>
 #include <S3SparseIterator.h>
@@ -36,20 +37,20 @@ std::unique_ptr<cirrus::SparseLRModel> model;
 double epsilon = 0.00001;
 double learning_rate = 0.001;
 
-void learning_function_once(const cirrus::SparseDataset& dataset) {
+void learning_function_once(const cirrus::SparseDataset& dataset,
+                            const cirrus::Configuration& conf) {
   cirrus::SparseDataset ds = dataset.random_sample(20);
 
-  auto gradient = model->minibatch_grad(
-      ds, epsilon);
+  auto gradient = model->minibatch_grad(ds, conf);
 
   model_lock.lock();
   model->sgd_update(learning_rate, gradient.get());
   model_lock.unlock();
 }
 
-void learning_function(const cirrus::SparseDataset& dataset) {
+void learning_function(const cirrus::SparseDataset& dataset, const cirrus::Configuration& conf) {
   for (uint64_t i = 0; 1; ++i) {
-    learning_function_once(dataset);
+    learning_function_once(dataset, conf);
   }
 }
 
@@ -59,12 +60,12 @@ void learning_function_from_s3(const cirrus::SparseDataset& dataset, cirrus::S3S
 
   for (uint64_t i = 0; 1; ++i) {
     s3_lock.lock();
-    const void* data = s3_iter->get_next_fast();
+    const void* data = s3_iter->getNext();
     s3_lock.unlock();
     cirrus::SparseDataset ds(reinterpret_cast<const char*>(data),
         config.get_minibatch_size()); // construct dataset with data from s3
 
-    auto gradient = model->minibatch_grad(ds, epsilon);
+    auto gradient = model->minibatch_grad(ds, conf);
 
     model_lock.lock();
     model->sgd_update(learning_rate, gradient.get());
@@ -102,7 +103,7 @@ int main() {
   std::vector<std::shared_ptr<std::thread>> threads;
   for (uint64_t i = 0; i < num_threads; ++i) {
     threads.push_back(std::make_shared<std::thread>(
-          learning_function, dataset));
+          learning_function, dataset, config));
   }
   
   while (1) {

@@ -52,20 +52,9 @@ void check_error(auto model, auto dataset) {
     << std::endl;
 }
 
-bool get_dataset_minibatch(
-    auto& dataset, auto& s3_iter) {
-  const void* minibatch = s3_iter->get_next_fast();
-  dataset.reset(new cirrus::SparseDataset(
-      reinterpret_cast<const char*>(minibatch), config.get_minibatch_size()));
-  return true;
-}
-
 void learning_function() {
   while (1) {
-    std::unique_ptr<cirrus::SparseDataset> dataset;
-    if (!get_dataset_minibatch(dataset, s3_iter)) {
-      continue;
-    }
+    std::shared_ptr<cirrus::SparseDataset> dataset = s3_iter->getNext();
     std::unique_ptr<cirrus::ModelGradient> gradient;
     // we get the model subset with just the right amount of weights
     gradient = model->minibatch_grad(*dataset, epsilon);

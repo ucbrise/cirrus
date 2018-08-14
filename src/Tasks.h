@@ -102,7 +102,7 @@ class LogisticSparseTaskS3 : public MLTask {
     };
 
     bool get_dataset_minibatch(
-        std::unique_ptr<SparseDataset>& dataset,
+        std::shared_ptr<SparseDataset>& dataset,
         S3SparseIterator& s3_iter);
     void push_gradient(LRSparseGradient*);
 
@@ -393,7 +393,7 @@ class MFNetflixTask : public MLTask {
 
   private:
     bool get_dataset_minibatch(
-        std::unique_ptr<SparseDataset>& dataset,
+        std::shared_ptr<SparseDataset>& dataset,
         S3SparseIterator& s3_iter);
     void push_gradient(MFSparseGradient&);
 

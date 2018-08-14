@@ -38,13 +38,14 @@ std::unique_ptr<cirrus::SparseLRModel> model;
 double epsilon = 0.00001;
 double learning_rate = 0.00000001;
 
-void learning_function(const cirrus::SparseDataset& dataset) {
+void learning_function(const cirrus::SparseDataset& dataset,
+                       const cirrus::Configuration& conf) {
   for (uint64_t i = 0; 1; ++i) {
     //std::cout << "iter" << std::endl;
     cirrus::SparseDataset ds = dataset.random_sample(20);
 
     auto gradient = model->minibatch_grad(
-        ds, epsilon);
+        ds, conf);
 
     model_lock.lock();
     model->sgd_update(learning_rate, gradient.get());
@@ -55,21 +56,12 @@ void learning_function(const cirrus::SparseDataset& dataset) {
 cirrus::Configuration config;
 cirrus::S3SparseIterator* s3_iter;
 void learning_function_from_s3(const cirrus::SparseDataset& dataset) {
-#if 0
-  cirrus::S3SparseIterator s3_iter(0, 10, config,
-      config.get_s3_size(),
-      config.get_minibatch_size());
-#endif
-
   for (uint64_t i = 0; 1; ++i) {
     s3_lock.lock();
-    const void* data = s3_iter->get_next_fast();
+    std::shared_ptr<cirrus::SparseDataset> ds = s3_iter->getNext();
     s3_lock.unlock();
-    cirrus::SparseDataset ds(
-        reinterpret_cast<const char*>(data),
-        config.get_minibatch_size());  // construct dataset with data from s3
 
-    auto gradient = model->minibatch_grad(dataset, epsilon);
+    auto gradient = model->minibatch_grad(*ds, epsilon);
 
     model_lock.lock();
     model->sgd_update(learning_rate, gradient.get());
@@ -88,11 +80,6 @@ int main() {
   dataset.check();
   dataset.print_info();
 
-  // config.read("criteo_aws_lambdas_s3.cfg");
-  // s3_iter = new cirrus::S3SparseIterator(0, 10, config,
-  //    config.get_s3_size(),
-  //    config.get_minibatch_size());
-
   uint64_t model_size = (1 << 19);
   model.reset(new cirrus::SparseLRModel(model_size));
 
@@ -100,7 +87,7 @@ int main() {
   std::vector<std::shared_ptr<std::thread>> threads;
   for (uint64_t i = 0; i < num_threads; ++i) {
     threads.push_back(std::make_shared<std::thread>(
-          learning_function, dataset));
+          learning_function, dataset, config));
   }
 
   while (1) {

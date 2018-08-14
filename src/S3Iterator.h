@@ -1,16 +1,21 @@
 #ifndef _S3_ITERATOR_H_
 #define _S3_ITERATOR_H_
 
-#include "Configuration.h"
+#include <SparseDataset.h>
+#include <Configuration.h>
 
 namespace cirrus {
 
 class S3Iterator {
  public:
-  S3Iterator(const Configuration& c);
+  S3Iterator(const Configuration& c, bool has_labels);
+  virtual ~S3Iterator() = default;
+  
+  virtual std::shared_ptr<SparseDataset> getNext() = 0;
 
- private:
+ protected:
   Configuration config;
+  bool has_labels;
 };
 
 } // namespace cirrus

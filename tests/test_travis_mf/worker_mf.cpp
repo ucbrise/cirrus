@@ -36,12 +36,13 @@ int main() {
   psi->connect();
   int version = 0;
   while (1) {
-    std::cout << "In while loop" << std::endl;
-    for (uint64_t i = 0; i + batch_size < nusers; i += batch_size) {
-      SparseDataset ds = train_dataset.sample_from(i, batch_size);
-      std::cout << "Getting sparse MF model" << std::endl;
-      model = psi->get_sparse_mf_model(ds, i, batch_size);
-      std::cout << "Calculating gradient" << std::endl;
+    for (uint64_t i = 0; i < nusers; i += batch_size) {
+      int actual_batch_size = batch_size;
+      if (i + batch_size >= nusers) {
+        actual_batch_size = nusers - i - 1;
+      }
+      SparseDataset ds = train_dataset.sample_from(i, actual_batch_size);
+      model = psi->get_sparse_mf_model(ds, i, actual_batch_size);
       auto gradient = model.minibatch_grad(ds, config, i);
       gradient->setVersion(version++);
       MFSparseGradient* mfg = dynamic_cast<MFSparseGradient*>(gradient.get());
@@ -50,6 +51,5 @@ int main() {
       }
       psi->send_mf_gradient(*mfg);
     };
-    break;
   }
 }

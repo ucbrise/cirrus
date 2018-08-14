@@ -178,6 +178,7 @@ std::unique_ptr<ModelGradient> SparseMFModel::minibatch_grad(
   std::vector<int> item_weights_lst;
   double training_rmse = 0;
   uint64_t training_rmse_count = 0;
+  // std::cout << "NUM_FACTORS: " << NUM_FACTORS << std::endl;
 
   // iterate all pairs user rating
   for (uint64_t user_from_0 = 0; user_from_0 < dataset.data_.size(); ++user_from_0) {
@@ -193,12 +194,14 @@ std::unique_ptr<ModelGradient> SparseMFModel::minibatch_grad(
       FEATURE_TYPE rating = dataset.data_[user_from_0][j].second;
       
 
-      //std::cout <<
-      //  "user_from_0: " << user_from_0
-      //  << " itemId: " << itemId
-      //  << std::endl;
+      // std::cout <<
+      //   "user: " << real_user_id
+      //   << " itemId: " << itemId
+      //   << " rating: " << rating
+      //   << std::endl;
 
       FEATURE_TYPE pred = predict(user_from_0, itemId);
+
       FEATURE_TYPE error = rating - pred;
       training_rmse += error * error;
       training_rmse_count++;
@@ -259,6 +262,9 @@ std::unique_ptr<ModelGradient> SparseMFModel::minibatch_grad(
         if (std::isnan(get_item_weights(itemId, k)) ||
             std::isinf(get_item_weights(itemId, k))) {
           std::cout << "error: " << error << std::endl;
+          std::cout << "rating: " << rating << std::endl;
+          std::cout << "pred: " << pred << std::endl;
+          std::cout << "delta_item_w: " << delta_item_w << std::endl;
           std::cout << "user weight: " << get_user_weights(user_from_0, k) << std::endl;
           std::cout << "item weight: " << get_item_weights(itemId, k) << std::endl;
           std::cout << "learning_rate: " << learning_rate << std::endl;

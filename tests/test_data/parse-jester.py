@@ -15,12 +15,13 @@ test = []
 print("Generating training and testing data...")
 for i in range(10000):
     for j in range(1, sheet.ncols):
-        if float(sheet.cell(i, j).value) == 99:
+        cell_val = float(sheet.cell(i, j).value)
+        if cell_val == 99:
             continue
         if random.random() > .8:
-            test.append([i, j - 1, sheet.cell(i, j).value])
+            test.append([i, j - 1, cell_val / 10.0])
         else:
-            train.append([i, j - 1, sheet.cell(i, j).value])
+            train.append([i, j - 1, cell_val / 10.0])
 
 print("Writing data...")
 with open('jester_train.csv', 'w') as csvfile:

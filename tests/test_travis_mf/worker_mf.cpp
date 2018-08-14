@@ -27,7 +27,7 @@ int main() {
       "tests/test_data/jester_train.csv", &nusers, &njokes);
   train_dataset.check();
   train_dataset.print_info();
-  int nfactors = 7;
+  int nfactors = 10;
   int batch_size = 200;
 
   SparseMFModel model(nusers, njokes, nfactors);

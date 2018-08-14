@@ -3,10 +3,11 @@
 #include "Serializers.h"
 #include "config.h"
 #include "Utils.h"
-#include "SparseLRModel.h"
+#include "SparseMFModel.h"
 #include "PSSparseServerInterface.h"
 #include "Configuration.h"
 #include "InputReader.h"
+#include <Tasks.h>
 
 #define DEBUG
 #define ERROR_INTERVAL_USEC (100000)  // time between error checks
@@ -23,6 +24,7 @@ std::unique_ptr<CirrusModel> get_model(const Configuration& config,
   if (first_time) {
     first_time = false;
     psi = new PSSparseServerInterface(ps_ip, ps_port);
+    psi->connect();
   }
   return psi->get_full_model(true);
 }
@@ -31,11 +33,11 @@ int main() {
   // get data first
   // what we are going to use as a test set
   InputReader input;
-  int nusers, njokes;
+  int nusers, nitems;
   SparseDataset test_data = input.read_jester_ratings(
-      "tests/test_data/jester_test.csv", &nusers, &njokes);
-  int nfactors = 7;
-  SparseMFModel model(nusers, njokes, nfactors);
+      "tests/test_data/jester_test.csv", &nusers, &nitems);
+  int nfactors = 10;
+  SparseMFModel model(nusers, nitems, nfactors);
 
   uint64_t start_time = get_time_us();
 
@@ -56,14 +58,13 @@ int main() {
 #endif
 
       std::cout << "[ERROR_TASK] computing loss." << std::endl;
-      /*
       FEATURE_TYPE total_loss = 0;
       FEATURE_TYPE total_accuracy = 0;
       uint64_t total_num_samples = 0;
       uint64_t total_num_features = 0;
       uint64_t start_index = 0;
-      // std::pair<FEATURE_TYPE, FEATURE_TYPE> ret =
-      //     model->calc_loss(test_data, start_index);
+      std::pair<FEATURE_TYPE, FEATURE_TYPE> ret =
+          model->calc_loss(test_data, start_index);
       total_loss += ret.first;
       total_accuracy += ret.second;
       total_num_samples += test_data.num_samples();
@@ -76,7 +77,6 @@ int main() {
                 << " time(us): " << get_time_us() << " time from start (sec): "
                 << (get_time_us() - start_time) / 1000000.0 << std::endl;
       avg_loss = (total_loss / total_num_samples);
-      */
     } catch (...) {
       throw std::runtime_error("Error");
     }

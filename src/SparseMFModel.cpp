@@ -134,7 +134,8 @@ void SparseMFModel::loadSerialized(const void* data, uint64_t minibatch_size, ui
   }
 
 #ifdef DEBUG
-  check();
+  // TODO: Uncomment when implemented.
+  // check();
 #endif
 }
 
@@ -167,10 +168,10 @@ std::unique_ptr<ModelGradient> SparseMFModel::minibatch_grad(
             const Configuration& config,
             uint64_t base_user) {
 
-  std::cout <<
-    "base_user: " << base_user
-    << " dataset size: " << dataset.data_.size()
-    << std::endl;
+  // std::cout <<
+  //   "base_user: " << base_user
+  //   << " dataset size: " << dataset.data_.size()
+  //   << std::endl;
 
   FEATURE_TYPE learning_rate = config.get_learning_rate();
   auto gradient = std::make_unique<MFSparseGradient>();
@@ -327,7 +328,7 @@ void SparseMFModel::print() const {
 }
 
 void SparseMFModel::check() const {
-    std::cout << "SparseMFModel::check() Not Implmeneted" << std::endl;
+    std::cout << "SparseMFModel::check() Not Implemented" << std::endl;
 }
 
 void SparseMFModel::serializeFromDense(

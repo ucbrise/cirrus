@@ -6,8 +6,8 @@
 #include <S3Client.h>
 #include <S3Iterator.h>
 #include <Serializers.h>
-#include <Synchronization.h>
 #include <SparseDataset.h>
+#include <Synchronization.h>
 #include <config.h>
 
 #include <semaphore.h>

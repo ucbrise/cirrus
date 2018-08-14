@@ -47,7 +47,8 @@ S3SparseIterator::S3SparseIterator(uint64_t left_id,
 
   sem_init(&semaphore, 0, 0);
 
-  thread = new std::thread(std::bind(&S3SparseIterator::threadFunction, this, c));
+  thread =
+      new std::thread(std::bind(&S3SparseIterator::threadFunction, this, c));
 
   // we fix the random seed but make it different for every worker
   // to ensure each worker receives a different minibatch
@@ -62,13 +63,11 @@ std::shared_ptr<SparseDataset> S3SparseIterator::getNext() {
   // we need to delete entry
   if (to_delete != -1) {
 #ifdef DEBUG
-    std::cout << "getNext::Deleting entry: " << to_delete
-      << std::endl;
+    std::cout << "getNext::Deleting entry: " << to_delete << std::endl;
 #endif
     list_strings.erase(to_delete);
 #ifdef DEBUG
-    std::cout << "getNext::Deleted entry: " << to_delete
-      << std::endl;
+    std::cout << "getNext::Deleted entry: " << to_delete << std::endl;
 #endif
   }
  
@@ -101,9 +100,9 @@ std::shared_ptr<SparseDataset> S3SparseIterator::getNext() {
     pref_sem.signal();
   }
 
-  return std::make_shared<SparseDataset>(reinterpret_cast<const char*>(ret.first),
-                                         config.get_minibatch_size(),
-                                         has_labels);
+  return std::make_shared<SparseDataset>(
+      reinterpret_cast<const char*>(ret.first), config.get_minibatch_size(),
+      has_labels);
 }
 
 // XXX we need to build minibatches from S3 objects
@@ -134,9 +133,8 @@ void S3SparseIterator::pushSamples(std::ostringstream* oss) {
   (void)s3_obj_size;
   (void)num_samples;
 #ifdef DEBUG
-  std::cout
-    << "pushSamples s3_obj_size: " << s3_obj_size
-    << " num_samples: " << num_samples << std::endl;
+  std::cout << "pushSamples s3_obj_size: " << s3_obj_size
+            << " num_samples: " << num_samples << std::endl;
   assert(s3_obj_size > 0 && s3_obj_size < 100 * 1024 * 1024);
   assert(num_samples > 0 && num_samples < 1000000);
 #endif
@@ -240,13 +238,12 @@ try_start:
       uint64_t start = get_time_us();
       s3_obj = s3_client->s3_get_object_ptr(obj_id_str, config.get_s3_bucket());
       uint64_t elapsed_us = (get_time_us() - start);
-      double mb_s = sstreamSize(*s3_obj) / elapsed_us
-        * 1000.0 * 1000 / 1024 / 1024;
+      double mb_s =
+          sstreamSize(*s3_obj) / elapsed_us * 1000.0 * 1000 / 1024 / 1024;
       std::cout << "received s3 obj"
-        << " elapsed: " << elapsed_us
-        << " size: " << sstreamSize(*s3_obj)
-        << " BW (MB/s): " << mb_s
-        << "\n";
+                << " elapsed: " << elapsed_us
+                << " size: " << sstreamSize(*s3_obj) << " BW (MB/s): " << mb_s
+                << "\n";
       //pm.increment_batches(); // increment number of batches we have processed
 
 #ifdef DEBUG
@@ -257,10 +254,8 @@ try_start:
       //  << std::endl;
 #endif
     } catch(...) {
-      std::cout
-        << "S3SparseIterator: error in s3GetObject"
-        << " obj_id_str: " << obj_id_str
-        << std::endl;
+      std::cout << "S3SparseIterator: error in s3GetObject"
+                << " obj_id_str: " << obj_id_str << std::endl;
       goto try_start;
     }
     

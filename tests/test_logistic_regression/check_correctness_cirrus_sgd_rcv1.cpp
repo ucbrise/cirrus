@@ -44,8 +44,7 @@ void learning_function(const cirrus::SparseDataset& dataset,
     //std::cout << "iter" << std::endl;
     cirrus::SparseDataset ds = dataset.random_sample(20);
 
-    auto gradient = model->minibatch_grad(
-        ds, conf);
+    auto gradient = model->minibatch_grad(ds, conf);
 
     model_lock.lock();
     model->sgd_update(learning_rate, gradient.get());
@@ -86,8 +85,8 @@ int main() {
   uint64_t num_threads = 1;
   std::vector<std::shared_ptr<std::thread>> threads;
   for (uint64_t i = 0; i < num_threads; ++i) {
-    threads.push_back(std::make_shared<std::thread>(
-          learning_function, dataset, config));
+    threads.push_back(
+        std::make_shared<std::thread>(learning_function, dataset, config));
   }
 
   while (1) {

@@ -126,12 +126,10 @@ void ErrorSparseTask::run(const Configuration& config) {
     exit(-1);
   }
 
-  S3SparseIterator s3_iter(left, right, config,
-      config.get_s3_size(), config.get_minibatch_size(),
+  S3SparseIterator s3_iter(
+      left, right, config, config.get_s3_size(), config.get_minibatch_size(),
       // use_label true for LR
-      config.get_model_type() == Configuration::LOGISTICREGRESSION,
-      0,
-      false,
+      config.get_model_type() == Configuration::LOGISTICREGRESSION, 0, false,
       config.get_model_type() == Configuration::LOGISTICREGRESSION);
 
   // get data first
@@ -187,7 +185,7 @@ void ErrorSparseTask::run(const Configuration& config) {
 
       for (auto& ds : minibatches_vec) {
         std::pair<FEATURE_TYPE, FEATURE_TYPE> ret =
-          model->calc_loss(*ds, start_index);
+            model->calc_loss(*ds, start_index);
         total_loss += ret.first;
         total_accuracy += ret.second;
         total_num_samples += ds->num_samples();

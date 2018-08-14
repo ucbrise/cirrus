@@ -30,7 +30,6 @@ class S3IteratorLibsvm : public S3Iterator {
       bool random_access,       // whether to access samples in a rand. fashion
       bool has_labels = true);
 
-
   std::shared_ptr<SparseDataset> getNext() override;
 
  private:

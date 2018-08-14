@@ -83,9 +83,9 @@ std::shared_ptr<SparseDataset> S3IteratorLibsvm::getNext() {
 }
 
 /**
-  * Moves index forward while data[index] is a space
-  * returns true if it ended on a digit, otherwise returns false
-  */
+ * Moves index forward while data[index] is a space
+ * returns true if it ended on a digit, otherwise returns false
+ */
 bool S3IteratorLibsvm::ignoreSpaces(uint64_t& index, const std::string& data) {
   while (isspace(data[index])) {
     index++;
@@ -94,8 +94,8 @@ bool S3IteratorLibsvm::ignoreSpaces(uint64_t& index, const std::string& data) {
 }
 
 /**
-  * while data[index] is a space character move forward until newline is found
-  */
+ * while data[index] is a space character move forward until newline is found
+ */
 bool S3IteratorLibsvm::ignoreSpacesNotNewline(uint64_t& index,
                                               const std::string& data) {
   while (data[index] != '\n' && isspace(data[index])) {
@@ -105,9 +105,9 @@ bool S3IteratorLibsvm::ignoreSpacesNotNewline(uint64_t& index,
 }
 
 /** This function reads a number value of type T from data
-  * and moves index forward in the process
-  * Supports decimal values with dots (e.g., 3.14)
-  */
+ * and moves index forward in the process
+ * Supports decimal values with dots (e.g., 3.14)
+ */
 template <class T>
 T S3IteratorLibsvm::readNum(uint64_t& index, std::string& data) {
   if (!isdigit(data[index])) {
@@ -170,10 +170,10 @@ bool S3IteratorLibsvm::buildDatasetVowpalWabbit(
 }
 
 /**
-  * Build minibatch from text in libsvm format
-  * We assume index is at a start of a line
-  * index moves forward
-  */
+ * Build minibatch from text in libsvm format
+ * We assume index is at a start of a line
+ * index moves forward
+ */
 bool S3IteratorLibsvm::buildDatasetLibsvm(
     std::string& data,
     uint64_t& index,
@@ -351,8 +351,8 @@ static int sstreamSize(std::ostringstream& ss) {
 }
 
 /**
-  * Returns a range of bytes (right side is exclusive)
-  */
+ * Returns a range of bytes (right side is exclusive)
+ */
 std::pair<uint64_t, uint64_t> S3IteratorLibsvm::getFileRange(
     uint64_t file_size) {
   // given the size of the file we return a random file index

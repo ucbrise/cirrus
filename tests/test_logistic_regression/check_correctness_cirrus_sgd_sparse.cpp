@@ -9,8 +9,8 @@
 
 #include <Configuration.h>
 #include <InputReader.h>
-#include <SparseLRModel.h>
 #include <S3SparseIterator.h>
+#include <SparseLRModel.h>
 
 #include <Utils.h>
 #include <config.h>
@@ -48,7 +48,8 @@ void learning_function_once(const cirrus::SparseDataset& dataset,
   model_lock.unlock();
 }
 
-void learning_function(const cirrus::SparseDataset& dataset, const cirrus::Configuration& conf) {
+void learning_function(const cirrus::SparseDataset& dataset,
+                       const cirrus::Configuration& conf) {
   for (uint64_t i = 0; 1; ++i) {
     learning_function_once(dataset, conf);
   }
@@ -102,8 +103,8 @@ int main() {
   uint64_t num_threads = 1;
   std::vector<std::shared_ptr<std::thread>> threads;
   for (uint64_t i = 0; i < num_threads; ++i) {
-    threads.push_back(std::make_shared<std::thread>(
-          learning_function, dataset, config));
+    threads.push_back(
+        std::make_shared<std::thread>(learning_function, dataset, config));
   }
   
   while (1) {

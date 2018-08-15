@@ -195,7 +195,7 @@ bool S3IteratorLibsvm::buildDatasetLibsvm(
       // ignore spaces
       if (!ignoreSpaces(index, data)) {
 #ifdef DEBUG
-        std::cout << "ignoreSpaces did not find dig index: " << index
+        std::cout << "ignoreSpaces did not find dig at index: " << index
                   << std::endl;
 #endif
         // did not end up in a digit
@@ -209,7 +209,7 @@ bool S3IteratorLibsvm::buildDatasetLibsvm(
       }
       int label = readNum<int>(index, data);
 #ifdef DEBUG
-      // std::cout << "read label: " << label << std::endl;
+      std::cout << "read label: " << label << std::endl;
 #endif
 
       // read pairs
@@ -263,8 +263,7 @@ bool S3IteratorLibsvm::buildDatasetLibsvm(
     return true;
   } catch (...) {
     // readNum throws exception if it can't find a digit right away
-    std::cerr << "Error parsing" << std::endl;
-    return false;
+    throw std::runtime_error("Error parsing");
   }
 }
 

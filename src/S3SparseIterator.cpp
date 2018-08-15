@@ -99,10 +99,15 @@ std::shared_ptr<SparseDataset> S3SparseIterator::getNext() {
 #endif
     pref_sem.signal();
   }
-
-  return std::make_shared<SparseDataset>(
+  
+  std::shared_ptr<SparseDataset> ds = std::make_shared<SparseDataset>(
       reinterpret_cast<const char*>(ret.first), config.get_minibatch_size(),
       has_labels);
+
+#ifdef DEBUG
+  ds.check();
+#endif
+  return ds;
 }
 
 // XXX we need to build minibatches from S3 objects

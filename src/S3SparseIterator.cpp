@@ -99,10 +99,10 @@ std::shared_ptr<SparseDataset> S3SparseIterator::getNext() {
 #endif
     pref_sem.signal();
   }
-  
-  std::shared_ptr<SparseDataset> ds = std::make_shared<SparseDataset>(
-      reinterpret_cast<const char*>(ret.first), config.get_minibatch_size(),
-      has_labels);
+
+  std::shared_ptr<SparseDataset> ds =
+      std::make_shared<SparseDataset>(reinterpret_cast<const char*>(ret.first),
+                                      config.get_minibatch_size(), has_labels);
 
 #ifdef DEBUG
   ds.check();

@@ -47,13 +47,13 @@ def LogisticRegression(
             dataset,
             learning_rate, epsilon,
             progress_callback,
-            resume_model,
             key_name,
             key_path,
             train_set,
             test_set,
             minibatch_size,
             model_bits,
+            resume_model="",
             ps_ip_public="",
             ps_ip_private="",
             ps_ip_port=1337,
@@ -67,7 +67,6 @@ def LogisticRegression(
             ):
     return LogisticRegressionTask(
             n_workers=n_workers,
-            lambda_size=10,
             n_ps=n_ps,
             worker_size=worker_size,
             dataset=dataset,

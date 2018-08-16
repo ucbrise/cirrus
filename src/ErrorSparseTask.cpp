@@ -105,8 +105,7 @@ void ErrorSparseTask::run(const Configuration& config) {
   // what we are going to use as a test set
   std::vector<SparseDataset> minibatches_vec;
   std::cout << "[ERROR_TASK] getting minibatches from "
-    << config.get_train_range().first << " to "
-    << config.get_train_range().second
+    << left << " to " << right
     << std::endl;
 
   uint32_t minibatches_per_s3_obj =
@@ -165,7 +164,6 @@ void ErrorSparseTask::run(const Configuration& config) {
         start_index += config.get_minibatch_size();
         if (config.get_model_type() == Configuration::LOGISTICREGRESSION) {
           curr_error = (total_loss / total_num_samples);
-          std::cout << "Measured: " << curr_error << std::endl;
         } else if (config.get_model_type() ==
                    Configuration::COLLABORATIVE_FILTERING) {
           curr_error = std::sqrt(total_loss / total_num_samples);

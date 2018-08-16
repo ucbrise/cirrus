@@ -67,7 +67,6 @@ def LogisticRegression(
             ):
     return LogisticRegressionTask(
             n_workers=n_workers,
-            lambda_size=10,
             n_ps=1,
             worker_size=worker_size,
             dataset=dataset,

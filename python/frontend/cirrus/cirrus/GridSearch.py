@@ -3,6 +3,7 @@ import logging
 import os
 import threading
 import time
+import math
 
 import graph
 from utils import *
@@ -39,7 +40,7 @@ class GridSearch:
                 hyper_params=hyper_params,
                 machines=machines)
 
-        adjust_num_threads();
+        self.adjust_num_threads();
 
     def adjust_num_threads(self):
         # make sure we don't have more threads than experiments
@@ -139,7 +140,10 @@ class GridSearch:
                 loss = cirrus_obj.get_time_loss()
                 self.loss_lst[index] = loss
 
-                print("Thread", thread_id, "exp", index, "loss", self.loss_lst[index])
+                round_loss_lst = [(round(a, 3), round(float(b), 4))
+                        for (a,b) in self.loss_lst[index]]
+                print("Thread", thread_id, "exp", index,
+                        "loss", round_loss_lst)
 
                 index += num_jobs
                 if index >= len(cirrus_objs):
@@ -200,7 +204,7 @@ class GridSearch:
     def set_threads(self, n):
         self.num_jobs = n
 
-        adjust_num_threads();
+        self.adjust_num_threads();
 
 
     # Start threads to maintain all experiments

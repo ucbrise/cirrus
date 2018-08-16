@@ -1,32 +1,96 @@
 #include <Tasks.h>
 #include <thread>
 
-#include "Serializers.h"
-#include "config.h"
-#include "S3SparseIterator.h"
-#include "Utils.h"
-#include "SparseLRModel.h"
-#include "PSSparseServerInterface.h"
 #include "Configuration.h"
 #include "Constants.h"
+#include "MultiplePSSparseServerInterface.h"
+#include "PSSparseServerInterface.h"
+#include "S3SparseIterator.h"
+#include "Serializers.h"
+#include "SparseLRModel.h"
+#include "Utils.h"
+#include "config.h"
+
+#include <atomic>
 
 #define DEBUG
 #define ERROR_INTERVAL_USEC (100000)  // time between error checks
 
 namespace cirrus {
 
+ErrorSparseTask::ErrorSparseTask(uint64_t model_size,
+                                 uint64_t batch_size,
+                                 uint64_t samples_per_batch,
+                                 uint64_t features_per_sample,
+                                 uint64_t nworkers,
+                                 uint64_t worker_id,
+                                 const std::string& ps_ip,
+                                 uint64_t ps_port)
+    : MLTask(model_size,
+             batch_size,
+             samples_per_batch,
+             features_per_sample,
+             nworkers,
+             worker_id,
+             ps_ip,
+             ps_port) {
+  ps_port = ps_port;
+  std::atomic_init(&curr_error, 0.0);
+}
+
+ErrorSparseTask::ErrorSparseTask(uint64_t model_size,
+                                 uint64_t batch_size,
+                                 uint64_t samples_per_batch,
+                                 uint64_t features_per_sample,
+                                 uint64_t nworkers,
+                                 uint64_t worker_id,
+                                 std::vector<std::string> ps_ips,
+                                 std::vector<uint64_t> ps_ports)
+    : MLTask(model_size,
+             batch_size,
+             samples_per_batch,
+             features_per_sample,
+             nworkers,
+             worker_id,
+             ps_ips,
+             ps_ports) {
+  ps_ports = ps_ports;
+  std::atomic_init(&curr_error, 0.0);
+}
+
 std::unique_ptr<CirrusModel> get_model(const Configuration& config,
-        const std::string& ps_ip, uint64_t ps_port) {
+                                       const std::string& ps_ip,
+                                       uint64_t ps_port) {
   static PSSparseServerInterface* psi;
   static bool first_time = true;
   if (first_time) {
     first_time = false;
     psi = new PSSparseServerInterface(ps_ip, ps_port);
+
+    while (true) {
+      try {
+        psi->connect();
+        break;
+      } catch (const std::exception& exc) {
+        std::cout << exc.what();
+      }
+    }
   }
 
   bool use_col_filtering =
-    config.get_model_type() == Configuration::COLLABORATIVE_FILTERING;
+      config.get_model_type() == Configuration::COLLABORATIVE_FILTERING;
   return psi->get_full_model(use_col_filtering);
+}
+std::unique_ptr<CirrusModel> get_model(const Configuration& config,
+                                       const std::vector<std::string> ps_ips,
+                                       std::vector<uint64_t> ps_ports) {
+  static MultiplePSSparseServerInterface* psi;
+  static bool first_time = true;
+  if (first_time) {
+    first_time = false;
+    psi = new MultiplePSSparseServerInterface(ps_ips, ps_ports);
+  }
+  return psi->get_full_model();
 }
 
 void ErrorSparseTask::error_response() {
@@ -38,7 +102,13 @@ void ErrorSparseTask::error_response() {
   struct sockaddr_in serveraddr;
   serveraddr.sin_family = AF_INET;
   serveraddr.sin_addr.s_addr = INADDR_ANY;
-  serveraddr.sin_port = htons(ps_port + 1);
+  int port_num;
+  if (is_sharded)
+    port_num = ps_ports.at(ps_ports.size() - 1) +
+               1;  // error response will bind to the port after the last PS
+  else
+    port_num = ps_port + 1;
+  serveraddr.sin_port = htons(port_num);
   std::memset(serveraddr.sin_zero, 0, sizeof(serveraddr.sin_zero));
 
   int ret =
@@ -46,7 +116,7 @@ void ErrorSparseTask::error_response() {
 
   if (ret < 0) {
     throw std::runtime_error("Error in binding in port " +
-                             std::to_string((ps_port + 1)));
+                             std::to_string((port_num)));
   }
 
   uint32_t operation;
@@ -88,18 +158,18 @@ void ErrorSparseTask::run(const Configuration& config) {
   if (config.get_model_type() == Configuration::LOGISTICREGRESSION) {
     left = config.get_test_range().first;
     right = config.get_test_range().second;
-  } else if (config.get_model_type() == Configuration::COLLABORATIVE_FILTERING) {
+  } else if (config.get_model_type() ==
+             Configuration::COLLABORATIVE_FILTERING) {
     left = config.get_train_range().first;
     right = config.get_train_range().second;
   } else {
     exit(-1);
   }
 
-  S3SparseIterator s3_iter(left, right, config,
-      config.get_s3_size(), config.get_minibatch_size(),
+  S3SparseIterator s3_iter(
+      left, right, config, config.get_s3_size(), config.get_minibatch_size(),
       // use_label true for LR
-      config.get_model_type() == Configuration::LOGISTICREGRESSION,
-      0, false);
+      config.get_model_type() == Configuration::LOGISTICREGRESSION, 0, false);
 
   // get data first
   // what we are going to use as a test set
@@ -108,46 +178,49 @@ void ErrorSparseTask::run(const Configuration& config) {
     << left << " to " << right
     << std::endl;
 
+
   uint32_t minibatches_per_s3_obj =
-    config.get_s3_size() / config.get_minibatch_size();
+      config.get_s3_size() / config.get_minibatch_size();
   for (uint64_t i = 0; i < (right - left) * minibatches_per_s3_obj; ++i) {
     const void* minibatch_data = s3_iter.get_next_fast();
-    SparseDataset ds(reinterpret_cast<const char*>(minibatch_data),
+    SparseDataset ds(
+        reinterpret_cast<const char*>(minibatch_data),
         config.get_minibatch_size(),
         config.get_model_type() == Configuration::LOGISTICREGRESSION);
     minibatches_vec.push_back(ds);
   }
 
-  std::cout << "[ERROR_TASK] Got "
-    << minibatches_vec.size() << " minibatches"
-    << "\n";
+  std::cout << "[ERROR_TASK] Got " << minibatches_vec.size() << " minibatches"
+            << "\n";
   std::cout << "[ERROR_TASK] Building dataset"
-    << "\n";
+            << "\n";
 
   wait_for_start(ERROR_SPARSE_TASK_RANK, nworkers);
   uint64_t start_time = get_time_us();
 
   std::cout << "[ERROR_TASK] Computing accuracies"
-    << "\n";
+            << "\n";
 
   while (1) {
     usleep(ERROR_INTERVAL_USEC);
 
     try {
-      // first we get the model
+// first we get the model
 #ifdef DEBUG
       std::cout << "[ERROR_TASK] getting the full model"
-        << "\n";
+                << "\n";
 #endif
-      std::unique_ptr<CirrusModel> model = get_model(config, ps_ip, ps_port);
-
+      std::unique_ptr<CirrusModel> model;
+      if (is_sharded) {
+        model = get_model(config, ps_ips, ps_ports);
+      } else {
+        model = get_model(config, ps_ip, ps_port);
+      }
 #ifdef DEBUG
       std::cout << "[ERROR_TASK] received the model" << std::endl;
 #endif
 
-      std::cout
-        << "[ERROR_TASK] computing loss."
-        << std::endl;
+      std::cout << "[ERROR_TASK] computing loss." << std::endl;
       FEATURE_TYPE total_loss = 0;
       FEATURE_TYPE total_accuracy = 0;
       uint64_t total_num_samples = 0;
@@ -156,7 +229,7 @@ void ErrorSparseTask::run(const Configuration& config) {
 
       for (auto& ds : minibatches_vec) {
         std::pair<FEATURE_TYPE, FEATURE_TYPE> ret =
-          model->calc_loss(ds, start_index);
+            model->calc_loss(ds, start_index);
         total_loss += ret.first;
         total_accuracy += ret.second;
         total_num_samples += ds.num_samples();
@@ -184,11 +257,10 @@ void ErrorSparseTask::run(const Configuration& config) {
                   << " time(us): " << get_time_us()
                   << " time from start (sec): " << last_time << std::endl;
       }
-    } catch(...) {
+    } catch (...) {
       std::cout << "run_compute_error_task unknown id" << std::endl;
     }
   }
 }
 
-} // namespace cirrus
-
+}  // namespace cirrus

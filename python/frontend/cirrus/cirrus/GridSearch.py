@@ -4,6 +4,7 @@ import os
 import threading
 import time
 import boto3
+import math
 
 import graph
 from utils import *
@@ -61,6 +62,12 @@ class GridSearch:
                 machines=self.machines)
 
 
+
+        self.adjust_num_threads();
+
+    def adjust_num_threads(self):
+        # make sure we don't have more threads than experiments
+        self.num_jobs = min(self.num_jobs, len(self.cirrus_objs))
 
 
     # User must either specify param_dict_lst, or hyper_vars, hyper_params, and param_base
@@ -169,8 +176,12 @@ class GridSearch:
                 loss = cirrus_obj.get_time_loss()
                 self.loss_lst[index] = loss
 
-                logging.debug("Thread", thread_id, "exp", index, "loss", self.loss_lst[index])
 
+                round_loss_lst = [(round(a, 3), round(float(b), 4))
+                        for (a,b) in self.loss_lst[index]]
+                logging.debug("Thread", thread_id, "exp", index,
+                        "loss", round_loss_lst)
+                
                 index += num_jobs
                 if index >= len(cirrus_objs):
                     index = thread_id
@@ -229,6 +240,8 @@ class GridSearch:
 
 
         self.num_jobs = min(n, self.get_number_experiments())
+
+        self.adjust_num_threads();
 
 
     # Start threads to maintain all experiments

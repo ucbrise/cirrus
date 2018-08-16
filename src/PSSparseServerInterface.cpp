@@ -23,7 +23,6 @@ PSSparseServerInterface::PSSparseServerInterface(const std::string& ip, int port
     throw std::runtime_error("Error setting socket options.");
   }
 
-  struct sockaddr_in serv_addr;
   serv_addr.sin_family = AF_INET;
   if (inet_pton(AF_INET, ip.c_str(), &serv_addr.sin_addr) != 1) {
     throw std::runtime_error("Address family invalid or invalid "
@@ -32,13 +31,15 @@ PSSparseServerInterface::PSSparseServerInterface(const std::string& ip, int port
   // Save the port in the info
   serv_addr.sin_port = htons(port);
   std::memset(serv_addr.sin_zero, 0, sizeof(serv_addr.sin_zero));
+}
 
-  // Connect to the server
-  if (::connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-    throw std::runtime_error(
-        "Client could not connect to server."
-        " Address: " + ip + " port: " + std::to_string(port));
+void PSSparseServerInterface::connect() {
+  int ret = ::connect(sock, (struct sockaddr*) &serv_addr, sizeof(serv_addr));
+  if (ret < 0) {
+    throw std::runtime_error("Failed to make contact with server with ip: " +
+                             ip + " port: " + std::to_string(port) + "\n");
   }
+  std::cout << "Connection established " << ip << " " << port << std::endl;
 }
 
 PSSparseServerInterface::~PSSparseServerInterface() {
@@ -72,6 +73,47 @@ void PSSparseServerInterface::send_lr_gradient(const LRSparseGradient& gradient)
   if (ret == 0) {
     throw std::runtime_error("Error sending grad");
   }
+}
+
+int PSSparseServerInterface::send_wrapper(uint32_t num, std::size_t size) {
+  return send(sock, &num, size, 0);
+}
+
+int PSSparseServerInterface::send_all_wrapper(char* data, uint32_t size) {
+  return send_all(sock, data, size);
+}
+
+void PSSparseServerInterface::get_lr_sparse_model_inplace_sharded(
+    SparseLRModel& lr_model,
+    const Configuration& config,
+    char* msg_begin,
+    uint32_t num_weights,
+    int server_id,
+    int num_ps) {
+#ifdef DEBUG
+  std::cout << "Getting LR sparse model inplace sharded" << std::endl;
+#endif
+
+  char* msg = msg_begin;
+  // 4. receive weights from PS
+  uint32_t to_receive_size = sizeof(FEATURE_TYPE) * num_weights;
+
+#ifdef DEBUG
+  std::cout << "Receiving " << to_receive_size << " bytes" << std::endl;
+#endif
+  char* buffer = new char[to_receive_size];
+  read_all(sock, buffer,
+           to_receive_size);  // XXX this takes 2ms once every 5 runs
+
+#ifdef DEBUG
+  std::cout << "Loading model from memory" << std::endl;
+#endif
+  // build a truly sparse model and return
+  // XXX this copy could be avoided
+  lr_model.loadSerializedSparse((FEATURE_TYPE*) buffer, (uint32_t*) msg,
+                                num_weights, config, server_id, num_ps);
+
+  delete[] buffer;
 }
 
 void PSSparseServerInterface::get_lr_sparse_model_inplace(const SparseDataset& ds, SparseLRModel& lr_model,
@@ -134,7 +176,7 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace(const SparseDataset& d
 #endif
   // build a truly sparse model and return
   // XXX this copy could be avoided
-  lr_model.loadSerializedSparse((FEATURE_TYPE*)buffer, (uint32_t*)msg, num_weights, config);
+  lr_model.loadSerializedSparse((FEATURE_TYPE*)buffer, (uint32_t*)msg_begin, num_weights, config);
   
   delete[] msg_begin;
   delete[] buffer;
@@ -144,6 +186,30 @@ SparseLRModel PSSparseServerInterface::get_lr_sparse_model(const SparseDataset& 
   SparseLRModel model(0);
   get_lr_sparse_model_inplace(ds, model, config);
   return std::move(model);
+}
+
+void PSSparseServerInterface::get_full_model_inplace(
+    std::unique_ptr<SparseLRModel>& model,
+    int server_id,
+    int num_ps) {
+  // 1. Send operation
+  uint32_t operation = GET_LR_FULL_MODEL;
+  send_all(sock, &operation, sizeof(uint32_t));
+  // 2. receive size from PS
+  int model_size;
+  if (read_all(sock, &model_size, sizeof(int)) == 0) {
+    throw std::runtime_error("Error talking to PS");
+  }
+  char* model_data = new char[sizeof(int) + model_size * sizeof(FEATURE_TYPE)];
+  char* model_data_ptr = model_data;
+  store_value<int>(model_data_ptr, model_size);
+
+  if (read_all(sock, model_data_ptr, model_size * sizeof(FEATURE_TYPE)) == 0) {
+    throw std::runtime_error("Error talking to PS");
+  }
+  model->loadSerialized(model_data, server_id, num_ps);
+
+  delete[] model_data;
 }
 
 std::unique_ptr<CirrusModel> PSSparseServerInterface::get_full_model(

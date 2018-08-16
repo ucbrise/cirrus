@@ -19,7 +19,7 @@ void print_info(const auto& samples) {
   std::cout << "Number of cols: " << samples[0].size() << std::endl;
 }
 
-double check_error(auto model, auto dataset) {
+double check_error(SparseLRModel* model, SparseDataset& dataset) {
   auto ret = model->calc_loss(dataset, 0);
   auto loss = ret.first;
   auto avg_loss = loss / dataset.num_samples();

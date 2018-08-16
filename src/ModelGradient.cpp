@@ -151,9 +151,82 @@ void LRSparseGradient::serialize(void* mem) const {
   }
 }
 
+/**
+ * Method will serialize like this [version(int), num_weights, data to send ps1,
+ * version(int), num_weights, data to send ps2, ... data to send ps_parts]
+ *
+ */
+
+std::vector<std::tuple<int, int>> LRSparseGradient::shard_serialize(
+    void* mem,
+    uint32_t parts) const {
+  std::vector<int> starts(parts, 0);
+  std::vector<std::tuple<int, int>> starts_out(parts);
+
+  // Perform count
+  for (const auto& w : weights) {
+    starts[w.first % parts]++;
+  }
+
+  // starts[i] = number of items behind partition i
+  int count = starts[0];
+  int count_next = 0;
+  for (int i = 0; i < parts; i++) {
+    if (i == 0) {
+      count_next = starts[1];
+      starts[1] = count;
+      starts[0] = 0;
+    } else if (i != (parts - 1)) {
+      count_next = starts[i + 1];
+      starts[i + 1] = starts[i] + count;
+    } else {
+    }
+
+    // Shorten this. Makes a tuple out of position + size
+    starts_out[i] = std::make_tuple(
+        starts[i] * (sizeof(int) + sizeof(FEATURE_TYPE)) +
+            (i * (2 * sizeof(int))),
+        count * (sizeof(int) + sizeof(FEATURE_TYPE)) + 2 * sizeof(int));
+
+    // How many [version(int), num_weights] + [number of (int, FEATURE_TYPEs)]
+    // that lie previous
+    uint64_t offset = (i * (2 * sizeof(int))) +
+                      (starts[i] * (sizeof(int) + sizeof(FEATURE_TYPE)));
+
+    put_value<int>(mem, version, offset);
+    put_value<int>(mem, count, offset + sizeof(int));
+
+    count = count_next;
+  }
+
+  for (const auto& w : weights) {
+    int index = w.first;
+    FEATURE_TYPE v = w.second;
+
+    int ps_num = index % parts;
+    int position = starts[ps_num];
+
+    uint64_t offset =
+        ((ps_num + 1) *
+         (sizeof(int) + sizeof(int))) +  // Number of (version, count) variables
+        position * (sizeof(int) + sizeof(FEATURE_TYPE));  //
+    put_value<int>(mem, index / parts, offset);
+    put_value<FEATURE_TYPE>(mem, v, offset + sizeof(int));
+    starts[ps_num]++;
+  }
+
+  return starts_out;
+}
+
 uint64_t LRSparseGradient::getSerializedSize() const {
   return weights.size() * (sizeof(FEATURE_TYPE) + sizeof(int)) + // pairs (index, weight value)
     sizeof(int) * 2; // version + number of weights
+}
+
+uint64_t LRSparseGradient::getShardSerializedSize(int num_shards) const {
+  return weights.size() * (sizeof(FEATURE_TYPE) +
+                           sizeof(int)) +  // pairs (index, weight value)
+         sizeof(int) * 2 * num_shards;     // version + number of weights
 }
 
 void LRSparseGradient::print() const {

@@ -2,7 +2,7 @@ import hashlib
 import random
 import boto3
 
-
+ec2c = boto3.client('ec2')
 lc = boto3.client('lambda')
 iam_client = boto3.client('iam')
 
@@ -13,6 +13,20 @@ def get_random_color():
 
 def get_all_lambdas():
     return lc.list_functions()['Functions']
+
+def public_dns_to_private_ip(public_dns):
+    filters = [{'Name': 'dns-name', 'Values': [public_dns]}]
+
+    response = ec2c.describe_instances(Filters=filters)
+
+    instances = response['Reservations'][0]['Instances']
+
+    if len(instances) == 0:
+        raise Exception('No EC2 with this: %s DNS name exists!' % public_dns)
+    elif len(instances) > 1:
+        raise Exception('More than one EC2 with this: %s DNS name exists!' % public_dns)
+
+    return instances[0]['PrivateIpAddress']
 
 
 def lambda_exists(existing, name, size, zip_location):

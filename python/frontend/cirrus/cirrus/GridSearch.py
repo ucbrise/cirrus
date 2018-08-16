@@ -43,7 +43,14 @@ class GridSearch:
         self.set_timeout = timeout # Timeout. -1 means never timeout
         self.num_jobs = num_jobs     # Number of threads checking check_queue
         self.hyper_vars = hyper_vars
-        self.machines = machines
+
+        ips = []
+        for public_dns in machines:
+            private_ip = public_dns_to_private_ip(public_dns)
+            ips.append(private_ip)
+        print ips
+
+        self.machines = zip(machines, ips)
 
         # Setup
         self.set_task_parameters(
@@ -51,7 +58,7 @@ class GridSearch:
                 param_base=param_base,
                 hyper_vars=hyper_vars,
                 hyper_params=hyper_params,
-                machines=machines)
+                machines=self.machines)
 
 
 
@@ -67,7 +74,6 @@ class GridSearch:
 
         
         lambdas = get_all_lambdas()
-        
         
 
         for p in possibilities:
@@ -88,7 +94,7 @@ class GridSearch:
             self.param_lst.append(modified_config)
             lambda_name = "testfunc1_%d" % c.worker_size
             if not lambda_exists(lambdas, lambda_name, c.worker_size, bundle_zip_location):
-                print lambda_name + "Does not exist"
+                print lambda_name + " Does not exist"
                 lambdas.append({'FunctionName': lambda_name})
                 create_lambda(bundle_zip_location, size=c.worker_size)
 
@@ -219,7 +225,10 @@ class GridSearch:
         return len(self.cirrus_objs)
 
     def set_threads(self, n):
-        self.num_jobs = n
+        
+
+
+        self.num_jobs = min(n, self.get_number_experiments())
 
 
     # Start threads to maintain all experiments

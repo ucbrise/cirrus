@@ -58,11 +58,11 @@ AM_CPPFLAGS=-I$(CIRRUS_SRC_DIR) \
 	 -I$(THIRD_PARTY_DIR)/aws-sdk-cpp/aws-cpp-sdk-core/include/ \
 	 -I$(THIRD_PARTY_DIR)/eigen_source/
 
-test_ps_SOURCES = ps_test.cpp $(CIRRUS_SRC_FILES)
+test_ps_SOURCES = ps_test_mf.cpp $(CIRRUS_SRC_FILES)
 
-worker_SOURCES = worker.cpp $(CIRRUS_SRC_FILES)
+worker_SOURCES = worker_mf.cpp $(CIRRUS_SRC_FILES)
 
-error_SOURCES = error.cpp $(CIRRUS_SRC_FILES)
+error_SOURCES = error_mf.cpp $(CIRRUS_SRC_FILES)
 
 clean:
 	rm -rf test_ps worker error

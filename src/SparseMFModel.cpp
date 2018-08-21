@@ -134,8 +134,8 @@ void SparseMFModel::loadSerialized(const void* data, uint64_t minibatch_size, ui
   }
 
 #ifdef DEBUG
-  // TODO: Uncomment when implemented.
-  // check();
+    // TODO: Uncomment when implemented.
+    // check();
 #endif
 }
 
@@ -167,7 +167,6 @@ std::unique_ptr<ModelGradient> SparseMFModel::minibatch_grad(
             const SparseDataset& dataset,
             const Configuration& config,
             uint64_t base_user) {
-
   // std::cout <<
   //   "base_user: " << base_user
   //   << " dataset size: " << dataset.data_.size()
@@ -193,7 +192,6 @@ std::unique_ptr<ModelGradient> SparseMFModel::minibatch_grad(
       // first user matches the model in user_models[0]
       uint64_t itemId = dataset.data_[user_from_0][j].first;
       FEATURE_TYPE rating = dataset.data_[user_from_0][j].second;
-      
 
       // std::cout <<
       //   "user: " << real_user_id
@@ -328,7 +326,7 @@ void SparseMFModel::print() const {
 }
 
 void SparseMFModel::check() const {
-    std::cout << "SparseMFModel::check() Not Implemented" << std::endl;
+  std::cout << "SparseMFModel::check() Not Implemented" << std::endl;
 }
 
 void SparseMFModel::serializeFromDense(

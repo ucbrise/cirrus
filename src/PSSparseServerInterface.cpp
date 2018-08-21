@@ -121,7 +121,8 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace(const SparseDataset& d
   
   //4. receive weights from PS
   uint32_t to_receive_size = sizeof(FEATURE_TYPE) * num_weights;
-  // std::cout << "Model sent. Receiving: " << num_weights << " weights" << std::endl;
+  // std::cout << "Model sent. Receiving: " << num_weights << " weights" <<
+  // std::endl;
 
 #ifdef DEBUG
   std::cout << "Receiving " << to_receive_size << " bytes" << std::endl;
@@ -158,7 +159,8 @@ std::unique_ptr<CirrusModel> PSSparseServerInterface::get_full_model(
     send_all(sock, &operation, sizeof(uint32_t));
     uint32_t to_receive_size;
     read_all(sock, &to_receive_size, sizeof(uint32_t));
-    // std::cout << "Request sent. Receiving: " << to_receive_size << " bytes" << std::endl;
+    // std::cout << "Request sent. Receiving: " << to_receive_size << " bytes"
+    // << std::endl;
 
     char* buffer = new char[to_receive_size];
     read_all(sock, buffer, to_receive_size);
@@ -254,7 +256,8 @@ SparseMFModel PSSparseServerInterface::get_sparse_mf_model(
   //minibatch_size * (sizeof(uint32_t) + (NUM_FACTORS + 1) * sizeof(FEATURE_TYPE)) +
   //item_ids_count * (sizeof(uint32_t) + (NUM_FACTORS + 1) * sizeof(FEATURE_TYPE));
 
-  // std::cout << "Request sent. Receiving: " << to_receive_size << " bytes" << std::endl;
+  // std::cout << "Request sent. Receiving: " << to_receive_size << " bytes"
+  // << std::endl;
 
   char* buffer = new char[to_receive_size];
   if (read_all(sock, buffer, to_receive_size) == 0) {

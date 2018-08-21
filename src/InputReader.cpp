@@ -446,7 +446,8 @@ SparseDataset InputReader::read_movielens_ratings(const std::string& input_file,
 
 // TODO: Consolidate with read MovieLens function.
 SparseDataset InputReader::read_jester_ratings(const std::string& input_file,
-   int *number_users, int* number_jokes) {
+                                               int *number_users,
+                                               int* number_jokes) {
   std::ifstream fin(input_file, std::ifstream::in);
   if (!fin) {
     throw std::runtime_error("Error opening input file " + input_file);
@@ -462,7 +463,8 @@ SparseDataset InputReader::read_jester_ratings(const std::string& input_file,
   std::string line;
   while (getline(fin, line)) {
     char str[MAX_STR_SIZE];
-    if (line.size() < 3) continue;
+    if (line.size() < 3)
+      continue;
     assert(line.size() < MAX_STR_SIZE - 1);
     strncpy(str, line.c_str(), MAX_STR_SIZE - 1);
     char* s = str;

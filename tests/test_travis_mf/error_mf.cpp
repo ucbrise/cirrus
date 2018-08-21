@@ -1,13 +1,11 @@
 #include <Tasks.h>
-
+#include "Configuration.h"
+#include "InputReader.h"
 #include "Serializers.h"
 #include "config.h"
 #include "Utils.h"
 #include "SparseMFModel.h"
 #include "PSSparseServerInterface.h"
-#include "Configuration.h"
-#include "InputReader.h"
-#include <Tasks.h>
 
 //#define DEBUG
 #define ERROR_INTERVAL_USEC (100000)  // time between error checks
@@ -73,8 +71,8 @@ int main() {
       avg_loss = std::sqrt(total_loss / count);
 
       std::cout << "[ERROR_TASK] Loss (Total/RMSE): " << total_loss << "/"
-                << avg_loss
-                << " time(us): " << get_time_us() << " time from start (sec): "
+                << avg_loss << " time(us): " << get_time_us()
+                << " time from start (sec): "
                 << (get_time_us() - start_time) / 1000000.0 << std::endl;
     } catch (...) {
       throw std::runtime_error("Error");

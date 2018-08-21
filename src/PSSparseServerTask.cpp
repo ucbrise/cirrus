@@ -482,7 +482,7 @@ void PSSparseServerTask::start_server() {
   lr_model->randomize();
 
   mf_model.reset(new MFModel(task_config.get_users(), task_config.get_items(), 
-    NUM_FACTORS));
+                             NUM_FACTORS));
   mf_model->randomize();
 
   sem_init(&sem_new_req, 0, 0);

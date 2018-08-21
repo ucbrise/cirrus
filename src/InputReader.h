@@ -40,7 +40,7 @@ class InputReader {
    * @returns The dataset
    */
   SparseDataset read_jester_ratings(const std::string& input_file,
-                                    int *number_users,
+                                    int* number_users,
                                     int* number_jokes);
 
   /**

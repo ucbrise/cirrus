@@ -2,6 +2,7 @@
 #include <Configuration.h>
 #include <Tasks.h>
 #include <config.h>
+#include <S3.h>
 
 #include <stdlib.h>
 #include <cstdint>
@@ -151,6 +152,7 @@ int main(int argc, char** argv) {
 
   // call the right task for this process
   std::cout << "Running task" << std::endl;
+  cirrus::s3_initialize_aws();
   run_tasks(rank, nworkers, batch_size, config, FLAGS_ps_ip, FLAGS_ps_port);
 
   std::cout << "Test successful" << std::endl;

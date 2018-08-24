@@ -483,13 +483,10 @@ void PSSparseServerTask::start_server() {
   lr_model->randomize();
 
   std::cout << "Creating MFModel"
-     << " users: " << task_config.get_users()
-     << " items: " << task_config.get_items()
-     << std::endl;
-  mf_model.reset(new MFModel(
-              task_config.get_users(),
-              task_config.get_items(),
-              NUM_FACTORS));
+            << " users: " << task_config.get_users()
+            << " items: " << task_config.get_items() << std::endl;
+  mf_model.reset(new MFModel(task_config.get_users(), task_config.get_items(),
+                             NUM_FACTORS));
   mf_model->randomize();
 
   sem_init(&sem_new_req, 0, 0);

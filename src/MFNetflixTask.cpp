@@ -109,9 +109,9 @@ void MFNetflixTask::run(const Configuration& config, int worker) {
 
   }
 
-  S3SparseIterator s3_iter(
-      l, r + 1, config, config.get_s3_size(), config.get_minibatch_size(),
-      false, worker, false, false);
+  S3SparseIterator s3_iter(l, r + 1, config, config.get_s3_size(),
+                           config.get_minibatch_size(), false, worker, false,
+                           false);
 
   std::cout << "[WORKER] starting loop" << std::endl;
 

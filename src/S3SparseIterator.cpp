@@ -33,11 +33,9 @@ S3SparseIterator::S3SparseIterator(uint64_t left_id,
       re(worker_id),
       random_access(random_access) {
   std::cout << "S3SparseIterator::Creating S3SparseIterator"
-    << " left_id: " << left_id
-    << " right_id: " << right_id
-    << " use_label: " << use_label
-    << " has_labels: " << has_labels
-    << std::endl;
+            << " left_id: " << left_id << " right_id: " << right_id
+            << " use_label: " << use_label << " has_labels: " << has_labels
+            << std::endl;
 
   // initialize s3
   s3_client = std::make_shared<S3Client>();
@@ -235,7 +233,8 @@ void S3SparseIterator::threadFunction(const Configuration& config) {
     std::cout << "Waiting for pref_sem" << std::endl;
     pref_sem.wait();
 
-    std::string obj_id_str = "CIRRUS" + std::to_string(getObjId(left_id, right_id));
+    std::string obj_id_str =
+        "CIRRUS" + std::to_string(getObjId(left_id, right_id));
 
     std::ostringstream* s3_obj;
 try_start:

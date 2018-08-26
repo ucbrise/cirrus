@@ -1,4 +1,5 @@
 #include <Tasks.h>
+#include <signal.h>
 #include "Configuration.h"
 #include "InputReader.h"
 #include "PSSparseServerInterface.h"

@@ -10,7 +10,7 @@
 #include <Configuration.h>
 #include <InputReader.h>
 #include <PSSparseServerInterface.h>
-#include <SparseLRModel.h>
+#include <SparseMFModel.h>
 #include <Tasks.h>
 #include "SGD.h"
 #include "Serializers.h"

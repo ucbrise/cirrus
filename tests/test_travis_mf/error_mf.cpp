@@ -68,12 +68,10 @@ int main() {
       start_index += config.get_minibatch_size();
       avg_loss = std::sqrt(total_loss / count);
 
-#ifdef DEBUG
       std::cout << "[ERROR_TASK] Loss (Total/RMSE): " << total_loss << "/"
                 << avg_loss << " time(us): " << get_time_us()
                 << " time from start (sec): "
                 << (get_time_us() - start_time) / 1000000.0 << std::endl;
-#endif
     } catch (...) {
       // Suppress for now.
       // throw std::runtime_error("Error");

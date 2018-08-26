@@ -287,9 +287,9 @@ std::unique_ptr<ModelGradient> SparseMFModel::minibatch_grad(
         std::make_pair(item_id, std::move(item_weights)));
   }
 
-  std::cout << "Training rmse: " << std::sqrt(training_rmse / training_rmse_count) << std::endl;
+  // std::cout << "Training rmse: " << std::sqrt(training_rmse / training_rmse_count) << std::endl;
 
-  gradient->print();
+  // gradient->print();
   gradient->check();
   return gradient;
 }

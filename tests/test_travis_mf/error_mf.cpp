@@ -72,6 +72,9 @@ int main() {
                 << avg_loss << " time(us): " << get_time_us()
                 << " time from start (sec): "
                 << (get_time_us() - start_time) / 1000000.0 << std::endl;
+      if (avg_loss < 0.6) {
+        break;
+      }
     } catch (...) {
       // Suppress for now.
       // throw std::runtime_error("Error");

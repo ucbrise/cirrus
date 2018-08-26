@@ -41,7 +41,7 @@ int main() {
   // get data first
   // what we are going to use as a test set
   // catch sigpipe
-  signal(141, signal_callback_handler);
+  signal(SIGPIPE, signal_callback_handler);
   InputReader input;
   int nusers, nitems;
   SparseDataset test_data = input.read_jester_ratings(

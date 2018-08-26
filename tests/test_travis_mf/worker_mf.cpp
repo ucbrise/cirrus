@@ -32,7 +32,7 @@ int main() {
 
   SparseMFModel model(nusers, njokes, nfactors);
   std::unique_ptr<PSSparseServerInterface> psi =
-      std::make_unique<PSSparseServerInterface>("127.0.0.1", 1337);
+      std::make_unique<PSSparseServerInterface>("127.0.0.1", 1338);
   psi->connect();
   int version = 0;
   while (1) {

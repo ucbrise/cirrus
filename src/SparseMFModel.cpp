@@ -94,11 +94,11 @@ uint64_t SparseMFModel::getSerializedSize() const {
 }
 
 void SparseMFModel::loadSerialized(const void* data, uint64_t minibatch_size, uint64_t num_item_ids) {
-  std::cout << "SparseMFModel::loadSerialized nusers: "
-    << nusers_
-    << " nitems_: " << nitems_
-    << " nfactors_: " << nfactors_
-    << std::endl;
+  // std::cout << "SparseMFModel::loadSerialized nusers: "
+  //   << nusers_
+  //   << " nitems_: " << nitems_
+  //   << " nfactors_: " << nfactors_
+  //   << std::endl;
 
   // data has minibatch_size vectors of size NUM_FACTORS (user weights)
   // followed by the same (item weights)

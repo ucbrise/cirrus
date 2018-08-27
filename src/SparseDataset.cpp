@@ -305,11 +305,10 @@ void SparseDataset::normalize(uint64_t hash_size) {
         // this happens if feature has always the same value
         // in the dataset
         // In this case don't normalize this feature
-        continue;
+      } else {
+        v.second = (v.second - min_val_feature[index]) / 
+          (max_val_feature[index] - min_val_feature[index]);
       }
-
-      v.second = (v.second - min_val_feature[index]) / 
-        (max_val_feature[index] - min_val_feature[index]);
     }
   }
 }

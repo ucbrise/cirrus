@@ -192,10 +192,10 @@ void ErrorSparseTask::run(const Configuration& config) {
         total_num_features += ds->num_features();
         start_index += config.get_minibatch_size();
         if (config.get_model_type() == Configuration::LOGISTICREGRESSION) {
-          curr_error = (total_loss / total_num_features);
+          curr_error = (total_loss / total_num_samples);
         } else if (config.get_model_type() ==
                    Configuration::COLLABORATIVE_FILTERING) {
-          curr_error = std::sqrt(total_loss / total_num_features);
+          curr_error = std::sqrt(total_loss / total_num_samples);
         }
       }
 

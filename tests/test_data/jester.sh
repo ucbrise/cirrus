@@ -10,6 +10,6 @@ mv jester-data-1.xls tests/test_data/jester-data-1.xls
 
 sudo apt install -y python3-pip
 
-pip3 install xlrd
+sudo -H pip3 install xlrd
 
 python3 tests/test_data/parse-jester.py

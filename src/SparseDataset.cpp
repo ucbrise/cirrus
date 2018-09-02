@@ -304,8 +304,8 @@ void SparseDataset::normalize(uint64_t hash_size) {
       // only normalize if there are different values
       // in the same column
       if (max_val_feature[index] != min_val_feature[index]) {
-        v.second = (v.second - min_val_feature[index]) / 
-          (max_val_feature[index] - min_val_feature[index]);
+        v.second = (v.second - min_val_feature[index]) /
+                   (max_val_feature[index] - min_val_feature[index]);
       }
     }
   }

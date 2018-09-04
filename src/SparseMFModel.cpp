@@ -135,7 +135,7 @@ void SparseMFModel::loadSerialized(const void* data, uint64_t minibatch_size, ui
   }
 
 #ifdef DEBUG
-    check();
+  check();
 #endif
 }
 

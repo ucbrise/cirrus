@@ -27,7 +27,7 @@ static const int REPORT_LINES = 10000;    // how often to report readin progress
 static const int REPORT_THREAD = 100000;  // how often proc. threads report
 static const int MAX_STR_SIZE = 10000;    // max size for dataset line
 static const int RCV1_STR_SIZE = 20000;   // max size for dataset line
-static const int JESTER_DEFAULT = 10000; // default size for Jester dataset
+static const int JESTER_DEFAULT = 10000;  // default size for Jester dataset
 
 Dataset InputReader::read_input_criteo(const std::string& samples_input_file,
     const std::string& labels_input_file) {

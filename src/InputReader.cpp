@@ -27,6 +27,7 @@ static const int REPORT_LINES = 10000;    // how often to report readin progress
 static const int REPORT_THREAD = 100000;  // how often proc. threads report
 static const int MAX_STR_SIZE = 10000;    // max size for dataset line
 static const int RCV1_STR_SIZE = 20000;   // max size for dataset line
+static const int JESTER_DEFAULT = 10000; // default size for Jester dataset
 
 Dataset InputReader::read_input_criteo(const std::string& samples_input_file,
     const std::string& labels_input_file) {
@@ -457,12 +458,12 @@ SparseDataset InputReader::read_jester_ratings(const std::string& input_file,
 
   std::vector<std::vector<std::pair<int, FEATURE_TYPE>>> sparse_ds;
 
-  // XXX Fix
-  sparse_ds.resize(10000);
+  sparse_ds.resize(JESTER_DEFAULT);
 
   std::string line;
   while (getline(fin, line)) {
     char str[MAX_STR_SIZE];
+    // Ignore empty or malformed lines.
     if (line.size() < 3)
       continue;
     assert(line.size() < MAX_STR_SIZE - 1);

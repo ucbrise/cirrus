@@ -1,3 +1,6 @@
+""" Python script to gauge the success of a collaborative filtering model for Jester,
+by comparing it with the model that guesses the average item rating for every item. """
+
 r = []
 total = 0.0
 n = 0

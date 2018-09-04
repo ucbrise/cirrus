@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <ModelGradient.h>
 
-#define DEBUG
+// #define DEBUG
 
 namespace cirrus {
 
@@ -94,12 +94,13 @@ uint64_t SparseMFModel::getSerializedSize() const {
 }
 
 void SparseMFModel::loadSerialized(const void* data, uint64_t minibatch_size, uint64_t num_item_ids) {
-  // std::cout << "SparseMFModel::loadSerialized nusers: "
-  //   << nusers_
-  //   << " nitems_: " << nitems_
-  //   << " nfactors_: " << nfactors_
-  //   << std::endl;
-
+#ifdef DEBUG
+  std::cout << "SparseMFModel::loadSerialized nusers: "
+    << nusers_
+    << " nitems_: " << nitems_
+    << " nfactors_: " << nfactors_
+    << std::endl;
+#endif
   // data has minibatch_size vectors of size NUM_FACTORS (user weights)
   // followed by the same (item weights)
   nfactors_ = NUM_FACTORS;
@@ -134,8 +135,7 @@ void SparseMFModel::loadSerialized(const void* data, uint64_t minibatch_size, ui
   }
 
 #ifdef DEBUG
-    // TODO: Uncomment when implemented.
-    // check();
+    check();
 #endif
 }
 
@@ -167,18 +167,12 @@ std::unique_ptr<ModelGradient> SparseMFModel::minibatch_grad(
             const SparseDataset& dataset,
             const Configuration& config,
             uint64_t base_user) {
-  // std::cout <<
-  //   "base_user: " << base_user
-  //   << " dataset size: " << dataset.data_.size()
-  //   << std::endl;
-
   FEATURE_TYPE learning_rate = config.get_learning_rate();
   auto gradient = std::make_unique<MFSparseGradient>();
   std::vector<FEATURE_TYPE> item_weights_grad_map[17770];
   std::vector<int> item_weights_lst;
   double training_rmse = 0;
   uint64_t training_rmse_count = 0;
-  // std::cout << "NUM_FACTORS: " << NUM_FACTORS << std::endl;
 
   // iterate all pairs user rating
   for (uint64_t user_from_0 = 0; user_from_0 < dataset.data_.size(); ++user_from_0) {
@@ -192,12 +186,6 @@ std::unique_ptr<ModelGradient> SparseMFModel::minibatch_grad(
       // first user matches the model in user_models[0]
       uint64_t itemId = dataset.data_[user_from_0][j].first;
       FEATURE_TYPE rating = dataset.data_[user_from_0][j].second;
-
-      // std::cout <<
-      //   "user: " << real_user_id
-      //   << " itemId: " << itemId
-      //   << " rating: " << rating
-      //   << std::endl;
 
       FEATURE_TYPE pred = predict(user_from_0, itemId);
 
@@ -287,11 +275,12 @@ std::unique_ptr<ModelGradient> SparseMFModel::minibatch_grad(
         std::make_pair(item_id, std::move(item_weights)));
   }
 
-  // std::cout << "Training rmse: " << std::sqrt(training_rmse /
-  // training_rmse_count) << std::endl;
-
-  // gradient->print();
+#ifdef DEBUG
+  std::cout << "Training rmse: " << std::sqrt(training_rmse / training_rmse_count) << std::endl;
+  gradient->print();
   gradient->check();
+#endif
+
   return gradient;
 }
 

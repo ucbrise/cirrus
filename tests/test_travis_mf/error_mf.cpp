@@ -51,8 +51,6 @@ int main() {
 
   uint64_t start_time = get_time_us();
 
-  // std::cout << "[ERROR_TASK] Computing accuracies"
-  //           << std::endl;
   for (int i = 0; i < 100; i++) {
     usleep(ERROR_INTERVAL_USEC);
     try {

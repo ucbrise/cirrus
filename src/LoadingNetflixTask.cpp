@@ -55,7 +55,6 @@ void LoadingNetflixTask::run(const Configuration& config) {
   std::cout << "[LOADER-SPARSE] " << "Reading Netflix input..." << std::endl;
 
   uint64_t s3_obj_num_samples = config.get_s3_size();
-  s3_initialize_aws();
   std::unique_ptr<S3Client> s3_client = std::make_unique<S3Client>();
 
   int number_movies, number_users;

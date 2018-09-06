@@ -308,8 +308,8 @@ void SparseDataset::normalize(uint64_t hash_size) {
         continue;
       }
 
-      v.second = (v.second - min_val_feature[index]) / 
-        (max_val_feature[index] - min_val_feature[index]);
+      v.second = (v.second - min_val_feature[index]) /
+                 (max_val_feature[index] - min_val_feature[index]);
     }
   }
 }

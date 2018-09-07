@@ -376,6 +376,7 @@ class MFNetflixTask : public MLTask {
         MFModelGet(const std::string& ps_ip, int ps_port) :
           ps_ip(ps_ip), ps_port(ps_port) {
             psi = std::make_unique<PSSparseServerInterface>(ps_ip, ps_port);
+            psi->connect();
         }
 
         SparseMFModel get_new_model(const SparseDataset& ds,

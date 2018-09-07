@@ -72,6 +72,7 @@ void MFNetflixTask::run(const Configuration& config, int worker) {
   this->config = config;
 
   psint = std::make_unique<PSSparseServerInterface>(ps_ip, ps_port);
+  psint->connect();
 
   mf_model_get = std::make_unique<MFModelGet>(ps_ip, ps_port);
 
@@ -108,9 +109,9 @@ void MFNetflixTask::run(const Configuration& config, int worker) {
 
   }
 
-  S3SparseIterator s3_iter(
-      l, r + 1, config, config.get_s3_size(), config.get_minibatch_size(),
-      false, worker, false);
+  S3SparseIterator s3_iter(l, r + 1, config, config.get_s3_size(),
+                           config.get_minibatch_size(), false, worker, false,
+                           false);
 
   std::cout << "[WORKER] starting loop" << std::endl;
 

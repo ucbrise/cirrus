@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <string>
 
+#include <S3.h>
 #include <gflags/gflags.h>
 
 DEFINE_int64(nworkers, -1, "number of workers");

@@ -1,6 +1,7 @@
-#include <Utils.h>
 #include <Configuration.h>
+#include <S3.h>
 #include <Tasks.h>
+#include <Utils.h>
 #include <config.h>
 
 #include <stdlib.h>

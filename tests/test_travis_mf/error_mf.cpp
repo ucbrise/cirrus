@@ -76,7 +76,7 @@ int main() {
       total_num_features += test_data.num_features();
       start_index += config.get_minibatch_size();
       avg_loss = std::sqrt(total_loss / count);
-
+      std::cout << "[ERROR_TASK] Iteration: " << i << std::endl;
       std::cout << "[ERROR_TASK] Loss (Total/RMSE): " << total_loss << "/"
                 << avg_loss << " time(us): " << get_time_us()
                 << " time from start (sec): "

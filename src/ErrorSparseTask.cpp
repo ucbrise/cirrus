@@ -195,7 +195,7 @@ void ErrorSparseTask::run(const Configuration& config) {
           curr_error = (total_loss / total_num_samples);
         } else if (config.get_model_type() ==
                    Configuration::COLLABORATIVE_FILTERING) {
-          curr_error = std::sqrt(total_loss / total_num_samples);
+          curr_error = std::sqrt(total_loss / total_num_features);
         }
       }
 

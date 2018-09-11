@@ -177,7 +177,6 @@ bool PSSparseServerTask::process_get_mf_sparse_model(
   sparse_mf_model.serializeFromDense(
       *mf_model, base_user_id, minibatch_size,
       k_items, thread_buffer.data(), thread_msg_buffer[thread_number]);
-
   //uint32_t to_send_size = data_to_send.size();
   if (send_all(req.sock, &to_send_size, sizeof(uint32_t)) == -1) {
     return false;
@@ -482,9 +481,6 @@ void PSSparseServerTask::start_server() {
   lr_model.reset(new SparseLRModel(model_size));
   lr_model->randomize();
 
-  std::cout << "Creating MFModel"
-            << " users: " << task_config.get_users()
-            << " items: " << task_config.get_items() << std::endl;
   mf_model.reset(new MFModel(task_config.get_users(), task_config.get_items(),
                              NUM_FACTORS));
   mf_model->randomize();

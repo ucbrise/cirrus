@@ -63,7 +63,6 @@ class GridSearch:
             index = (index + 1) % num_machines
             base_port += 2
 
-            print(modified_config)
             c = task(**modified_config)
             self.cirrus_objs.append(c)
             self.infos.append({'color': get_random_color()})

@@ -1,13 +1,19 @@
 import boto3
 import json
+import pickle
+import struct
 
 def get_data_bounds(data):
     # Return a dict of two lists, containing max and min for each column.
     # Assumes labels are being stored right now.
-    max_in_col = [float("-inf") for j in data[0]]
-    min_in_col = [float("inf") for j in data[0]]
+    max_in_col = {}
+    min_in_col = {}
     for r in data:
-        for idx, v in enumerate(r):
+        for idx, v in r:
+            if idx not in max_in_col:
+                max_in_col[idx] = v
+            if idx not in min_in_col:
+                min_in_col[idx] = v
             if v > max_in_col[idx]:
                 max_in_col[idx] = v
             if v < min_in_col[idx]:
@@ -19,25 +25,44 @@ def get_data_bounds(data):
 
 def get_data_from_s3(client, src_bucket, src_object):
     # Return a 2D list, where each element is a row of the dataset.
-    obj = client.get_object(Bucket=src_bucket, Key=src_object)["Body"].read()
+    b = client.get_object(Bucket=src_bucket, Key=src_object)["Body"].read()
     data = []
-    for idx, l in enumerate(obj.splitlines()):
-        if idx == 0 or idx == 1:
+    c = []
+    idx = None
+    ignore_label = True
+    num_values = None
+    seen = 0
+    for i in range(8, len(b), 4):
+        if ignore_label:
+            ignore_label = False
             continue
-        # TODO: Interpret the bytes 4... of the string as a float array.
+        if num_values is None:
+            num_values = struct.unpack("i", b[i:i+4])[0]
+            continue
+        if seen % 2 == 0:
+            idx = struct.unpack("i", b[i:i+4])[0]
+        else:
+            c.append((idx, struct.unpack("f", b[i:i+4])[0]))
+        seen += 1
+        if seen == num_values:
+            data.append(c)
+            c = []
+            ignore_label = True
+            num_values = None
+            seen = 0
     return data
 
 def put_bounds_in_s3(client, bounds, dest_bucket, dest_object):
     # Add the dictionary of bounds to an S3 bucket. 
     s = json.dumps(bounds)
-    client.put_object(Bucket=dest_bucket, Key=des_object, Body=s)
+    client.put_object(Bucket=dest_bucket, Key=dest_object, Body=s)
 
 def handler(event, context):
     print(event["src_bucket"], event["src_object"])
-    
     client = boto3.client("s3")
+    
     d = get_data_from_s3(client, event["src_bucket"], event["src_object"])
     b = get_data_bounds(d)
     put_bounds_in_s3(client, b, event["src_bucket"], event["src_object"] + "_bounds")
-
+    
     return []

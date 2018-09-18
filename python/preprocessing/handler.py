@@ -1,6 +1,5 @@
 import boto3
 import json
-import pickle
 import struct
 
 def get_data_bounds(data):
@@ -57,12 +56,36 @@ def put_bounds_in_s3(client, bounds, dest_bucket, dest_object):
     s = json.dumps(bounds)
     client.put_object(Bucket=dest_bucket, Key=dest_object, Body=s)
 
+def get_global_bounds(client, bucket):
+    b = client.get_object(Bucket=bucket, Key=bucket + "_final_ranges")["Body"].read()
+    return json.loads(b)
+
+def scale_data(data, g, min_v, max_v):
+    data_f = []
+    for idx, v in data:
+        data_f.append(
+            (idx,
+                (v - g["min"][idx]) / (g["max"][idx] - g["min"][idx]) * (max_v - min_v) + min_v
+            )
+        )
+    return data_f
+
+def serialize_data(data):
+    # TODO
+    pass
+
 def handler(event, context):
+    # Either calculates the local bounds, or scales data and puts the new data in
+    # {src_object}_scaled.
     print(event["src_bucket"], event["src_object"])
     client = boto3.client("s3")
-    
     d = get_data_from_s3(client, event["src_bucket"], event["src_object"])
-    b = get_data_bounds(d)
-    put_bounds_in_s3(client, b, event["src_bucket"], event["src_object"] + "_bounds")
-    
+    if event["action"] == "LOCAL_BOUNDS":
+        b = get_data_bounds(d)
+        put_bounds_in_s3(client, b, event["src_bucket"], event["src_object"] + "_bounds")
+    elif event["action"] == "LOCAL_SCALE":
+        b = get_global_bounds(client, event["src_bucket"])
+        scaled = scale_data(d, b, event["min_v"], event=["max_v"])
+        serialized = serialize_data(scaled)
+        client.put_object(Bucket=event["src_bucket"], event["src_object"] + "_scaled", Body=serialized)
     return []

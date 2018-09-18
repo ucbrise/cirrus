@@ -2,8 +2,15 @@ import json
 import boto3
 
 def MinMaxScaler(bucket_name, objects, lower, upper):
-    # for i in objects:
-    # TODO: Invoke lambda to get the local mins / maxes.
+    l_client = boto3.client("lambda")
+    d = {
+        "src_bucket": bucket_name,
+        "action": "LOCAL_BOUNDS"
+    }
+    for i in objects:
+        d["src_object"] = i
+        l_client.invoke(FunctionName="neel_lambda", InvocationType="RequestResponse", LogType="Tail",
+                Payload=json.dumps(d))
 
     client = boto3.client("s3")
     f_max = {}
@@ -33,8 +40,12 @@ def MinMaxScaler(bucket_name, objects, lower, upper):
 
     s = json.dumps(final)
     client.put_object(Bucket=bucket_name, Key=bucket_name + "_final_bounds", Body=s)
-
-    # for i in objects:
-    # TODO: Invoke lambda function to fit values in range.
+    d["min_v"] = lower
+    d["max_v"] = upper
+    d["action"] = "LOCAL_SCALE"
+    for i in objects:
+        d["src_object"] = i
+        l_client.invoke(FunctionName="neel_lambda", InvocationType="RequestResponse", LogType="Tail",
+                Payload=json.dumps(d))
 
 MinMaxScaler("criteo-kaggle-19b", ["1"], 0, 1)

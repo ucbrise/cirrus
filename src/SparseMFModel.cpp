@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <ModelGradient.h>
 
-#define DEBUG
+// #define DEBUG
 
 namespace cirrus {
 
@@ -94,12 +94,13 @@ uint64_t SparseMFModel::getSerializedSize() const {
 }
 
 void SparseMFModel::loadSerialized(const void* data, uint64_t minibatch_size, uint64_t num_item_ids) {
+#ifdef DEBUG
   std::cout << "SparseMFModel::loadSerialized nusers: "
     << nusers_
     << " nitems_: " << nitems_
     << " nfactors_: " << nfactors_
     << std::endl;
-
+#endif
   // data has minibatch_size vectors of size NUM_FACTORS (user weights)
   // followed by the same (item weights)
   nfactors_ = NUM_FACTORS;
@@ -166,12 +167,6 @@ std::unique_ptr<ModelGradient> SparseMFModel::minibatch_grad(
             const SparseDataset& dataset,
             const Configuration& config,
             uint64_t base_user) {
-
-  std::cout <<
-    "base_user: " << base_user
-    << " dataset size: " << dataset.data_.size()
-    << std::endl;
-
   FEATURE_TYPE learning_rate = config.get_learning_rate();
   auto gradient = std::make_unique<MFSparseGradient>();
   std::vector<FEATURE_TYPE> item_weights_grad_map[17770];
@@ -191,14 +186,9 @@ std::unique_ptr<ModelGradient> SparseMFModel::minibatch_grad(
       // first user matches the model in user_models[0]
       uint64_t itemId = dataset.data_[user_from_0][j].first;
       FEATURE_TYPE rating = dataset.data_[user_from_0][j].second;
-      
-
-      //std::cout <<
-      //  "user_from_0: " << user_from_0
-      //  << " itemId: " << itemId
-      //  << std::endl;
 
       FEATURE_TYPE pred = predict(user_from_0, itemId);
+
       FEATURE_TYPE error = rating - pred;
       training_rmse += error * error;
       training_rmse_count++;
@@ -259,6 +249,9 @@ std::unique_ptr<ModelGradient> SparseMFModel::minibatch_grad(
         if (std::isnan(get_item_weights(itemId, k)) ||
             std::isinf(get_item_weights(itemId, k))) {
           std::cout << "error: " << error << std::endl;
+          std::cout << "rating: " << rating << std::endl;
+          std::cout << "pred: " << pred << std::endl;
+          std::cout << "delta_item_w: " << delta_item_w << std::endl;
           std::cout << "user weight: " << get_user_weights(user_from_0, k) << std::endl;
           std::cout << "item weight: " << get_item_weights(itemId, k) << std::endl;
           std::cout << "learning_rate: " << learning_rate << std::endl;
@@ -282,10 +275,12 @@ std::unique_ptr<ModelGradient> SparseMFModel::minibatch_grad(
         std::make_pair(item_id, std::move(item_weights)));
   }
 
+#ifdef DEBUG
   std::cout << "Training rmse: " << std::sqrt(training_rmse / training_rmse_count) << std::endl;
-
   gradient->print();
   gradient->check();
+#endif
+
   return gradient;
 }
 
@@ -321,7 +316,7 @@ void SparseMFModel::print() const {
 }
 
 void SparseMFModel::check() const {
-    std::cout << "SparseMFModel::check() Not Implmeneted" << std::endl;
+  std::cout << "SparseMFModel::check() Not Implemented" << std::endl;
 }
 
 void SparseMFModel::serializeFromDense(

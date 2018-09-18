@@ -101,12 +101,10 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace(const SparseDataset& d
 #ifdef DEBUG
   std::cout << "Sending operation and size" << std::endl;
 #endif
-  // 1. Send operation
   uint32_t operation = GET_LR_SPARSE_MODEL;
   if (send_all(sock, &operation, sizeof(uint32_t)) == -1) {
     throw std::runtime_error("Error getting sparse lr model");
   }
-  // 2. Send msg size
   uint32_t msg_size = sizeof(uint32_t) + sizeof(uint32_t) * num_weights;
 #ifdef DEBUG
   std::cout << "msg_size: " << msg_size
@@ -114,14 +112,10 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace(const SparseDataset& d
     << std::endl;
 #endif
   send_all(sock, &msg_size, sizeof(uint32_t));
-  // 3. Send num_weights + weights
   if (send_all(sock, msg_begin, msg_size) == -1) {
     throw std::runtime_error("Error getting sparse lr model");
   }
-  
-  //4. receive weights from PS
   uint32_t to_receive_size = sizeof(FEATURE_TYPE) * num_weights;
-  //std::cout << "Model sent. Receiving: " << num_weights << " weights" << std::endl;
 
 #ifdef DEBUG
   std::cout << "Receiving " << to_receive_size << " bytes" << std::endl;
@@ -153,13 +147,10 @@ std::unique_ptr<CirrusModel> PSSparseServerInterface::get_full_model(
   std::cout << "Getting full model isCollaborative: " << isCollaborative << std::endl;
 #endif
   if (isCollaborative) {
-    // 1. Send operation
     uint32_t operation = GET_MF_FULL_MODEL;
     send_all(sock, &operation, sizeof(uint32_t));
-
     uint32_t to_receive_size;
     read_all(sock, &to_receive_size, sizeof(uint32_t));
-    std::cout << "Request sent. Receiving: " << to_receive_size << " bytes" << std::endl;
 
     char* buffer = new char[to_receive_size];
     read_all(sock, buffer, to_receive_size);
@@ -174,10 +165,8 @@ std::unique_ptr<CirrusModel> PSSparseServerInterface::get_full_model(
     delete[] buffer;
     return model;
   } else {
-    // 1. Send operation
     uint32_t operation = GET_LR_FULL_MODEL;
     send_all(sock, &operation, sizeof(uint32_t));
-    //2. receive size from PS
     int model_size;
     if (read_all(sock, &model_size, sizeof(int)) == 0) {
       throw std::runtime_error("Error talking to PS");
@@ -212,7 +201,6 @@ SparseMFModel PSSparseServerInterface::get_sparse_mf_model(
     const SparseDataset& ds, uint32_t user_base, uint32_t minibatch_size) {
   char* msg = new char[MAX_MSG_SIZE];
   char* msg_begin = msg; // need to keep this pointer to delete later
- 
   uint32_t item_ids_count = 0;
   store_value<uint32_t>(msg, 0); // we will write this value later
   store_value<uint32_t>(msg, user_base);
@@ -222,40 +210,24 @@ SparseMFModel PSSparseServerInterface::get_sparse_mf_model(
   for (const auto& sample : ds.data_) {
     for (const auto& w : sample) {
       uint32_t movieId = w.first;
-      //std::cout << "movieId: " << movieId << "\n";
-
       if (seen[movieId])
           continue;
       store_value<uint32_t>(msg, movieId);
       seen[movieId] = true;
-      //store_value<uint32_t>(msg, movieId); // encode the index
       item_ids_count++;
     }
   }
   msg = msg_begin;
   store_value<uint32_t>(msg, item_ids_count); // store correct value here
-
-  // 1. Send operation
   uint32_t operation = GET_MF_SPARSE_MODEL;
   send_all(sock, &operation, sizeof(uint32_t));
-  // 2. Send msg size
   uint32_t msg_size = sizeof(uint32_t) * 4 + sizeof(uint32_t) * item_ids_count;
   send_all(sock, &msg_size, sizeof(uint32_t));
-  // 3. Send request message
   if (send_all(sock, msg_begin, msg_size) == -1) {
     throw std::runtime_error("Error getting sparse mf model");
   }
-  
-  // 4. receive user vectors and item vectors
-  // FORMAT here is
-  // minibatch_size * user vectors. Each vector is user_id + user_bias + NUM_FACTORS * FEATURE_TYPE
-  // num_item_ids * item vectors. Each vector is item_id + item_bias + NUM_FACTORS * FEATURE_TYPE
   uint32_t to_receive_size;
   read_all(sock, &to_receive_size, sizeof(uint32_t));
-  //minibatch_size * (sizeof(uint32_t) + (NUM_FACTORS + 1) * sizeof(FEATURE_TYPE)) +
-  //item_ids_count * (sizeof(uint32_t) + (NUM_FACTORS + 1) * sizeof(FEATURE_TYPE));
-
-  std::cout << "Request sent. Receiving: " << to_receive_size << " bytes" << std::endl;
 
   char* buffer = new char[to_receive_size];
   if (read_all(sock, buffer, to_receive_size) == 0) {
@@ -271,9 +243,6 @@ SparseMFModel PSSparseServerInterface::get_sparse_mf_model(
   return std::move(model);
 }
 
-// 1. send operation (uint32_t)
-// 2. send gradient size (uint32_t)
-// 3. send gradient data
 void PSSparseServerInterface::send_mf_gradient(const MFSparseGradient& gradient) {
   uint32_t operation = SEND_MF_GRADIENT;
   if (send(sock, &operation, sizeof(uint32_t), 0) == -1) {

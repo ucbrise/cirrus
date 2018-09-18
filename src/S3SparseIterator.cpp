@@ -33,10 +33,9 @@ S3SparseIterator::S3SparseIterator(uint64_t left_id,
       re(worker_id),
       random_access(random_access) {
   std::cout << "S3SparseIterator::Creating S3SparseIterator"
-    << " left_id: " << left_id
-    << " right_id: " << right_id
-    << " use_label: " << use_label
-    << std::endl;
+            << " left_id: " << left_id << " right_id: " << right_id
+            << " use_label: " << use_label << " has_labels: " << has_labels
+            << std::endl;
 
   // initialize s3
   s3_client = std::make_shared<S3Client>();

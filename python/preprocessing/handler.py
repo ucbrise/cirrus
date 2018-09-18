@@ -22,21 +22,24 @@ def get_data_bounds(data):
         "min": min_in_col
     }
 
-def get_data_from_s3(client, src_bucket, src_object):
+def get_data_from_s3(client, src_bucket, src_object, keep_label=False):
     # Return a 2D list, where each element is a row of the dataset.
     b = client.get_object(Bucket=src_bucket, Key=src_object)["Body"].read()
     data = []
+    labels = []
     c = []
     idx = None
-    ignore_label = True
+    label_bytes = None
     num_values = None
     seen = 0
     for i in range(8, len(b), 4):
-        if ignore_label:
-            ignore_label = False
+        if label_bytes is None:
+            label_bytes = b[i:i+4]
             continue
         if num_values is None:
             num_values = struct.unpack("i", b[i:i+4])[0]
+            if keep_label:
+                labels.append((label_bytes, num_values))
             continue
         if seen % 2 == 0:
             idx = struct.unpack("i", b[i:i+4])[0]
@@ -46,9 +49,11 @@ def get_data_from_s3(client, src_bucket, src_object):
         if seen == num_values:
             data.append(c)
             c = []
-            ignore_label = True
+            label_bytes = None
             num_values = None
             seen = 0
+    if keep_label:
+        return data, labels
     return data
 
 def put_bounds_in_s3(client, bounds, dest_bucket, dest_object):
@@ -57,6 +62,7 @@ def put_bounds_in_s3(client, bounds, dest_bucket, dest_object):
     client.put_object(Bucket=dest_bucket, Key=dest_object, Body=s)
 
 def get_global_bounds(client, bucket):
+    # Get the bounds across all objects.
     b = client.get_object(Bucket=bucket, Key=bucket + "_final_ranges")["Body"].read()
     return json.loads(b)
 
@@ -70,22 +76,35 @@ def scale_data(data, g, min_v, max_v):
         )
     return data_f
 
-def serialize_data(data):
-    # TODO
-    pass
+def serialize_data(data, labels):
+    lines = []
+    num_bytes = 0
+    current = 0
+    for idx in range(len(data)):
+        c = []
+        c.append(struct.pack("i", labels[idx][0]))
+        c.append(struct.pack("i", labels[idx][1]))
+        for _ in range(labels[idx][1]):
+            c.append(struct.pack("i", data[current][0]))
+            c.append(struct.pack("f", data[current][1]))
+            current += 1
+        lines.append(b"".join(c))
+        num_bytes += len(lines[-1])
+    return struct.pack("i", num_bytes + 8) + struct.pack("i", len(labels)) + b"".join(lines)
 
 def handler(event, context):
     # Either calculates the local bounds, or scales data and puts the new data in
     # {src_object}_scaled.
     print(event["src_bucket"], event["src_object"])
     client = boto3.client("s3")
-    d = get_data_from_s3(client, event["src_bucket"], event["src_object"])
     if event["action"] == "LOCAL_BOUNDS":
+        d = get_data_from_s3(client, event["src_bucket"], event["src_object"])
         b = get_data_bounds(d)
         put_bounds_in_s3(client, b, event["src_bucket"], event["src_object"] + "_bounds")
     elif event["action"] == "LOCAL_SCALE":
+        d = get_data_from_s3(client, event["src_bucket"], event["src_object"], True)
         b = get_global_bounds(client, event["src_bucket"])
-        scaled = scale_data(d, b, event["min_v"], event=["max_v"])
-        serialized = serialize_data(scaled)
-        client.put_object(Bucket=event["src_bucket"], event["src_object"] + "_scaled", Body=serialized)
+        scaled = scale_data(d[0], b, event["min_v"], event=["max_v"])
+        serialized = serialize_data(scaled, d[1])
+        client.put_object(Bucket=event["src_bucket"], Key=event["src_object"] + "_scaled", Body=serialized)
     return []

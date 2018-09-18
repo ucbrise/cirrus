@@ -35,11 +35,11 @@ def get_data_from_s3(client, src_bucket, src_object, keep_label=False):
     for i in range(8, len(b), 4):
         if label_bytes is None:
             label_bytes = b[i:i+4]
+            if keep_label:
+                labels.append(label_bytes)
             continue
         if num_values is None:
             num_values = struct.unpack("i", b[i:i+4])[0]
-            if keep_label:
-                labels.append((label_bytes, num_values))
             continue
         if seen % 2 == 0:
             idx = struct.unpack("i", b[i:i+4])[0]
@@ -63,31 +63,32 @@ def put_bounds_in_s3(client, bounds, dest_bucket, dest_object):
 
 def get_global_bounds(client, bucket):
     # Get the bounds across all objects.
-    b = client.get_object(Bucket=bucket, Key=bucket + "_final_ranges")["Body"].read()
-    return json.loads(b)
+    b = client.get_object(Bucket=bucket, Key=bucket + "_final_bounds")["Body"].read()
+    return json.loads(json.loads(b.decode("utf-8")))
 
 def scale_data(data, g, min_v, max_v):
     data_f = []
-    for idx, v in data:
-        data_f.append(
-            (idx,
-                (v - g["min"][idx]) / (g["max"][idx] - g["min"][idx]) * (max_v - min_v) + min_v
-            )
-        )
+    for r in data:
+        r2 = []
+        for idx_t, v in r:
+            idx = str(idx_t)
+            s = (max_v + min_v) / 2.0
+            if g["min"][idx] != g["max"][idx]:
+                s = (v - g["min"][idx]) / (g["max"][idx] - g["min"][idx]) * (max_v - min_v) + min_v
+            r2.append((idx, s))
+        data_f.append(r2)
     return data_f
 
 def serialize_data(data, labels):
     lines = []
     num_bytes = 0
-    current = 0
     for idx in range(len(data)):
         c = []
-        c.append(struct.pack("i", labels[idx][0]))
-        c.append(struct.pack("i", labels[idx][1]))
-        for _ in range(labels[idx][1]):
-            c.append(struct.pack("i", data[current][0]))
-            c.append(struct.pack("f", data[current][1]))
-            current += 1
+        c.append(labels[idx])
+        c.append(struct.pack("i", len(data[idx])))
+        for idx2, v2 in data[idx]:
+            c.append(struct.pack("i", int(idx2)))
+            c.append(struct.pack("f", float(v2)))
         lines.append(b"".join(c))
         num_bytes += len(lines[-1])
     return struct.pack("i", num_bytes + 8) + struct.pack("i", len(labels)) + b"".join(lines)
@@ -104,7 +105,7 @@ def handler(event, context):
     elif event["action"] == "LOCAL_SCALE":
         d = get_data_from_s3(client, event["src_bucket"], event["src_object"], True)
         b = get_global_bounds(client, event["src_bucket"])
-        scaled = scale_data(d[0], b, event["min_v"], event=["max_v"])
+        scaled = scale_data(d[0], b, event["min_v"], event["max_v"])
         serialized = serialize_data(scaled, d[1])
         client.put_object(Bucket=event["src_bucket"], Key=event["src_object"] + "_scaled", Body=serialized)
     return []

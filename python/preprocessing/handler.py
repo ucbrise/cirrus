@@ -22,7 +22,7 @@ def get_data_bounds(data):
         "min": min_in_col
     }
 
-def get_data_from_s3(client, src_bucket, src_object, keep_label=False, data=None):
+def get_data_from_s3(client, src_bucket, src_object, keep_label=False, data=None, debug=False):
     # Return a 2D list, where each element is a row of the dataset.
     print("Getting bytes from boto3")
     b = data
@@ -45,6 +45,8 @@ def get_data_from_s3(client, src_bucket, src_object, keep_label=False, data=None
             continue
         if num_values is None:
             num_values = struct.unpack("i", b[i:i+4])[0]
+            if debug:
+                print("Interpreting bytes at {0} as {1}".format(i, num_values))
             continue
         if seen % 2 == 0:
             idx = struct.unpack("i", b[i:i+4])[0]

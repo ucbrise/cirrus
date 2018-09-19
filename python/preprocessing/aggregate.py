@@ -75,4 +75,3 @@ def MinMaxScaler(bucket_name, objects, lower, upper):
     for t in g_threads:
         t.join()
 
-MinMaxScaler("criteo-kaggle-19b", ["1"], 0, 1)

@@ -22,9 +22,13 @@ def get_data_bounds(data):
         "min": min_in_col
     }
 
-def get_data_from_s3(client, src_bucket, src_object, keep_label=False):
+def get_data_from_s3(client, src_bucket, src_object, keep_label=False, data=None):
     # Return a 2D list, where each element is a row of the dataset.
-    b = client.get_object(Bucket=src_bucket, Key=src_object)["Body"].read()
+    print("Getting bytes from boto3")
+    b = data
+    if data is None:
+        b = client.get_object(Bucket=src_bucket, Key=src_object)["Body"].read()
+    print("Got {0} bytes".format(len(b)))
     data = []
     labels = []
     c = []
@@ -32,6 +36,7 @@ def get_data_from_s3(client, src_bucket, src_object, keep_label=False):
     label_bytes = None
     num_values = None
     seen = 0
+    print("Set local variables")
     for i in range(8, len(b), 4):
         if label_bytes is None:
             label_bytes = b[i:i+4]
@@ -46,7 +51,7 @@ def get_data_from_s3(client, src_bucket, src_object, keep_label=False):
         else:
             c.append((idx, struct.unpack("f", b[i:i+4])[0]))
         seen += 1
-        if seen == num_values:
+        if seen == num_values * 2:
             data.append(c)
             c = []
             label_bytes = None
@@ -99,8 +104,11 @@ def handler(event, context):
     print(event["src_bucket"], event["src_object"])
     client = boto3.client("s3")
     if event["action"] == "LOCAL_BOUNDS":
+        print("Getting data from S3...")
         d = get_data_from_s3(client, event["src_bucket"], event["src_object"])
+        print("Getting local data bounds...")
         b = get_data_bounds(d)
+        print("Putting bounds in S3...")
         put_bounds_in_s3(client, b, event["src_bucket"], event["src_object"] + "_bounds")
     elif event["action"] == "LOCAL_SCALE":
         d = get_data_from_s3(client, event["src_bucket"], event["src_object"], True)

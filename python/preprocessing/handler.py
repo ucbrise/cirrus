@@ -64,9 +64,9 @@ def put_bounds_in_s3(client, bounds, dest_bucket, dest_object):
     s = json.dumps(bounds)
     client.put_object(Bucket=dest_bucket, Key=dest_object, Body=s)
 
-def get_global_bounds(client, bucket):
+def get_global_bounds(client, bucket, src_object):
     # Get the bounds across all objects.
-    b = client.get_object(Bucket=bucket, Key=bucket + "_final_bounds")["Body"].read()
+    b = client.get_object(Bucket=bucket, Key=src_object + "_final_bounds")["Body"].read()
     print("Global bounds are {0} bytes".format(len(b)))
     return json.loads(b.decode("utf-8"))
 
@@ -113,7 +113,7 @@ def handler(event, context):
         print("Getting data from S3...")
         d = get_data_from_s3(client, event["src_bucket"], event["src_object"], True)
         print("Getting global bounds...")
-        b = get_global_bounds(client, event["src_bucket"])
+        b = get_global_bounds(client, event["src_bucket"], event["src_object"])
         print("Scaling data...")
         scaled = scale_data(d[0], b, event["min_v"], event["max_v"])
         print("Serializing...")

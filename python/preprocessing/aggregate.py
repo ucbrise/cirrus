@@ -41,26 +41,34 @@ def MinMaxScaler(bucket_name, objects, lower, upper):
     client = boto3.client("s3")
     f_ranges = {}
 
+    # Get global min/max map.
     for i in objects:
-        k = str(i) + "_bounds"
-        obj = client.get_object(Bucket=bucket_name, Key=k)["Body"].read()
+        obj = client.get_object(Bucket=bucket_name, Key=str(i) + "_bounds")["Body"].read()
         d = json.loads(obj.decode("utf-8"))
-        for idx in d["max"]:
-            v = d["max"][idx]
-            if idx not in f_ranges:
-                f_ranges[idx] = [v, v]
-            if v > f_ranges[idx][1]:
-                f_ranges[idx][1] = v
         for idx in d["min"]:
             v = d["min"][idx]
             if idx not in f_ranges:
                 f_ranges[idx] = [v, v]
             if v < f_ranges[idx][0]:
                 f_ranges[idx][0] = v
+        for idx in d["max"]:
+            v = d["max"][idx]
+            if idx not in f_ranges:
+                f_ranges[idx] = [v, v]
+            if v > f_ranges[idx][1]:
+                f_ranges[idx][1] = v
 
-    final = json.dumps(f_ranges)
+    # Update local min/max maps.
+    for i in objects:
+        obj = client.get_object(Bucket=bucket_name, Key=str(i) + "_bounds")["Body"].read()
+        d = json.loads(obj.decode("utf-8"))
+        for idx in d["min"]
+            d["min"][idx] = f_ranges[idx][0]
+        for idx in d["max"]:
+            d["max"][idx] = f_ranges[idx][1]
+        s = json.dumps(d)
+        client.put_object(Bucket=bucket_name, Key=str(i) + "_final_bounds")
 
-    client.put_object(Bucket=bucket_name, Key=bucket_name + "_final_bounds", Body=final)
     g_threads = []
     for i in objects:
         g = LocalScale(bucket_name, i, lower, upper)

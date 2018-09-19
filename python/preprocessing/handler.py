@@ -71,17 +71,15 @@ def get_global_bounds(client, bucket, src_object):
     return json.loads(b.decode("utf-8"))
 
 def scale_data(data, g, min_v, max_v):
-    data_f = []
     for r in data:
-        r2 = []
-        for idx_t, v in r:
+        for j in range(len(r)):
+            idx_t, v = r[j]
             idx = str(idx_t)
             s = (max_v + min_v) / 2.0
-            if g[idx][0] != g[idx][1]:
-                s = (v - g[idx][0]) / (g[idx][1] - g[idx][0]) * (max_v - min_v) + min_v
-            r2.append((idx, s))
-        data_f.append(r2)
-    return data_f
+            if g["min"][idx] != g["max"][idx]:
+                s = (v - g["min"][idx]) / (g["max"][idx] - g["min"][idx]) * (max_v - min_v) + min_v
+            r[j] = (idx, s)
+    return data
 
 def serialize_data(data, labels):
     lines = []

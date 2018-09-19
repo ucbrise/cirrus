@@ -62,12 +62,12 @@ def MinMaxScaler(bucket_name, objects, lower, upper):
     for i in objects:
         obj = client.get_object(Bucket=bucket_name, Key=str(i) + "_bounds")["Body"].read()
         d = json.loads(obj.decode("utf-8"))
-        for idx in d["min"]
+        for idx in d["min"]:
             d["min"][idx] = f_ranges[idx][0]
         for idx in d["max"]:
             d["max"][idx] = f_ranges[idx][1]
         s = json.dumps(d)
-        client.put_object(Bucket=bucket_name, Key=str(i) + "_final_bounds")
+        client.put_object(Bucket=bucket_name, Key=str(i) + "_final_bounds", Body=s)
 
     g_threads = []
     for i in objects:

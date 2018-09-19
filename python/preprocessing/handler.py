@@ -22,12 +22,10 @@ def get_data_bounds(data):
         "min": min_in_col
     }
 
-def get_data_from_s3(client, src_bucket, src_object, keep_label=False, data=None, debug=False):
+def get_data_from_s3(client, src_bucket, src_object, keep_label=False):
     # Return a 2D list, where each element is a row of the dataset.
     print("Getting bytes from boto3")
-    b = data
-    if data is None:
-        b = client.get_object(Bucket=src_bucket, Key=src_object)["Body"].read()
+    b = client.get_object(Bucket=src_bucket, Key=src_object)["Body"].read()
     print("Got {0} bytes".format(len(b)))
     data = []
     labels = []
@@ -45,8 +43,6 @@ def get_data_from_s3(client, src_bucket, src_object, keep_label=False, data=None
             continue
         if num_values is None:
             num_values = struct.unpack("i", b[i:i+4])[0]
-            if debug:
-                print("Interpreting bytes at {0} as {1}".format(i, num_values))
             continue
         if seen % 2 == 0:
             idx = struct.unpack("i", b[i:i+4])[0]
@@ -71,7 +67,8 @@ def put_bounds_in_s3(client, bounds, dest_bucket, dest_object):
 def get_global_bounds(client, bucket):
     # Get the bounds across all objects.
     b = client.get_object(Bucket=bucket, Key=bucket + "_final_bounds")["Body"].read()
-    return json.loads(json.loads(b.decode("utf-8")))
+    print("Global bounds are {0} bytes".format(len(b)))
+    return json.loads(b.decode("utf-8"))
 
 def scale_data(data, g, min_v, max_v):
     data_f = []
@@ -80,8 +77,8 @@ def scale_data(data, g, min_v, max_v):
         for idx_t, v in r:
             idx = str(idx_t)
             s = (max_v + min_v) / 2.0
-            if g["min"][idx] != g["max"][idx]:
-                s = (v - g["min"][idx]) / (g["max"][idx] - g["min"][idx]) * (max_v - min_v) + min_v
+            if g[idx][0] != g[idx][1]:
+                s = (v - g[idx][0]) / (g[idx][1] - g[idx][0]) * (max_v - min_v) + min_v
             r2.append((idx, s))
         data_f.append(r2)
     return data_f
@@ -113,9 +110,14 @@ def handler(event, context):
         print("Putting bounds in S3...")
         put_bounds_in_s3(client, b, event["src_bucket"], event["src_object"] + "_bounds")
     elif event["action"] == "LOCAL_SCALE":
+        print("Getting data from S3...")
         d = get_data_from_s3(client, event["src_bucket"], event["src_object"], True)
+        print("Getting global bounds...")
         b = get_global_bounds(client, event["src_bucket"])
+        print("Scaling data...")
         scaled = scale_data(d[0], b, event["min_v"], event["max_v"])
+        print("Serializing...")
         serialized = serialize_data(scaled, d[1])
+        print("Putting in S3...")
         client.put_object(Bucket=event["src_bucket"], Key=event["src_object"] + "_scaled", Body=serialized)
     return []

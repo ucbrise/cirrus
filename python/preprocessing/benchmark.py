@@ -1,7 +1,8 @@
-from aggregate import MinMaxScaler
+import preprocessing
 import time
 
 for j in range(3):
     start = time.time()
-    MinMaxScaler("criteo-kaggle-19b", [str(i) for i in range(1, 10**j + 1)], 0, 1)
-    print("{0}: {1}".format(10**j, time.time() - start))
+    preprocessing.normalize("criteo-kaggle-19b", "criteo-kaggle-19b", preprocessing.NormalizationType.MIN_MAX, 
+        0, 1, [str(i) for i in range(1, 10**j + 1)], True)
+    print("{0} lambdas: {1} seconds".format(10**j, time.time() - start))

@@ -69,8 +69,9 @@ def MinMaxScaler(s3_bucket_input, s3_bucket_output, lower, upper, objects=[], dr
     end_global = time.time()
     print("Creating the global map took {0} seconds...".format(end_global - start_global))
     # Update local min/max maps.
+    s3_resource = boto3.resource("s3")
     for i in objects:
-        s3_obj = client.Object(s3_bucket_input, str(i) + "_bounds")
+        s3_obj = s3_resource.Object(s3_bucket_input, str(i) + "_bounds")
         obj = s3_obj.get()["Body"].read()
         d = json.loads(obj.decode("utf-8"))
         for idx in d["min"]:
@@ -96,6 +97,6 @@ def MinMaxScaler(s3_bucket_input, s3_bucket_output, lower, upper, objects=[], dr
     print("Local scaling took {0} seconds...".format(end_scale - start_scale))
 
     for i in objects:
-        client.Object(s3_bucket_input, str(i) + "_final_bounds").delete()
+        s3_resource.Object(s3_bucket_input, str(i) + "_final_bounds").delete()
 
     print("Deleting local maps took {0} seconds...".format(time.time() - end_scale))

@@ -1,6 +1,9 @@
 # Helper functions for S3.
 
 from threading import Thread
+import boto3
+import json
+import struct
 
 class LambdaThread(Thread):
     def run(self):

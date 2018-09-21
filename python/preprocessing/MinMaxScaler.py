@@ -5,6 +5,7 @@ import time
 import boto3
 from collections import deque
 from serialization import LambdaThread
+from threading import Thread
 
 class LocalBounds(LambdaThread):
     def __init__(self, s3_bucket_input, s3_key):

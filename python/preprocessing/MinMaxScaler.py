@@ -4,6 +4,7 @@ import json
 import time
 import boto3
 from threading import Thread
+from collections import deque
 
 class LocalBounds(Thread):
     def __init__(self, s3_bucket_input, s3_key):
@@ -31,12 +32,42 @@ class LocalScale(LocalBounds):
             "max_v": upper
         }
 
+def get_all_keys(bucket):
+    s3 = boto3.client("s3")
+    keys = []
+    kwargs = {"Bucket": bucket}
+    while True:
+        r = s3.list_objects_v2(**kwargs)
+        for o in r["Contents"]:
+            keys.append(o["Key"])
+        try:
+            kwargs["ContinuationToken"] = r["NextContinuationToken"]
+        except KeyError:
+            break
+    return keys
+
 def MinMaxScaler(s3_bucket_input, s3_bucket_output, lower, upper, objects=[], dry_run=False):
-    # TODO: Get number of keys to make objects list (strings of 1 ... n)
+    s3_resource = boto3.resource("s3")
+    if len(objects) == 0:
+        # Allow user to specify objects, or otherwise get all objects.
+        objects = get_all_keys(s3_bucket_input)
+        print("Found {0} chunks...".format(len(objects)))
+    final_objects = []
+    for o in objects:
+        if "_" in o:
+            s3_resource.Object(s3_bucket_input, o).delete()
+        else:
+            final_objects.append(o)
+    objects = final_objects
+    print("Chunks after pruning: {0}".format(len(objects)))
+    # Calculate bounds for each chunk.
     start_bounds = time.time()
     l_client = boto3.client("lambda")
-    b_threads = []
+    b_threads = deque()
     for i in objects:
+        while len(b_threads) > 400:
+            t = b_threads.popleft()
+            t.join()
         l = LocalBounds(s3_bucket_input, i)
         l.start()
         b_threads.append(l)
@@ -69,7 +100,6 @@ def MinMaxScaler(s3_bucket_input, s3_bucket_output, lower, upper, objects=[], dr
     end_global = time.time()
     print("Creating the global map took {0} seconds...".format(end_global - start_global))
     # Update local min/max maps.
-    s3_resource = boto3.resource("s3")
     for i in objects:
         s3_obj = s3_resource.Object(s3_bucket_input, str(i) + "_bounds")
         obj = s3_obj.get()["Body"].read()
@@ -84,9 +114,12 @@ def MinMaxScaler(s3_bucket_input, s3_bucket_output, lower, upper, objects=[], dr
 
     start_scale = time.time()
     print("Putting local maps took {0} seconds...".format(start_scale - end_global))
-    g_threads = []
+    g_threads = deque()
     if not dry_run:
         for i in objects:
+            if len(g_threads) > 400:
+                t = g_threads.popleft()
+                t.join()
             g = LocalScale(s3_bucket_input, i, s3_bucket_output, lower, upper)
             g.start()
             g_threads.append(g)

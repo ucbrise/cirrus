@@ -13,6 +13,7 @@ class LambdaThread(Thread):
 
 def get_all_keys(bucket):
     s3 = boto3.client("s3")
+    s3_resource = boto3.resource("s3")
     keys = []
     kwargs = {"Bucket": bucket}
     while True:
@@ -28,7 +29,7 @@ def get_all_keys(bucket):
     final_objects = []
     for o in keys:
         if "_" in o:
-            s3_resource.Object(s3_bucket_input, o).delete()
+            s3_resource.Object(bucket, o).delete()
         else:
             final_objects.append(o)
     print("Chunks after pruning: {0}".format(len(final_objects)))

@@ -23,12 +23,14 @@ def get_data_ranges(data):
         final[k] = [x_squared_col[k] / n_col[k], x_col[k] / n_col[k], n_col[k]]
     return final
 
-def scale_data(data, g, min_v, max_v):
+def scale_data(data, g):
     # Takes g, a map to [std_dev, mean]
     for r in data:
         for j in range(len(r)):
             idx_t, v = r[j]
             idx = str(idx_t)
-            s = (v - g[idx][1]) / g[idx][0]
+            s = 0
+            if g[idx][0] != 0:
+                s = (v - g[idx][1]) / g[idx][0]
             r[j] = (idx, s)
     return data

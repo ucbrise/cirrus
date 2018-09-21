@@ -24,7 +24,7 @@ def get_all_keys(bucket):
         except KeyError:
             break
 
-    print("Found {0} chunks...".format(len(objects)))
+    print("Found {0} chunks...".format(len(keys)))
     final_objects = []
     for o in keys:
         if "_" in o:

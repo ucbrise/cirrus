@@ -18,7 +18,7 @@ class LocalRange(LambdaThread):
         }
 
 class LocalScale(LambdaThread):
-    def __init__(self, s3_bucket_input, s3_key, s3_bucket_output, lower, upper):
+    def __init__(self, s3_bucket_input, s3_key, s3_bucket_output):
         Thread.__init__(self)
         self.d = {
             "s3_bucket_input": s3_bucket_input,

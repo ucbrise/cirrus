@@ -4,6 +4,7 @@ from enum import Enum
 import sklearn.datasets
 import time
 import MinMaxScaler
+import NormalScaler
 from serialization import serialize_data
 
 class NormalizationType(Enum):

@@ -3,24 +3,20 @@
 import json
 import time
 import boto3
-from threading import Thread
 from collections import deque
+from serialization import LambdaThread
 
-class LocalBounds(Thread):
+class LocalBounds(LambdaThread):
     def __init__(self, s3_bucket_input, s3_key):
         Thread.__init__(self)
         self.d = {
             "s3_bucket_input": s3_bucket_input,
             "s3_key": s3_key,
-            "action": "LOCAL_BOUNDS"
+            "action": "LOCAL_BOUNDS",
+            "normalization": "MIN_MAX"
         }
 
-    def run(self):
-        l_client = boto3.client("lambda")
-        l_client.invoke(FunctionName="neel_lambda", InvocationType="RequestResponse", LogType="Tail",
-            Payload=json.dumps(self.d))
-
-class LocalScale(LocalBounds):
+class LocalScale(LambdaThread):
     def __init__(self, s3_bucket_input, s3_key, s3_bucket_output, lower, upper):
         Thread.__init__(self)
         self.d = {
@@ -29,7 +25,8 @@ class LocalScale(LocalBounds):
             "s3_bucket_output": s3_bucket_output,
             "action": "LOCAL_SCALE",
             "min_v": lower,
-            "max_v": upper
+            "max_v": upper,
+            "normalization": "MIN_MAX"
         }
 
 def get_all_keys(bucket):

@@ -11,6 +11,29 @@ class LambdaThread(Thread):
         l_client.invoke(FunctionName="neel_lambda", InvocationType="RequestResponse", LogType="Tail",
             Payload=json.dumps(self.d))
 
+def get_all_keys(bucket):
+    s3 = boto3.client("s3")
+    keys = []
+    kwargs = {"Bucket": bucket}
+    while True:
+        r = s3.list_objects_v2(**kwargs)
+        for o in r["Contents"]:
+            keys.append(o["Key"])
+        try:
+            kwargs["ContinuationToken"] = r["NextContinuationToken"]
+        except KeyError:
+            break
+
+    print("Found {0} chunks...".format(len(objects)))
+    final_objects = []
+    for o in keys:
+        if "_" in o:
+            s3_resource.Object(s3_bucket_input, o).delete()
+        else:
+            final_objects.append(o)
+    print("Chunks after pruning: {0}".format(len(final_objects)))
+    return final_objects
+
 def get_data_from_s3(client, src_bucket, src_object, keep_label=False):
     # Return a 2D list, where each element is a row of the dataset.
     print("Getting bytes from boto3")

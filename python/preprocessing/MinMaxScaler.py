@@ -7,6 +7,8 @@ from collections import deque
 from serialization import LambdaThread, get_all_keys
 from threading import Thread
 
+MAX_LAMBDAS = 400
+
 class LocalBounds(LambdaThread):
     def __init__(self, s3_bucket_input, s3_key, redis):
         Thread.__init__(self)
@@ -48,7 +50,7 @@ def MinMaxScaler(s3_bucket_input, s3_bucket_output, redis, lower, upper, objects
     l_client = boto3.client("lambda")
     b_threads = deque()
     for i in objects:
-        while len(b_threads) > 400:
+        while len(b_threads) > MAX_LAMBDAS:
             t = b_threads.popleft()
             t.join()
         l = LocalBounds(s3_bucket_input, i, redis)
@@ -60,7 +62,7 @@ def MinMaxScaler(s3_bucket_input, s3_bucket_output, redis, lower, upper, objects
 
     start_global = time.time()
     print("LocalBounds took {0} seconds...".format(start_global - start_bounds))
-    if redis:
+    if not redis:
         client = boto3.client("s3")
         f_ranges = {}
         # Get global min/max map.
@@ -93,14 +95,13 @@ def MinMaxScaler(s3_bucket_input, s3_bucket_output, redis, lower, upper, objects
                 d["max"][idx] = f_ranges[idx][1]
             s = json.dumps(d)
             client.put_object(Bucket=s3_bucket_input, Key=str(i) + "_final_bounds", Body=s)
-            s3_obj.delete()
 
+        print("Putting local maps took {0} seconds...".format(time.time() - end_global))
     start_scale = time.time()
-    print("Putting local maps took {0} seconds...".format(start_scale - end_global))
     g_threads = deque()
     if not dry_run:
         for i in objects:
-            if len(g_threads) > 400:
+            if len(g_threads) > MAX_LAMBDAS:
                 t = g_threads.popleft()
                 t.join()
             g = LocalScale(s3_bucket_input, i, s3_bucket_output, lower, upper, redis)
@@ -112,10 +113,9 @@ def MinMaxScaler(s3_bucket_input, s3_bucket_output, redis, lower, upper, objects
     end_scale = time.time()
     print("Local scaling took {0} seconds...".format(end_scale - start_scale))
 
-    if redis:
-        return
-
     for i in objects:
-        s3_resource.Object(s3_bucket_input, str(i) + "_final_bounds").delete()
+        s3_resource.Object(s3_bucket_input, str(i) + "_bounds").delete()
+        if not redis:
+            s3_resource.Object(s3_bucket_input, str(i) + "_final_bounds").delete()
 
     print("Deleting local maps took {0} seconds...".format(time.time() - end_scale))

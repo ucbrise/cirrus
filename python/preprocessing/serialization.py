@@ -4,12 +4,25 @@ from threading import Thread
 import boto3
 import json
 import struct
+import time
 
 class LambdaThread(Thread):
     def run(self):
         l_client = boto3.client("lambda")
-        l_client.invoke(FunctionName="neel_lambda", InvocationType="RequestResponse", LogType="Tail",
-            Payload=json.dumps(self.d))
+        failure = 1
+        overall = time.time()
+        while failure < 4:
+            try:
+                t0 = time.time()
+                l_client.invoke(FunctionName="neel_lambda", InvocationType="RequestResponse", LogType="Tail",
+                    Payload=json.dumps(self.d))
+                print("Lambda for chunk {0} completed this attempt in {1}, all attempts in {2}".format(self.d["s3_key"], time.time() - t0, time.time() - overall))
+                break
+            except Exception as e:
+                failure += 1
+                if failure == 4:
+                    raise e
+                print("Lambda failed for chunk {0}: Launching attempt #{1}".format(self.d["s3_key"], failure))
 
 def get_all_keys(bucket):
     s3 = boto3.client("s3")

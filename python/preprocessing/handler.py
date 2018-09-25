@@ -3,34 +3,46 @@ import redis
 import MinMaxHandler
 import NormalHandler
 from serialization import *
+import time
 
 def handler(event, context):
-    client = boto3.client("s3")
-    s3_client = client
+    s3_client = boto3.client("s3")
     assert "s3_bucket_input" in event and "s3_key" in event and "redis" in event, "Must specify if Redis is used, input bucket, and key."
     print("Getting data from S3...")
-    d, l = get_data_from_s3(client, event["s3_bucket_input"], event["s3_key"], keep_label=True)
+    t = time.time()
+    d, l = get_data_from_s3(s3_client, event["s3_bucket_input"], event["s3_key"], keep_label=True)
+    print("Getting S3 data took {0}".format(time.time() - t))
+    t = time.time()
     r = False
+    redis_client = None
     if event["redis"] == "1":
         r = True
-        redis_host = "neel-redis.lpfp73.0001.usw2.cache.amazonaws.com"
+        redis_host = "neel-redis3.lpfp73.0001.usw2.cache.amazonaws.com"
         redis_port = 6379
         redis_password = ""
-        client = redis.StrictRedis(host=redis_host, port=redis_port, password=redis_password, decode_responses=True)
+        redis_client = redis.StrictRedis(host=redis_host, port=redis_port, password=redis_password, decode_responses=True)
     if event["normalization"] == "MIN_MAX":
         # Either calculates the local bounds, or scales data and puts the new data in
         # {src_object}_scaled.
         if event["action"] == "LOCAL_BOUNDS":
             print("Getting local data bounds...")
             b = MinMaxHandler.get_data_bounds(d)
+            print("Calculating bounds took {0}".format(time.time() - t))
+            t = time.time()
             print("Putting bounds in S3...")
-            MinMaxHandler.put_bounds_in_db(client, b, event["s3_bucket_input"], event["s3_key"] + "_bounds", r)
+            MinMaxHandler.put_bounds_in_db(s3_client, redis_client, b, event["s3_bucket_input"], event["s3_key"] + "_bounds", r)
+            print("Putting bounds in S3 / Redis took {0}".format(time.time() - t))
         elif event["action"] == "LOCAL_SCALE":
             assert "s3_bucket_output" in event, "Must specify output bucket."
+            assert "min_v" in event, "Must specify min."
+            assert "max_v" in event, "Must specify max."
             print("Getting global bounds...")
-            b = MinMaxHandler.get_global_bounds(client, event["s3_bucket_input"], event["s3_key"], r)
+            b = MinMaxHandler.get_global_bounds(s3_client, redis_client, event["s3_bucket_input"], event["s3_key"], r)
+            print("Global bounds took {0} to get".format(time.time() - t))
+            t = time.time()
             print("Scaling data...")
             scaled = MinMaxHandler.scale_data(d, b, event["min_v"], event["max_v"])
+            print("Scaling took {0}".format(time.time() - t))
             print("Serializing...")
             serialized = serialize_data(scaled, l)
             print("Putting in S3...")

@@ -121,7 +121,10 @@ def get_global_bounds(s3_client, redis_client, bucket, src_object, redis):
     print("Constructing lists took {0} seconds".format(time.time() - i))
     i = time.time()
     max_v = redis_client.mget(max_k)
+    print("max_v took {0} for {1} keys".format(time.time() - i, len(max_k)))
+    i2 = time.time()
     min_v = redis_client.mget(min_k)
+    print("min_v took {0} for {1} keys".format(time.time() - i2, len(min_k)))
     print("Getting 2 * {0} elements from Redis took {1}...".format(len(m["max"]), time.time() - i))
     i = time.time()
     d = {"max":{},"min":{}}
@@ -137,8 +140,8 @@ def scale_data(data, g, new_min, new_max):
             idx_t, v = r[j]
             idx = str(idx_t)
             s = (new_min + new_max) / 2.0
-            min_v = g["min"][idx]
-            max_v = g["max"][idx]
+            min_v = float(g["min"][idx])
+            max_v = float(g["max"][idx])
             if min_v != max_v:
                 s = (v - min_v) / (max_v - min_v) * (new_max - new_min) + new_min
             r[j] = (idx, s)

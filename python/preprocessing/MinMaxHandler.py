@@ -28,7 +28,8 @@ def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, 
     s = json.dumps(bounds)
     s3_client.put_object(Bucket=dest_bucket, Key=dest_object, Body=s)
     if redis:
-        max_f = redis_client.register_script("local c = tonumber(redis.call('get', KEYS[1])); if c then if tonumber(ARGV[1]) > c then redis.call('set', KEYS[1], ARGV[1]) return tonumber(ARGV[1]) - c else return 0 end else return redis.call('set', KEYS[1], ARGV[1]) end")
+        max_f = redis_client.register_script("for i, v in ipairs(KEYS) do local c = tonumber(redis.call('get', KEYS[i])); if c then if tonumber(ARGV[i]) > c then redis.call('set', KEYS[i], ARGV[i]) end else redis.call('set', KEYS[i], ARGV[i]) end end")
+        min_f = redis_client.register_script("for i, v in ipairs(KEYS) do local c = tonumber(redis.call('get', KEYS[i])); if c then if tonumber(ARGV[i]) < c then redis.call('set', KEYS[i], ARGV[i]) end else redis.call('set', KEYS[i], ARGV[i]) end end")
         max_k = []
         max_v = []
         min_k = []
@@ -43,9 +44,6 @@ def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, 
         t0 = time.time()
         max_f(max_k, max_v)
         print("max_f took {0}".format(time.time() - t0))
-        t0 = time.time()
-        min_f = redis_client.register_script("local c = tonumber(redis.call('get', KEYS[1])); if c then if tonumber(ARGV[1]) < c then redis.call('set', KEYS[1], ARGV[1]) return tonumber(ARGV[1]) - c else return 0 end else return redis.call('set', KEYS[1], ARGV[1]) end")
-        print("Creating min_f took {0}".format(time.time() - t0))
         t0 = time.time()
         min_f(min_k, min_v)
         print("min_f took {0}".format(time.time() - t0))

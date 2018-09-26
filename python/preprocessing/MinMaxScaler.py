@@ -11,7 +11,7 @@ import random
 MAX_LAMBDAS = 400
 
 class LocalBounds(LambdaThread):
-    def __init__(self, s3_bucket_input, s3_key, redis):
+    def __init__(self, s3_bucket_input, s3_key, redis, invocation):
         Thread.__init__(self)
         redis_s = "1"
         if not redis:
@@ -22,11 +22,12 @@ class LocalBounds(LambdaThread):
             "action": "LOCAL_BOUNDS",
             "normalization": "MIN_MAX",
             "redis": redis_s,
+            "invocation": invocation,
             "nonce": (random.random() * 1000000) // 1.0
         }
 
 class LocalScale(LambdaThread):
-    def __init__(self, s3_bucket_input, s3_key, s3_bucket_output, lower, upper, redis):
+    def __init__(self, s3_bucket_input, s3_key, s3_bucket_output, lower, upper, redis, invocation):
         Thread.__init__(self)
         redis_s = "1"
         if not redis:
@@ -39,10 +40,13 @@ class LocalScale(LambdaThread):
             "min_v": lower,
             "max_v": upper,
             "normalization": "MIN_MAX",
-            "redis": redis_s
+            "redis": redis_s,
+            "invocation": invocation,
+            "nonce": (random.random() * 1000000) // 1.0
         }
 
 def MinMaxScaler(s3_bucket_input, s3_bucket_output, redis, lower, upper, objects=[], dry_run=False):
+    invocation = (random.random() * 1000000) // 1.0
     s3_resource = boto3.resource("s3")
     if len(objects) == 0:
         # Allow user to specify objects, or otherwise get all objects.
@@ -55,7 +59,7 @@ def MinMaxScaler(s3_bucket_input, s3_bucket_output, redis, lower, upper, objects
         while len(b_threads) > MAX_LAMBDAS:
             t = b_threads.popleft()
             t.join()
-        l = LocalBounds(s3_bucket_input, i, redis)
+        l = LocalBounds(s3_bucket_input, i, redis, invocation)
         l.start()
         b_threads.append(l)
 
@@ -106,7 +110,7 @@ def MinMaxScaler(s3_bucket_input, s3_bucket_output, redis, lower, upper, objects
             if len(g_threads) > MAX_LAMBDAS:
                 t = g_threads.popleft()
                 t.join()
-            g = LocalScale(s3_bucket_input, i, s3_bucket_output, lower, upper, redis)
+            g = LocalScale(s3_bucket_input, i, s3_bucket_output, lower, upper, redis, invocation)
             g.start()
             g_threads.append(g)
 

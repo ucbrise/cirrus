@@ -9,6 +9,7 @@ import random
 
 def handler(event, context):
     total = time.time()
+    unique_id = str(event["invocation"]) + "_invocation_" + event["s3_key"] + "_nonce_" + str(event["nonce"])
     s3_client = boto3.client("s3")
     assert "s3_bucket_input" in event and "s3_key" in event and "redis" in event, "Must specify if Redis is used, input bucket, and key."
     print("[CHUNK{0}] Getting data from S3...".format(event["s3_key"]))
@@ -26,12 +27,11 @@ def handler(event, context):
         startup_nodes = [{"host": redis_host, "port": redis_port}]
         redis_client = StrictRedisCluster(startup_nodes=startup_nodes, decode_responses=True, skip_full_coverage_check=True)
         node_manager = NodeManager(startup_nodes)
-        assert "nonce" in event, "Must include nonce."
-        k_signal = redis_client.get(event["s3_key"] + "_nonce_" + str(event["nonce"]))
+        k_signal = redis_client.get(unique_id)
         if k_signal == "Y":
             print("[CHUNK{0}] Found duplicate - killing.".format(event["s3_key"]))
             return
-        redis_client.set(event["s3_key"] + "_nonce_" + str(event["nonce"]), "Y")
+        redis_client.set(unique_id, "Y")
     if event["normalization"] == "MIN_MAX":
         # Either calculates the local bounds, or scales data and puts the new data in
         # {src_object}_scaled.
@@ -78,5 +78,5 @@ def handler(event, context):
             print("Putting in S3...")
             s3_client.put_object(Bucket=event["s3_bucket_output"], Key=event["s3_key"], Body=serialized)
     # TODO: Make Redis optional.
-    redis_client.set(event["s3_key"] + "_nonce_" + str(event["nonce"]), "")
+    redis_client.set(unique_id, "")
     return []

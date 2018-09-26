@@ -135,7 +135,7 @@ def get_global_bounds(s3_client, redis_client, bucket, src_object, redis, chunk)
     if redis:
         suffix = "_bounds"
     b = s3_client.get_object(Bucket=bucket, Key=src_object + suffix)["Body"].read().decode("utf-8")
-    print("[CHUNK{0}] Global bounds are {0} bytes".format(chunk, len(b)))
+    print("[CHUNK{0}] Global bounds are {1} bytes".format(chunk, len(b)))
     m = json.loads(b)
     if not redis:
         return m

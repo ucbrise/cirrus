@@ -23,7 +23,7 @@ def get_data_bounds(data):
         "min": min_in_col
     }
 
-def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, redis):
+def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, redis, all_columns=False):
     # Add the dictionary of bounds to an S3 bucket or Redis instance.
     s = json.dumps(bounds)
     s3_client.put_object(Bucket=dest_bucket, Key=dest_object, Body=s)
@@ -42,10 +42,25 @@ def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, 
             min_v.append(bounds["min"][idx])
         print("Took {0} to make lists".format(time.time() - t0))
         t0 = time.time()
-        max_f(max_k, max_v)
+        c = time.time()
+        if all_columns:
+            max_f(max_k, max_v)
+        else:
+            for idx, k in enumerate(max_k):
+                if idx % 100 == 0:
+                    print("Iteration {0} of max_f took {1}".format(idx, time.time() - c))
+                c = time.time()
+                max_f([k], [max_v[idx]])
         print("max_f took {0}".format(time.time() - t0))
         t0 = time.time()
-        min_f(min_k, min_v)
+        if all_columns:
+            min_f(min_k, min_v)
+        else:
+            for idx, k in enumerate(min_k):
+                if idx % 100 == 0:
+                    print("Iteration {0} of min_f took {1}".format(idx, time.time() - c))
+                c = time.time()
+                min_f([k], [min_v[idx]])
         print("min_f took {0}".format(time.time() - t0))
 
 def get_global_bounds(s3_client, redis_client, bucket, src_object, redis):

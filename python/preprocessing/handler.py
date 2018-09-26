@@ -1,5 +1,5 @@
 import boto3
-import redis
+from rediscluster import StrictRedisCluster
 import MinMaxHandler
 import NormalHandler
 from serialization import *
@@ -17,10 +17,10 @@ def handler(event, context):
     redis_client = None
     if event["redis"] == "1":
         r = True
-        redis_host = "neel-redis3.lpfp73.0001.usw2.cache.amazonaws.com"
+        redis_host = "neel-redis4.lpfp73.clustercfg.usw2.cache.amazonaws.com"
         redis_port = 6379
-        redis_password = ""
-        redis_client = redis.StrictRedis(host=redis_host, port=redis_port, password=redis_password, decode_responses=True)
+        startup_nodes = [{"host": redis_host, "port": redis_port}]
+        redis_client = StrictRedisCluster(startup_nodes=startup_nodes, decode_responses=True, skip_full_coverage_check=True)
     if event["normalization"] == "MIN_MAX":
         # Either calculates the local bounds, or scales data and puts the new data in
         # {src_object}_scaled.

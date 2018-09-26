@@ -22,16 +22,15 @@ def handler(event, context):
     node_manager = None
     if event["redis"] == "1":
         r = True
-        redis_host = "neel-redis4.lpfp73.clustercfg.usw2.cache.amazonaws.com"
+        redis_host = "neel-redis5.lpfp73.clustercfg.usw2.cache.amazonaws.com"
         redis_port = 6379
         startup_nodes = [{"host": redis_host, "port": redis_port}]
         redis_client = StrictRedisCluster(startup_nodes=startup_nodes, decode_responses=True, skip_full_coverage_check=True)
         node_manager = NodeManager(startup_nodes)
-        k_signal = redis_client.get(unique_id)
+        k_signal = redis_client.getset(unique_id, "Y")
         if k_signal == "Y":
             print("[CHUNK{0}] Found duplicate - killing.".format(event["s3_key"]))
             return
-        redis_client.set(unique_id, "Y")
     if event["normalization"] == "MIN_MAX":
         # Either calculates the local bounds, or scales data and puts the new data in
         # {src_object}_scaled.
@@ -77,6 +76,7 @@ def handler(event, context):
             serialized = serialize_data(scaled, l)
             print("Putting in S3...")
             s3_client.put_object(Bucket=event["s3_bucket_output"], Key=event["s3_key"], Body=serialized)
-    # TODO: Make Redis optional.
-    redis_client.set(unique_id, "")
+    if r:
+        # Unregister lambda.
+        redis_client.set(unique_id, "")
     return []

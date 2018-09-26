@@ -9,10 +9,10 @@ import time
 def handler(event, context):
     s3_client = boto3.client("s3")
     assert "s3_bucket_input" in event and "s3_key" in event and "redis" in event, "Must specify if Redis is used, input bucket, and key."
-    print("Getting data from S3...")
+    print("[CHUNK{0}] Getting data from S3...".format(event["s3_key"]))
     t = time.time()
     d, l = get_data_from_s3(s3_client, event["s3_bucket_input"], event["s3_key"], keep_label=True)
-    print("Getting S3 data took {0}".format(time.time() - t))
+    print("[CHUNK{0}] Getting S3 data took {1}".format(event["s3_key"], time.time() - t))
     t = time.time()
     r = False
     redis_client = None
@@ -30,22 +30,22 @@ def handler(event, context):
         if event["action"] == "LOCAL_BOUNDS":
             print("Getting local data bounds...")
             b = MinMaxHandler.get_data_bounds(d)
-            print("[CHUNK {0}] Calculating bounds took {1}".format(event["s3_key"], time.time() - t))
+            print("[CHUNK{0}] Calculating bounds took {1}".format(event["s3_key"], time.time() - t))
             t = time.time()
             print("Putting bounds in S3...")
             MinMaxHandler.put_bounds_in_db(s3_client, redis_client, b, event["s3_bucket_input"], event["s3_key"] + "_bounds", r, node_manager, event["s3_key"])
-            print("[CHUNK {0}] Putting bounds in S3 / Redis took {1}".format(event["s3_key"], time.time() - t))
+            print("[CHUNK{0}] Putting bounds in S3 / Redis took {1}".format(event["s3_key"], time.time() - t))
         elif event["action"] == "LOCAL_SCALE":
             assert "s3_bucket_output" in event, "Must specify output bucket."
             assert "min_v" in event, "Must specify min."
             assert "max_v" in event, "Must specify max."
             print("Getting global bounds...")
             b = MinMaxHandler.get_global_bounds(s3_client, redis_client, event["s3_bucket_input"], event["s3_key"], r, event["s3_key"])
-            print("[CHUNK {0}] Global bounds took {1} to get".format(event["s3_key"], time.time() - t))
+            print("[CHUNK{0}] Global bounds took {1} to get".format(event["s3_key"], time.time() - t))
             t = time.time()
             print("Scaling data...")
             scaled = MinMaxHandler.scale_data(d, b, event["min_v"], event["max_v"])
-            print("[CHUNK {0}] Scaling took {1}".format(event["s3_key"], time.time() - t))
+            print("[CHUNK{0}] Scaling took {1}".format(event["s3_key"], time.time() - t))
             print("Serializing...")
             serialized = serialize_data(scaled, l)
             print("Putting in S3...")

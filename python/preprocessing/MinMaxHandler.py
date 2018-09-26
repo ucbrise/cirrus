@@ -59,7 +59,7 @@ def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, 
             max_v.append(bounds["max"][idx])
             min_k.append(str(idx) + "_min")
             min_v.append(bounds["min"][idx])
-        print("[CHUNK {0}] Took {1} to make lists".format(chunk, time.time() - t0))
+        print("[CHUNK{0}] Took {1} to make lists".format(chunk, time.time() - t0))
         t0 = time.time()
         c = time.time()
         slot_max_k = {}
@@ -74,7 +74,7 @@ def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, 
                         slot_max_vals[slot] = []
                     slot_max_k[slot].append(k)
                     slot_max_vals[slot].append(max_v[idx])
-                print("[CHUNK {0}] Took {1} to make slot maps for max_f".format(chunk, time.time() - t1))
+                print("[CHUNK{0}] Took {1} to make slot maps for max_f".format(chunk, time.time() - t1))
                 t1 = time.time()
                 w = deque()
                 for idx, k in enumerate(slot_max_k):
@@ -86,7 +86,7 @@ def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, 
                     w.append(p)
                 for p in w:
                     p.join()
-                print("[CHUNK {0}] Took {1} to make {2} max_f requests".format(chunk, time.time() - t1, len(slot_max_k)))
+                print("[CHUNK{0}] Took {1} to make {2} max_f requests".format(chunk, time.time() - t1, len(slot_max_k)))
             else:
                 max_f(max_k, max_v)
         else:
@@ -95,7 +95,7 @@ def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, 
                 #     print("Iteration {0} of max_f took {1}".format(idx, time.time() - c))
                 c = time.time()
                 max_f([k], [max_v[idx]])
-        print("[CHUNK {0}] max_f took {1}".format(chunk, time.time() - t0))
+        print("[CHUNK{0}] max_f took {1}".format(chunk, time.time() - t0))
         t0 = time.time()
         slot_min_k = {}
         slot_min_vals = {}
@@ -126,7 +126,7 @@ def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, 
                 #     print("Iteration {0} of min_f took {1}".format(idx, time.time() - c))
                 c = time.time()
                 min_f([k], [min_v[idx]])
-        print("[CHUNK {0}] min_f took {1}".format(chunk, time.time() - t0))
+        print("[CHUNK{0}] min_f took {1}".format(chunk, time.time() - t0))
 
 def get_global_bounds(s3_client, redis_client, bucket, src_object, redis, chunk):
     # Get the bounds across all objects, where each key is mapped to [min, max].
@@ -135,13 +135,13 @@ def get_global_bounds(s3_client, redis_client, bucket, src_object, redis, chunk)
     if redis:
         suffix = "_bounds"
     b = s3_client.get_object(Bucket=bucket, Key=src_object + suffix)["Body"].read().decode("utf-8")
-    print("[CHUNK {0}] Global bounds are {0} bytes".format(chunk, len(b)))
+    print("[CHUNK{0}] Global bounds are {0} bytes".format(chunk, len(b)))
     m = json.loads(b)
     if not redis:
         return m
     i = time.time()
-    print("[CHUNK {0}] S3 took {1} seconds...".format(chunk, i - start))
-    print("[CHUNK {0}] Going to make {1} * 2 requests to Redis".format(chunk, len(m["max"])))
+    print("[CHUNK{0}] S3 took {1} seconds...".format(chunk, i - start))
+    print("[CHUNK{0}] Going to make {1} * 2 requests to Redis".format(chunk, len(m["max"])))
     original = []
     max_k = []
     min_k = []
@@ -165,7 +165,7 @@ def get_global_bounds(s3_client, redis_client, bucket, src_object, redis, chunk)
     p2.join()
     max_v = res["max"]
     min_v = res["min"]
-    print("[CHUNK {0}] Getting 2 * {1} elements from Redis took {2}...".format(chunk, len(m["max"]), time.time() - i))
+    print("[CHUNK{0}] Getting 2 * {1} elements from Redis took {2}...".format(chunk, len(m["max"]), time.time() - i))
     i = time.time()
     d = {"max":{},"min":{}}
     for idx, k in enumerate(original):

@@ -3,6 +3,7 @@ import json
 import struct
 import time
 from threading import Thread
+from collections import deque
 
 class ParallelFn(Thread):
     def __init__(self, fn, k, v=None, res=None, res_key=None):
@@ -41,7 +42,7 @@ def get_data_bounds(data):
         "min": min_in_col
     }
 
-def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, redis, node_manager, all_columns=True):
+def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, redis, node_manager, chunk, all_columns=True):
     # Add the dictionary of bounds to an S3 bucket or Redis instance.
     s = json.dumps(bounds)
     s3_client.put_object(Bucket=dest_bucket, Key=dest_object, Body=s)
@@ -58,7 +59,7 @@ def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, 
             max_v.append(bounds["max"][idx])
             min_k.append(str(idx) + "_min")
             min_v.append(bounds["min"][idx])
-        print("Took {0} to make lists".format(time.time() - t0))
+        print("[CHUNK {0}] Took {1} to make lists".format(chunk, time.time() - t0))
         t0 = time.time()
         c = time.time()
         slot_max_k = {}
@@ -73,25 +74,28 @@ def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, 
                         slot_max_vals[slot] = []
                     slot_max_k[slot].append(k)
                     slot_max_vals[slot].append(max_v[idx])
-                print("Took {0} to make slot maps for max_f".format(time.time() - t1))
+                print("[CHUNK {0}] Took {1} to make slot maps for max_f".format(chunk, time.time() - t1))
                 t1 = time.time()
-                w = []
+                w = deque()
                 for idx, k in enumerate(slot_max_k):
+                    if len(w) >= 4:
+                        p2 = w.popleft()
+                        p2.join()
                     p = ParallelFn(max_f, slot_max_k[k], slot_max_vals[k])
                     p.start()
                     w.append(p)
                 for p in w:
                     p.join()
-                print("Took {0} to make {1} max_f requests".format(time.time() - t1, len(slot_max_k)))
+                print("[CHUNK {0}] Took {1} to make {2} max_f requests".format(chunk, time.time() - t1, len(slot_max_k)))
             else:
                 max_f(max_k, max_v)
         else:
             for idx, k in enumerate(max_k):
-                if idx % 100 == 0:
-                    print("Iteration {0} of max_f took {1}".format(idx, time.time() - c))
+                # if idx % 100 == 0:
+                #     print("Iteration {0} of max_f took {1}".format(idx, time.time() - c))
                 c = time.time()
                 max_f([k], [max_v[idx]])
-        print("max_f took {0}".format(time.time() - t0))
+        print("[CHUNK {0}] max_f took {1}".format(chunk, time.time() - t0))
         t0 = time.time()
         slot_min_k = {}
         slot_min_vals = {}
@@ -104,8 +108,11 @@ def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, 
                         slot_min_vals[slot] = []
                     slot_min_k[slot].append(k)
                     slot_min_vals[slot].append(min_v[idx])
-                w = []
+                w = deque()
                 for k in slot_min_k:
+                    if len(w) >= 4:
+                        p2 = w.popleft()
+                        p2.join()
                     p = ParallelFn(min_f, slot_min_k[k], slot_min_vals[k])
                     p.start()
                     w.append(p)
@@ -115,26 +122,26 @@ def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, 
                 min_f(min_k, min_v)
         else:
             for idx, k in enumerate(min_k):
-                if idx % 100 == 0:
-                    print("Iteration {0} of min_f took {1}".format(idx, time.time() - c))
+                # if idx % 100 == 0:
+                #     print("Iteration {0} of min_f took {1}".format(idx, time.time() - c))
                 c = time.time()
                 min_f([k], [min_v[idx]])
-        print("min_f took {0}".format(time.time() - t0))
+        print("[CHUNK {0}] min_f took {1}".format(chunk, time.time() - t0))
 
-def get_global_bounds(s3_client, redis_client, bucket, src_object, redis):
+def get_global_bounds(s3_client, redis_client, bucket, src_object, redis, chunk):
     # Get the bounds across all objects, where each key is mapped to [min, max].
     start = time.time()
     suffix = "_final_bounds"
     if redis:
         suffix = "_bounds"
     b = s3_client.get_object(Bucket=bucket, Key=src_object + suffix)["Body"].read().decode("utf-8")
-    print("Global bounds are {0} bytes".format(len(b)))
+    print("[CHUNK {0}] Global bounds are {0} bytes".format(chunk, len(b)))
     m = json.loads(b)
     if not redis:
         return m
     i = time.time()
-    print("S3 took {0} seconds...".format(i - start))
-    print("Going to make {0} * 2 requests to Redis".format(len(m["max"])))
+    print("[CHUNK {0}] S3 took {1} seconds...".format(chunk, i - start))
+    print("[CHUNK {0}] Going to make {1} * 2 requests to Redis".format(chunk, len(m["max"])))
     original = []
     max_k = []
     min_k = []
@@ -158,7 +165,7 @@ def get_global_bounds(s3_client, redis_client, bucket, src_object, redis):
     p2.join()
     max_v = res["max"]
     min_v = res["min"]
-    print("Getting 2 * {0} elements from Redis took {1}...".format(len(m["max"]), time.time() - i))
+    print("[CHUNK {0}] Getting 2 * {1} elements from Redis took {2}...".format(chunk, len(m["max"]), time.time() - i))
     i = time.time()
     d = {"max":{},"min":{}}
     for idx, k in enumerate(original):

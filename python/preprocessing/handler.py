@@ -30,22 +30,22 @@ def handler(event, context):
         if event["action"] == "LOCAL_BOUNDS":
             print("Getting local data bounds...")
             b = MinMaxHandler.get_data_bounds(d)
-            print("Calculating bounds took {0}".format(time.time() - t))
+            print("[CHUNK {0}] Calculating bounds took {1}".format(event["s3_key"], time.time() - t))
             t = time.time()
             print("Putting bounds in S3...")
-            MinMaxHandler.put_bounds_in_db(s3_client, redis_client, b, event["s3_bucket_input"], event["s3_key"] + "_bounds", r, node_manager)
-            print("Putting bounds in S3 / Redis took {0}".format(time.time() - t))
+            MinMaxHandler.put_bounds_in_db(s3_client, redis_client, b, event["s3_bucket_input"], event["s3_key"] + "_bounds", r, node_manager, event["s3_key"])
+            print("[CHUNK {0}] Putting bounds in S3 / Redis took {1}".format(event["s3_key"], time.time() - t))
         elif event["action"] == "LOCAL_SCALE":
             assert "s3_bucket_output" in event, "Must specify output bucket."
             assert "min_v" in event, "Must specify min."
             assert "max_v" in event, "Must specify max."
             print("Getting global bounds...")
-            b = MinMaxHandler.get_global_bounds(s3_client, redis_client, event["s3_bucket_input"], event["s3_key"], r)
-            print("Global bounds took {0} to get".format(time.time() - t))
+            b = MinMaxHandler.get_global_bounds(s3_client, redis_client, event["s3_bucket_input"], event["s3_key"], r, event["s3_key"])
+            print("[CHUNK {0}] Global bounds took {1} to get".format(event["s3_key"], time.time() - t))
             t = time.time()
             print("Scaling data...")
             scaled = MinMaxHandler.scale_data(d, b, event["min_v"], event["max_v"])
-            print("Scaling took {0}".format(time.time() - t))
+            print("[CHUNK {0}] Scaling took {1}".format(event["s3_key"], time.time() - t))
             print("Serializing...")
             serialized = serialize_data(scaled, l)
             print("Putting in S3...")

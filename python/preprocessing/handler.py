@@ -1,5 +1,6 @@
 import boto3
 from rediscluster import StrictRedisCluster
+from rediscluster.nodemanager import NodeManager
 import MinMaxHandler
 import NormalHandler
 from serialization import *
@@ -15,12 +16,14 @@ def handler(event, context):
     t = time.time()
     r = False
     redis_client = None
+    node_manager = None
     if event["redis"] == "1":
         r = True
         redis_host = "neel-redis4.lpfp73.clustercfg.usw2.cache.amazonaws.com"
         redis_port = 6379
         startup_nodes = [{"host": redis_host, "port": redis_port}]
         redis_client = StrictRedisCluster(startup_nodes=startup_nodes, decode_responses=True, skip_full_coverage_check=True)
+        node_manager = NodeManager(startup_nodes)
     if event["normalization"] == "MIN_MAX":
         # Either calculates the local bounds, or scales data and puts the new data in
         # {src_object}_scaled.
@@ -30,7 +33,7 @@ def handler(event, context):
             print("Calculating bounds took {0}".format(time.time() - t))
             t = time.time()
             print("Putting bounds in S3...")
-            MinMaxHandler.put_bounds_in_db(s3_client, redis_client, b, event["s3_bucket_input"], event["s3_key"] + "_bounds", r)
+            MinMaxHandler.put_bounds_in_db(s3_client, redis_client, b, event["s3_bucket_input"], event["s3_key"] + "_bounds", r, nodemanager)
             print("Putting bounds in S3 / Redis took {0}".format(time.time() - t))
         elif event["action"] == "LOCAL_SCALE":
             assert "s3_bucket_output" in event, "Must specify output bucket."

@@ -23,7 +23,7 @@ def get_data_bounds(data):
         "min": min_in_col
     }
 
-def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, redis, all_columns=False):
+def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, redis, node_manager, all_columns=True):
     # Add the dictionary of bounds to an S3 bucket or Redis instance.
     s = json.dumps(bounds)
     s3_client.put_object(Bucket=dest_bucket, Key=dest_object, Body=s)
@@ -43,8 +43,29 @@ def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, 
         print("Took {0} to make lists".format(time.time() - t0))
         t0 = time.time()
         c = time.time()
+        slot_max_k = {}
+        slot_max_vals = {}
         if all_columns:
-            max_f(max_k, max_v)
+            if node_manager is not None:
+                t1 = time.time()
+                for idx, k in enumerate(max_k):
+                    slot = node_manager.keyslot(k)
+                    if slot not in slot_max_k:
+                        slot_max_k[slot] = []
+                        slot_max_vals[slot] = []
+                    slot_max_k[slot].append(k)
+                    slot_max_vals[slot].append(max_v[idx])
+                print("Took {0} to make slot maps for max_f".format(time.time() - t1))
+                t1 = time.time()
+                t2 = time.time()
+                for idx, k in enumerate(slot_max_k):
+                    if idx % 100 == 0:
+                        print("Iteration {0} took {1}".format(idx, time.time() - t2))
+                    t2 = time.time()
+                    max_f(slot_max_k[k], slot_max_vals[k])
+                print("Took {0} to make {1} max_f requests".format(time.time() - t1, len(slot_max_k)))
+            else:
+                max_f(max_k, max_v)
         else:
             for idx, k in enumerate(max_k):
                 if idx % 100 == 0:
@@ -53,8 +74,21 @@ def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, 
                 max_f([k], [max_v[idx]])
         print("max_f took {0}".format(time.time() - t0))
         t0 = time.time()
+        slot_min_k = {}
+        slot_min_vals = {}
         if all_columns:
-            min_f(min_k, min_v)
+            if node_manager is not None:
+                for idx, k in enumerate(min_k):
+                    slot = node_manager.keyslot(k)
+                    if slot not in slot_min_k:
+                        slot_min_k[slot] = []
+                        slot_min_vals[slot] = []
+                    slot_min_k[slot].append(k)
+                    slot_min_vals[slot].append(min_v[idx])
+                for k in slot_min_k:
+                    min_f(slot_min_k[k], slot_min_vals[k])
+            else:
+                min_f(min_k, min_v)
         else:
             for idx, k in enumerate(min_k):
                 if idx % 100 == 0:

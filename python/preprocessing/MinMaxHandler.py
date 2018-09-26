@@ -2,6 +2,24 @@ import boto3
 import json
 import struct
 import time
+from threading import Thread
+
+class ParallelFn(Thread):
+    def __init__(self, fn, k, v=None, res=None, res_key=None):
+        Thread.__init__(self)
+        self.fn = fn
+        self.k = k
+        self.v = v
+        self.res = res
+        self.res_key = res_key
+
+    def run(self):
+        if self.v is None:
+            r = self.fn(self.k)
+        else:
+            r = self.fn(self.k, self.v)
+        if self.res is not None:
+            self.res[self.res_key] = r
 
 def get_data_bounds(data):
     # Return a dict of two lists, containing max and min for each column.
@@ -57,12 +75,13 @@ def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, 
                     slot_max_vals[slot].append(max_v[idx])
                 print("Took {0} to make slot maps for max_f".format(time.time() - t1))
                 t1 = time.time()
-                t2 = time.time()
+                w = []
                 for idx, k in enumerate(slot_max_k):
-                    if idx % 100 == 0:
-                        print("Iteration {0} took {1}".format(idx, time.time() - t2))
-                    t2 = time.time()
-                    max_f(slot_max_k[k], slot_max_vals[k])
+                    p = ParallelFn(max_f, slot_max_k[k], slot_max_vals[k])
+                    p.start()
+                    w.append(p)
+                for p in w:
+                    p.join()
                 print("Took {0} to make {1} max_f requests".format(time.time() - t1, len(slot_max_k)))
             else:
                 max_f(max_k, max_v)
@@ -85,8 +104,13 @@ def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, 
                         slot_min_vals[slot] = []
                     slot_min_k[slot].append(k)
                     slot_min_vals[slot].append(min_v[idx])
+                w = []
                 for k in slot_min_k:
-                    min_f(slot_min_k[k], slot_min_vals[k])
+                    p = ParallelFn(min_f, slot_min_k[k], slot_min_vals[k])
+                    p.start()
+                    w.append(p)
+                for p in w:
+                    p.join()
             else:
                 min_f(min_k, min_v)
         else:
@@ -120,11 +144,20 @@ def get_global_bounds(s3_client, redis_client, bucket, src_object, redis):
         max_k.append(str(idx) + "_max")
     print("Constructing lists took {0} seconds".format(time.time() - i))
     i = time.time()
-    max_v = redis_client.mget(max_k)
-    print("max_v took {0} for {1} keys".format(time.time() - i, len(max_k)))
-    i2 = time.time()
-    min_v = redis_client.mget(min_k)
-    print("min_v took {0} for {1} keys".format(time.time() - i2, len(min_k)))
+    res = {}
+    p1 = ParallelFn(redis_client.mget, max_k, None, res, "max")
+    # max_v = redis_client.mget(max_k)
+    # print("max_v took {0} for {1} keys".format(time.time() - i, len(max_k)))
+    # i2 = time.time()
+    # min_v = redis_client.mget(min_k)
+    # print("min_v took {0} for {1} keys".format(time.time() - i2, len(min_k)))
+    p2 = ParallelFn(redis_client.mget, min_k, None, res, "min")
+    p1.start()
+    p2.start()
+    p1.join()
+    p2.join()
+    max_v = res["max"]
+    min_v = res["min"]
     print("Getting 2 * {0} elements from Redis took {1}...".format(len(m["max"]), time.time() - i))
     i = time.time()
     d = {"max":{},"min":{}}

@@ -6,6 +6,7 @@ import boto3
 from collections import deque
 from serialization import LambdaThread, get_all_keys
 from threading import Thread
+import random
 
 MAX_LAMBDAS = 400
 
@@ -20,7 +21,8 @@ class LocalBounds(LambdaThread):
             "s3_key": s3_key,
             "action": "LOCAL_BOUNDS",
             "normalization": "MIN_MAX",
-            "redis": redis_s
+            "redis": redis_s,
+            "nonce": (random.random() * 1000000) // 1.0
         }
 
 class LocalScale(LambdaThread):

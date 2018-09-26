@@ -171,7 +171,7 @@ def get_global_bounds(s3_client, redis_client, bucket, src_object, redis, chunk)
     for idx, k in enumerate(original):
         d["max"][k] = max_v[idx]
         d["min"][k] = min_v[idx]
-    print("Constructing the final dictionary took {0} seconds".format(time.time() - i))
+    print("[CHUNK{0}] Constructing the final dictionary took {1} seconds".format(chunk, time.time() - i))
     return d
 
 def scale_data(data, g, new_min, new_max):

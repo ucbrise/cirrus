@@ -33,7 +33,7 @@ def handler(event, context):
             print("Calculating bounds took {0}".format(time.time() - t))
             t = time.time()
             print("Putting bounds in S3...")
-            MinMaxHandler.put_bounds_in_db(s3_client, redis_client, b, event["s3_bucket_input"], event["s3_key"] + "_bounds", r, nodemanager)
+            MinMaxHandler.put_bounds_in_db(s3_client, redis_client, b, event["s3_bucket_input"], event["s3_key"] + "_bounds", r, node_manager)
             print("Putting bounds in S3 / Redis took {0}".format(time.time() - t))
         elif event["action"] == "LOCAL_SCALE":
             assert "s3_bucket_output" in event, "Must specify output bucket."

@@ -5,6 +5,7 @@ import boto3
 import json
 import struct
 import time
+from botocore.exceptions import ClientError
 
 class LambdaThread(Thread):
     def run(self):
@@ -18,11 +19,16 @@ class LambdaThread(Thread):
                     Payload=json.dumps(self.d))
                 print("Lambda for chunk {0} completed this attempt in {1}, all attempts in {2}".format(self.d["s3_key"], time.time() - t0, time.time() - overall))
                 break
+            except ClientError as e:
+                if e.response.get("Error", {}).get("Code") == "TooManyRequestsException":
+                    print("Too many requests, lambda for chunk {0} did not launch".format(self.d["s3_key"]))
+                    raise e
+                failure += 1
             except Exception as e:
                 failure += 1
                 if failure == 4:
                     raise e
-                print("Lambda failed for chunk {0}: Launching attempt #{1}".format(self.d["s3_key"], failure))
+            print("Lambda failed for chunk {0}: Launching attempt #{1}".format(self.d["s3_key"], failure))
 
 def get_all_keys(bucket):
     s3 = boto3.client("s3")

@@ -76,7 +76,7 @@ def handler(event, context):
             serialized = serialize_data(scaled, l)
             print("Putting in S3...")
             s3_client.put_object(Bucket=event["s3_bucket_output"], Key=event["s3_key"], Body=serialized)
-    if r:
-        # Unregister lambda.
-        redis_client.set(unique_id, "")
+    # if r:
+    #     # Unregister lambda.
+    #     redis_client.set(unique_id, "")
     return []

@@ -1,6 +1,6 @@
 # TODO: Move to tests.
 
-from preprocessing import Preprocessing, Normalization
+from Preprocessing import Preprocessing, Normalization
 import time
 
 start = time.time()

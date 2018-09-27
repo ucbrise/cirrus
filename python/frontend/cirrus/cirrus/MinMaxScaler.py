@@ -45,7 +45,7 @@ class LocalScale(LambdaThread):
             "nonce": (random.random() * 1000000) // 1.0
         }
 
-def MinMaxScaler(s3_bucket_input, s3_bucket_output, redis, lower, upper, objects=[], dry_run=False):
+def MinMaxScaler(s3_bucket_input, s3_bucket_output, lower, upper, objects=[], redis=True, dry_run=False):
     invocation = (random.random() * 1000000) // 1.0
     s3_resource = boto3.resource("s3")
     if len(objects) == 0:

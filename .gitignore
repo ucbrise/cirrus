@@ -22,6 +22,7 @@ install-sh
 ltmain.sh
 missing
 docs/html/
+.DS_Store
 *.pyc
 __pycache__/
 *.dSYM/

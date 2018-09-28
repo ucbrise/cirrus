@@ -28,7 +28,7 @@ class Preprocessing:
     def load_libsvm(path, s3_bucket):
         """ Load a libsvm file into S3 in the specified bucket. """
         start = time.time()
-        path = "../../tests/test_data/criteo.train.min.svm"
+        # path = "../../tests/test_data/criteo.train.min.svm"
         print("[{0} s] Reading file...".format(time.time() - start))
         X, y = sklearn.datasets.load_svmlight_file(path)
         print("[{0} s] Finished reading file...".format(time.time() - start))

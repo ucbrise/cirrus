@@ -326,7 +326,7 @@ class PSSparseServerTask : public MLTask {
   int pipefds[NUM_POLL_THREADS][2] = {{0}};
 
   int server_sock_ = 0;           //< server used to receive connections
-  const uint64_t max_fds = 1000;  //< max number of connections supported
+  const uint64_t max_fds = 2000;  //< max number of connections supported
   int timeout = 1;                //< 1 ms
 
   // file descriptors for connections

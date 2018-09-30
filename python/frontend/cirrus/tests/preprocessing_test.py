@@ -1,5 +1,8 @@
 # Preprocessing module for Cirrus
 
+# TODO: Pytest
+
+from .context import cirrus
 import sklearn.datasets
 
 def load_data(path):

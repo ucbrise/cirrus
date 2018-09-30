@@ -1,0 +1,124 @@
+# Preprocessing module for Cirrus
+
+# TODO: Pytest
+
+from .context import cirrus
+import boto3
+from threading import Thread
+import sklearn.datasets
+import time
+from collections import deque
+
+MAX_THREADS = 400
+
+class SimpleTest(Thread):
+    def __init__(self, s3_bucket_input, s3_bucket_output, min_v, max_v, obj_key):
+        Thread.__init__(self)
+        self.s3_bucket_input = s3_bucket_input
+        self.s3_bucket_output = s3_bucket_output
+        self.min_v = min_v
+        self.max_v = max_v
+        self.obj_key = obj_key
+
+    def run(self):
+        client = boto3.client("s3")
+        src_obj = cirrus.get_data_from_s3(client, self.s3_bucket_input, self.obj_key)
+        dest_obj = cirrus.get_data_from_s3(client, self.s3_bucket_output, self.obj_key)
+        for idx, r in enumerate(src_obj):
+            for idx2, v in enumerate(r):
+                try:
+                    if dest_obj[idx][idx2][0] != v[0]:
+                        print("Missing column {0} on row {1} of object {2}".format(v[0], idx, self.obj_key))
+                        continue
+                    if dest_obj[idx][idx2][1] < self.min_v or dest_obj[idx][idx2][1] > self.max_v:
+                        print("Value {0} at column {1} on row {2} of object {3} falls out of bounds".format(
+                            v[1], v[0], idx, self.obj_key
+                            ))
+                except Exception as e:
+                    print("Caught error on row {0}, column {1} of object {2}: {3}".format(
+                        idx, idx2, self.obj_key, e
+                        ))
+
+
+def load_data(path):
+    X, y = sklearn.datasets.load_svmlight_file(path)
+    return X, y
+
+def test_simple(s3_bucket_input, s3_bucket_output, min_v, max_v, objects=[]):
+    # Make sure all data is in bounds in output, and all data is present from input
+    t0 = time.time()
+    print("[TEST_SIMPLE] Getting all keys")
+    if len(objects) == 0:
+        # Allow user to specify objects, or otherwise get all objects.
+        objects = get_all_keys(s3_bucket_input)
+    print("[TEST_SIMPLE] Took {0} s to get all keys".format(time.time() - t0))
+    t0 = time.time()
+    print("[TEST_SIMPLE] Starting threads for each object")
+    threads = deque()
+    # TODO: Turn into assertion; potentially add errors to list and check length of list.
+    for o in objects:
+        while len(threads) > MAX_THREADS:
+            t = threads.popleft()
+            t.join()
+        t = SimpleTest(s3_bucket_input, s3_bucket_output, min_v, max_v, o)
+        t.start()
+        threads.append(t)
+    print("[TEST_SIMPLE] Took {0} s to start all threads".format(time.time() - t0))
+    for t in threads:
+        t.join()
+    print("[TEST_SIMPLE] Took {0} s for all threads to finish".format(time.time() - t0))
+
+def test_exact(src_file, s3_bucket_output, min_v, max_v, objects):
+    """ Check that data was scaled correctly, assuming src_file was serialized sequentially into the keys
+    specified in "objects". """
+    if len(objects) == 0:
+        return True
+    t0 = time.time()
+    print("[TEST_EXACT] Loading all data")
+    X, y = load_data(src_file)
+    print("[TEST_EXACT] Took {0} s to load all data".format(time.time() - t0))
+    t0 = time.time()
+    print("[TEST_EXACT] Constructing global map")
+    g_map = {} # Map of min / max by column
+    for r in range(X.shape[0]):
+        rows, cols = X[r, :].nonzero()
+        for c in cols:
+            v = X[r, c]
+            if c not in g_map:
+                g_map[c] = [v, v]
+            if v < g_map[c][0]:
+                g_map[c][0] = v
+            if v > g_map[c][1]:
+                g_map[c][1] = v
+    print("[TEST_EXACT] Took {0} s to construct global map".format(time.time() - t0))
+    t0 = time.time()
+    client = boto3.client("s3")
+    obj_num = 0
+    obj_idx = -1
+    obj = cirrus.get_data_from_s3(client, s3_bucket_output, objects[obj_num])
+    # TODO: Potentially parallelize.
+    for r in range(X.shape[0]):
+        rows, cols = X[r, :].nonzero()
+        for idx, c in enumerate(cols):
+            v_orig = X[r, c]
+            obj_idx += 1
+            if obj_idx > 50000:
+                obj_idx = 0
+                obj_num += 1
+                try:
+                    obj = cirrus.get_data_from_s3(client, s3_bucket_output, objects[obj_num])
+                except Exception as e:
+                    print("[TEST_EXACT] Error: Not enough chunks given the number of rows in original data. Finished on chunk index {0}, key {1}.".format(
+                        obj_num, objects[obj_num]))
+                    return
+            v_obj = obj[obj_idx][idx]
+            if v_obj[0] != c:
+                print("Value on row {0} of S3 object {1} has column {2}, expected column {3}".format(
+                    obj_idx, obj_num, v_obj[0], c))
+                continue
+            obj_min_v, obj_max_v = g_map[v_obj[0]]
+            scaled = (v_orig - obj_min_v) / (obj_max_v - obj_min_v) * (max_v - min_v) + min_v
+            if abs(scaled - v_obj[1]) / v_orig > .01:
+                print("Value on row {0}, column {1} of S3 object {2} is {3}, expected {4} from row {5}, column {6} of original data".format(
+                    obj_idx, c, obj_num, v_obj[1], scaled, r, c))
+    print("[TEST_EXACT] Testing all chunks of data took {0} s".format(time.time() - t0))

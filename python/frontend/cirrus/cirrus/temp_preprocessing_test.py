@@ -66,25 +66,30 @@ def test_load_libsvm(src_file, s3_bucket_output, wipe_keys=False, no_load=False)
     t0 = time.time()
     print("[TEST_LOAD] Checking that all values are present")
     obj_num = 0
-    obj_idx = 0
+    obj_idx = -1
     client = boto3.client("s3")
     obj = get_data_from_s3(client, s3_bucket_output, objects[obj_num])
     # TODO: Potentially parallelize.
     for r in range(X.shape[0]):
         rows, cols = X[r, :].nonzero()
         obj_idx += 1
-        if obj_idx > 50000:
+        if obj_idx >= 50000:
             obj_idx = 0
             obj_num += 1
+            print("[TEST_LOAD] Finished chunk {0} at {1}".format(obj_num - 1, time.time() - t0))
             try:
                 obj = get_data_from_s3(client, s3_bucket_output, objects[obj_num])
             except Exception as e:
                 print("[TEST_LOAD] Error: Not enough chunks given the number of rows in original data. Finished on chunk index {0}, key {1}.".format(
                     obj_num, objects[obj_num]))
-                return
+                return False
         for idx, c in enumerate(cols):
             v_orig = X[r, c]
-            v_obj = obj[obj_idx][idx]
+            try:
+                v_obj = obj[obj_idx][idx]
+            except Exception as e:
+                print("[TEST_LOAD] Found error on row {0}, column {1} of the source data, row {2}, column {3} of chunk {4}".format(r, c, obj_idx, idx, obj_num))
+                return False
             if v_obj[0] != c:
                 print("[TEST_LOAD] Value on row {0} of S3 object {1} has column {2}, expected column {3}".format(
                     obj_idx, obj_num, v_obj[0], c))
@@ -172,7 +177,7 @@ def test_exact(src_file, s3_bucket_output, min_v, max_v, objects=[], preprocess=
     for r in range(X.shape[0]):
         rows, cols = X[r, :].nonzero()
         obj_idx += 1
-        if obj_idx > 50000:
+        if obj_idx >= 50000:
             obj_idx = 0
             obj_num += 1
             try:

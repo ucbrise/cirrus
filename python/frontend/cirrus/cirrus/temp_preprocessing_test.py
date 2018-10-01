@@ -2,7 +2,8 @@
 
 # TODO: Pytest
 
-from .context import cirrus
+from Preprocessing import *
+from serialization import *
 import boto3
 from threading import Thread
 import sklearn.datasets
@@ -22,8 +23,8 @@ class SimpleTest(Thread):
 
     def run(self):
         client = boto3.client("s3")
-        src_obj = cirrus.get_data_from_s3(client, self.s3_bucket_input, self.obj_key)
-        dest_obj = cirrus.get_data_from_s3(client, self.s3_bucket_output, self.obj_key)
+        src_obj = get_data_from_s3(client, self.s3_bucket_input, self.obj_key)
+        dest_obj = get_data_from_s3(client, self.s3_bucket_output, self.obj_key)
         for idx, r in enumerate(src_obj):
             for idx2, v in enumerate(r):
                 try:
@@ -73,17 +74,27 @@ def test_simple(s3_bucket_input, s3_bucket_output, min_v, max_v, objects=[], pre
         t.join()
     print("[TEST_SIMPLE] Took {0} s for all threads to finish".format(time.time() - t0))
 
-def test_exact(src_file, s3_bucket_output, min_v, max_v, objects, preprocess=False):
+def test_exact(src_file, s3_bucket_output, min_v, max_v, objects=[], preprocess=False):
     """ Check that data was scaled correctly, assuming src_file was serialized sequentially into the keys
     specified in "objects". """
+    original_obj = objects
     t0 = time.time()
     if len(objects) == 0:
-        objects = get_all_keys(s3_bucket_output)    
+        objects = get_all_keys(s3_bucket_output)
     print("[TEST_EXACT] Took {0} s to get all keys".format(time.time() - t0))
     if preprocess:
         t1 = time.time()
+        print("[TEST_EXACT] Running load_libsvm")
+        Preprocessing.load_libsvm(src_file, s3_bucket_output)
+        print("[TEST_EXACT] Took {0} s to run load_libsvm".format(time.time() - t1))
+        t1 = time.time()
+        if len(original_obj) == 0:
+            print("[TEST_EXACT] Fetching new objects list")
+            objects = get_all_keys(s3_bucket_output)
+            print("[TEST_EXACT] Fetched {0} objects in {1} s".format(len(objects), time.time() - t1))
+        t1 = time.time()
         print("[TEST_EXACT] Running preprocessing")
-        Preprocessing.normalize(s3_bucket_input, s3_bucket_output, Normalization.MIN_MAX, min_v, max_v, objects)
+        Preprocessing.normalize(s3_bucket_output, s3_bucket_output, Normalization.MIN_MAX, min_v, max_v, objects)
         print("[TEST_EXACT] Took {0} s to run preprocessing".format(time.time() - t1))
     t0 = time.time()
     print("[TEST_EXACT] Loading all data")
@@ -107,7 +118,7 @@ def test_exact(src_file, s3_bucket_output, min_v, max_v, objects, preprocess=Fal
     client = boto3.client("s3")
     obj_num = 0
     obj_idx = -1
-    obj = cirrus.get_data_from_s3(client, s3_bucket_output, objects[obj_num])
+    obj = get_data_from_s3(client, s3_bucket_output, objects[obj_num])
     # TODO: Potentially parallelize.
     for r in range(X.shape[0]):
         rows, cols = X[r, :].nonzero()
@@ -118,7 +129,7 @@ def test_exact(src_file, s3_bucket_output, min_v, max_v, objects, preprocess=Fal
                 obj_idx = 0
                 obj_num += 1
                 try:
-                    obj = cirrus.get_data_from_s3(client, s3_bucket_output, objects[obj_num])
+                    obj = get_data_from_s3(client, s3_bucket_output, objects[obj_num])
                 except Exception as e:
                     print("[TEST_EXACT] Error: Not enough chunks given the number of rows in original data. Finished on chunk index {0}, key {1}.".format(
                         obj_num, objects[obj_num]))

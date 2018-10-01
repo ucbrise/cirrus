@@ -56,9 +56,9 @@ def get_all_keys(bucket):
 
 def get_data_from_s3(client, src_bucket, src_object, keep_label=False):
     # Return a 2D list, where each element is a row of the dataset.
-    print("Getting bytes from boto3")
+    # print("Getting bytes from boto3")
     b = client.get_object(Bucket=src_bucket, Key=src_object)["Body"].read()
-    print("Got {0} bytes".format(len(b)))
+    # print("Got {0} bytes".format(len(b)))
     data = []
     labels = []
     c = []
@@ -66,7 +66,6 @@ def get_data_from_s3(client, src_bucket, src_object, keep_label=False):
     label_bytes = None
     num_values = None
     seen = 0
-    print("Set local variables")
     for i in range(8, len(b), 4):
         if label_bytes is None:
             label_bytes = b[i:i+4]
@@ -107,4 +106,4 @@ def serialize_data(data, labels=None):
             c.append(struct.pack("f", float(v2)))
         lines.append(b"".join(c))
         num_bytes += len(lines[-1])
-    return struct.pack("i", num_bytes + 8) + struct.pack("i", len(labels)) + b"".join(lines)
+    return struct.pack("i", num_bytes + 8) + struct.pack("i", len(lines)) + b"".join(lines)

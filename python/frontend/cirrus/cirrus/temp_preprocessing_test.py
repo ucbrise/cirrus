@@ -44,24 +44,30 @@ def load_data(path):
     X, y = sklearn.datasets.load_svmlight_file(path)
     return X, y
 
-def test_load_libsvm(src_file, s3_bucket_output, wipe_keys=False):
+def test_load_libsvm(src_file, s3_bucket_output, wipe_keys=False, no_load=False):
     if wipe_keys:
         t0 = time.time()
         print("[TEST_LOAD] Wiping keys in bucket")
         delete_all_keys(s3_bucket_output)
         print("[TEST_LOAD] Took {0} s to wipe all keys in bucket".format(time.time() - t0))
-    t0 = time.time()
-    print("[TEST_LOAD] Loading libsvm file into S3")
-    Preprocessing.load_libsvm(src_file, s3_bucket_output)
-    print("[TEST_LOAD] Took {0} s to load libsvm file into S3".format(time.time() - t0))
+    if not no_load:
+        t0 = time.time()
+        print("[TEST_LOAD] Loading libsvm file into S3")
+        Preprocessing.load_libsvm(src_file, s3_bucket_output)
+        print("[TEST_LOAD] Took {0} s to load libsvm file into S3".format(time.time() - t0))
     t0 = time.time()
     print("[TEST_LOAD] Getting keys from bucket")
     objects = get_all_keys(s3_bucket_output)
     print("[TEST_LOAD] Took {0} s to get keys from bucket".format(time.time() - t0))
     t0 = time.time()
+    print("[TEST_LOAD] Loading libsvm file into memory")
+    X, y = load_data(src_file)
+    print("[TEST_LOAD] Took {0} s to load libsvm into memory".format(time.time() - t0))
+    t0 = time.time()
     print("[TEST_LOAD] Checking that all values are present")
     obj_num = 0
     obj_idx = 0
+    client = boto3.client("s3")
     obj = get_data_from_s3(client, s3_bucket_output, objects[obj_num])
     # TODO: Potentially parallelize.
     for r in range(X.shape[0]):

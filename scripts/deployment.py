@@ -2,15 +2,15 @@
 """
 import json
 import subprocess
-import random
 import time
 import socket
 import tempfile
 import datetime
 import traceback
+import zipfile
+import io
 
 import boto3
-from botocore.exceptions import ClientError
 import paramiko
 
 # Specifications for a compilation EC2 instance.
@@ -53,6 +53,68 @@ cd cirrus; make -j 10
 # The names of Cirrus' executables.
 EXECUTABLES = ("parameter_server", "ps_test", "csv_to_libsvm")
 
+# A name for the worker lambda.
+LAMBDA_NAME = "cirrus_worker"
+
+# The Lambda runtime for the worker lambda.
+LAMBDA_RUNTIME = "python3.6"
+
+# The filename under which to save the code of the worker lambda. This file will
+#   exist in the archive uploaded to Lambda.
+LAMBDA_CODE_FILENAME = "main.py"
+
+# The fully-qualified identifier for the handler function in the worker
+#   lambda's code.
+LAMBDA_HANDLER = "main.run"
+
+# The maximum execution time to give to the worker lambda, in seconds. Capped by
+#   AWS at 5 minutes.
+LAMBDA_TIMEOUT = 5 * 60
+
+# The amount of memory (and in proportion, CPU/network) to give to the worker
+#   lambda, in megabytes.
+LAMBDA_SIZE = 3_008
+
+# The number of reserved concurrent executions to allocate to the worker lambda.
+#   Depletes some of the AWS account's reserved concurrent executions. 100
+#   concurrent executions must be held in reserve, not assigned to any lambda.
+LAMBDA_CONCURRENCY = 900
+
+# The compression level to use when uploading code to the worker lambda.
+LAMBDA_CODE_COMPRESSION = zipfile.ZIP_DEFLATED
+
+LAMBDA_ROLE_POLICY_ARN = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
+
+# The code of the worker lambda.
+LAMBDA_CODE = """
+import json
+import os
+import subprocess
+
+def run(event, context):
+    executable_path = os.path.join(os.environ["LAMBDA_TASK_ROOT"],
+                                   "parameter_server")
+    try:
+        output = subprocess.check_output([
+                executable_path,
+                "--nworkers", event["num_workers"],
+                "--rank", 3,
+                "--ps_ip", event["ps_ip"],
+                "--ps_port", event["ps_port"]
+            ], stderr=subprocess.stdout)
+    except subprocess.CalledProcessError as e:
+        return {
+            "statusCode": 500,
+            "body": json.dumps("The worker errored! The stdout/stderr was as "
+                               "follows.\n" + e.output)
+        }
+    return {
+        "statusCode": 200,
+        "body": json.dumps("The worker ran successfully. The stdout/stderr was "
+                           "as follows.\n" + output.read())
+    }
+"""
+
 
 def compile(debug=False):
     """Compile Cirrus.
@@ -89,7 +151,7 @@ def compile(debug=False):
         for executable in EXECUTABLES:
             print("compile: Downloading an executable:", executable)
             remote_path = f"/home/{COMPL_SSH_USERNAME}/cirrus/src/{executable}"
-            local_executables[executable] = tempfile.TemporaryFile()
+            local_executables[executable] = tempfile.NamedTemporaryFile()
             sftp.getfo(remote_path, local_executables[executable])
             local_executables[executable].seek(0)
         sftp.close()
@@ -152,7 +214,7 @@ class EC2InstanceContextManager:
             response = self._ec2.meta.client.create_key_pair(
                 KeyName=self._resource_name)
             self._key_pair_created = True
-            key_file = tempfile.TemporaryFile("w+")
+            key_file = tempfile.NamedTemporaryFile("w+")
             key_file.write(response["KeyMaterial"])
             key_file.seek(0)
 
@@ -263,7 +325,7 @@ def launch_parameter_server(executable, region="us-west-1", disk_size=16,
     Args:
         executable (file): The Cirrus "parameter_server" excecutable to make
             available on the server.
-        region (str): The region to create the instance in.
+        region (str): The AWS region to create the instance in.
         disk_size (int): The amount of disk space to give the instance, in
             gigabytes.
         instance_type (str): The type of EC2 instance to use.
@@ -297,7 +359,89 @@ def delete_parameter_server(ip):
     del parameter_servers[ip]
 
 
-if __name__ == "__main__":
-    executables = compile()
-    launch_parameter_server(executables["parameter_server"])
+def create_lambda_function(executable, region="us-west-1"):
+    """Create a worker lambda function.
 
+    The function will be called `LAMBDA_NAME`.
+
+    Args:
+        executable (file): The Cirrus "parameter_server" excecutable to run in
+            the function.
+        region (str): The AWS region to create the function in.
+    """
+    lamb = boto3.client("lambda", region)
+
+    # Create an in-memory ZIP file containing the code and executable.
+    print("create_lambda_function: Creating the code ZIP file.")
+    upload_data = io.BytesIO()
+    ctx = zipfile.ZipFile(upload_data, "w", LAMBDA_CODE_COMPRESSION)
+    with ctx as upload_zipfile:
+        print(f"create_lambda_function: Adding {LAMBDA_CODE_FILENAME} to the "
+              "code ZIP file.")
+        upload_zipfile.writestr(LAMBDA_CODE_FILENAME, LAMBDA_CODE)
+        print("create_lambda_function: Adding parameter_server to the "
+              "code ZIP file.")
+        upload_zipfile.write(executable.name, "parameter_server")
+
+    # If a previous version of the function already exists, delete it.
+    print("create_lambda_function: Deleting any previous function version.")
+    try:
+        lamb.delete_function(FunctionName=LAMBDA_NAME)
+    except:
+        pass
+
+    # If a previous version of the IAM role already exists, delete it.
+    print("create_lambda_function: Deleting any previous IAM role version.")
+    iam = boto3.resource("iam", region)
+    try:
+        role = iam.Role(LAMBDA_NAME)
+        role.detach_policy(PolicyArn=LAMBDA_ROLE_POLICY_ARN)
+        role.delete()
+    except:
+        pass
+
+    # Create an IAM role for the function which allows it to read S3.
+    print("create_lambda_function: Creating IAM role for function.")
+    role = iam.create_role(
+        RoleName=LAMBDA_NAME,
+        AssumeRolePolicyDocument=\
+        """{
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Service": "lambda.amazonaws.com"
+                  },
+                  "Action": "sts:AssumeRole"
+                }
+              ]
+        }"""
+    )
+    role.attach_policy(PolicyArn=LAMBDA_ROLE_POLICY_ARN)
+
+    # Create the function, uploading the ZIP file.
+    print("create_lambda_function: Uploading code ZIP file and creating "
+          "function.")
+    lamb.create_function(
+        FunctionName=LAMBDA_NAME,
+        Runtime=LAMBDA_RUNTIME,
+        Role=role.arn,
+        Handler=LAMBDA_HANDLER,
+        Code={"ZipFile": upload_data.getvalue()},
+        Timeout=LAMBDA_TIMEOUT,
+        MemorySize=LAMBDA_SIZE
+    )
+
+    # Allocate reserved concurrent excecutions to the function.
+    print("create_lambda_function: Allocating reserved concurrent executions "
+          "to the function.")
+    lamb.put_function_concurrency(
+        FunctionName=LAMBDA_NAME,
+        ReservedConcurrentExecutions=LAMBDA_CONCURRENCY
+    )
+
+
+if __name__ == "__main__":
+    with open("../../cirrus_ubuntu_compiled/src/parameter_server") as f:
+        create_lambda_function(f)

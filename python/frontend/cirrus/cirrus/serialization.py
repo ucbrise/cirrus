@@ -30,7 +30,10 @@ class LambdaThread(Thread):
                     raise e
             print("Lambda failed for chunk {0}: Launching attempt #{1}".format(self.d["s3_key"], failure))
 
-def get_all_keys(bucket):
+def delete_all_keys(bucket):
+    return get_all_keys(bucket, "")
+
+def get_all_keys(bucket, contains="_"):
     s3 = boto3.client("s3")
     s3_resource = boto3.resource("s3")
     keys = []
@@ -47,7 +50,7 @@ def get_all_keys(bucket):
     print("Found {0} chunks...".format(len(keys)))
     final_objects = []
     for o in keys:
-        if "_" in o:
+        if contains in o:
             s3_resource.Object(bucket, o).delete()
         else:
             final_objects.append(o)

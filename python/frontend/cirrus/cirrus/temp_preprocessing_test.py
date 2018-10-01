@@ -40,10 +40,53 @@ class SimpleTest(Thread):
                         idx, idx2, self.obj_key, e
                         ))
 
-
 def load_data(path):
     X, y = sklearn.datasets.load_svmlight_file(path)
     return X, y
+
+def test_load_libsvm(src_file, s3_bucket_output, wipe_keys=False):
+    if wipe_keys:
+        t0 = time.time()
+        print("[TEST_LOAD] Wiping keys in bucket")
+        delete_all_keys(s3_bucket_output)
+        print("[TEST_LOAD] Took {0} s to wipe all keys in bucket".format(time.time() - t0))
+    t0 = time.time()
+    print("[TEST_LOAD] Loading libsvm file into S3")
+    Preprocessing.load_libsvm(src_file, s3_bucket_output)
+    print("[TEST_LOAD] Took {0} s to load libsvm file into S3".format(time.time() - t0))
+    t0 = time.time()
+    print("[TEST_LOAD] Getting keys from bucket")
+    objects = get_all_keys(s3_bucket_output)
+    print("[TEST_LOAD] Took {0} s to get keys from bucket".format(time.time() - t0))
+    t0 = time.time()
+    print("[TEST_LOAD] Checking that all values are present")
+    obj_num = 0
+    obj_idx = 0
+    obj = get_data_from_s3(client, s3_bucket_output, objects[obj_num])
+    # TODO: Potentially parallelize.
+    for r in range(X.shape[0]):
+        rows, cols = X[r, :].nonzero()
+        for idx, c in enumerate(cols):
+            v_orig = X[r, c]
+            obj_idx += 1
+            if obj_idx > 50000:
+                obj_idx = 0
+                obj_num += 1
+                try:
+                    obj = get_data_from_s3(client, s3_bucket_output, objects[obj_num])
+                except Exception as e:
+                    print("[TEST_LOAD] Error: Not enough chunks given the number of rows in original data. Finished on chunk index {0}, key {1}.".format(
+                        obj_num, objects[obj_num]))
+                    return
+            v_obj = obj[obj_idx][idx]
+            if v_obj[0] != c:
+                print("[TEST_LOAD] Value on row {0} of S3 object {1} has column {2}, expected column {3}".format(
+                    obj_idx, obj_num, v_obj[0], c))
+                continue
+            if abs(v_obj[1] - v_orig) > .01:
+                print("[TEST_LOAD] Value on row {0}, column {1} of S3 object {2} is {3}, expected {4} from row {5}, column {6} of original data".format(
+                    obj_idx, c, obj_num, v_obj[1], v_orig, r, c))
+    print("[TEST_LOAD] Testing all chunks of data took {0} s".format(time.time() - t0))
 
 def test_simple(s3_bucket_input, s3_bucket_output, min_v, max_v, objects=[], preprocess=False):
     # Make sure all data is in bounds in output, and all data is present from input

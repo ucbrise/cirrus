@@ -83,6 +83,8 @@ LAMBDA_CONCURRENCY = 900
 # The compression level to use when uploading code to the worker lambda.
 LAMBDA_CODE_COMPRESSION = zipfile.ZIP_DEFLATED
 
+# The Amazon resource name of the policy to attach to the role of the worker
+#   lambda.
 LAMBDA_ROLE_POLICY_ARN = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
 
 # The code of the worker lambda.
@@ -97,21 +99,21 @@ def run(event, context):
     try:
         output = subprocess.check_output([
                 executable_path,
-                "--nworkers", event["num_workers"],
-                "--rank", 3,
+                "--nworkers", str(event["num_workers"]),
+                "--rank", str(3),
                 "--ps_ip", event["ps_ip"],
-                "--ps_port", event["ps_port"]
-            ], stderr=subprocess.stdout)
+                "--ps_port", str(event["ps_port"])
+            ], stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
         return {
             "statusCode": 500,
             "body": json.dumps("The worker errored! The stdout/stderr was as "
-                               "follows.\n" + e.output)
+                               "follows.\\n" + e.output.decode("utf-8"))
         }
     return {
         "statusCode": 200,
         "body": json.dumps("The worker ran successfully. The stdout/stderr was "
-                           "as follows.\n" + output.read())
+                           "as follows.\\n" + output.read().decode("utf-8"))
     }
 """
 
@@ -378,10 +380,14 @@ def create_lambda_function(executable, region="us-west-1"):
     with ctx as upload_zipfile:
         print(f"create_lambda_function: Adding {LAMBDA_CODE_FILENAME} to the "
               "code ZIP file.")
-        upload_zipfile.writestr(LAMBDA_CODE_FILENAME, LAMBDA_CODE)
+        info = zipfile.ZipInfo(LAMBDA_CODE_FILENAME)
+        info.external_attr = 0o777 << 16
+        upload_zipfile.writestr(info, LAMBDA_CODE)
         print("create_lambda_function: Adding parameter_server to the "
               "code ZIP file.")
-        upload_zipfile.write(executable.name, "parameter_server")
+        info = zipfile.ZipInfo("parameter_server")
+        info.external_attr = 0o777 << 16
+        upload_zipfile.writestr(info, executable.read())
 
     # If a previous version of the function already exists, delete it.
     print("create_lambda_function: Deleting any previous function version.")
@@ -419,6 +425,8 @@ def create_lambda_function(executable, region="us-west-1"):
         }"""
     )
     role.attach_policy(PolicyArn=LAMBDA_ROLE_POLICY_ARN)
+    print("create_lambda_function: Waiting for IAM role changes to propogate.")
+    time.sleep(20)
 
     # Create the function, uploading the ZIP file.
     print("create_lambda_function: Uploading code ZIP file and creating "
@@ -443,5 +451,5 @@ def create_lambda_function(executable, region="us-west-1"):
 
 
 if __name__ == "__main__":
-    with open("../../cirrus_ubuntu_compiled/src/parameter_server") as f:
+    with open("../../cirrus_ubuntu_compiled/src/parameter_server", "rb") as f:
         create_lambda_function(f)

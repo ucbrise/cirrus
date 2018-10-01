@@ -93,12 +93,20 @@ import json
 import os
 import subprocess
 
+CONFIG_PATH = "/tmp/config.cfg"
+
+
 def run(event, context):
     executable_path = os.path.join(os.environ["LAMBDA_TASK_ROOT"],
                                    "parameter_server")
+
+    with open(CONFIG_PATH, "w+") as f:
+        f.write(event["config"])
+
     try:
         output = subprocess.check_output([
                 executable_path,
+                "--config", CONFIG_PATH,
                 "--nworkers", str(event["num_workers"]),
                 "--rank", str(3),
                 "--ps_ip", event["ps_ip"],

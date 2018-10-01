@@ -87,7 +87,7 @@ def compile(debug=False):
         sftp = ssh.open_sftp()
         local_executables = {}
         for executable in EXECUTABLES:
-            print("compile: Download an executable:", executable)
+            print("compile: Downloading an executable:", executable)
             remote_path = f"/home/{COMPL_SSH_USERNAME}/cirrus/src/{executable}"
             local_executables[executable] = tempfile.TemporaryFile()
             sftp.getfo(remote_path, local_executables[executable])
@@ -249,6 +249,55 @@ class EC2InstanceContextManager:
             raise e
 
 
+parameter_servers = {}
+
+
+def launch_parameter_server(executable, region="us-west-1", disk_size=16,
+                            ami_id=COMPL_AMI_ID, instance_type="t3.xlarge",
+                            ssh_username=COMPL_SSH_USERNAME):
+    """Launch a parameter server.
+
+    Call `delete_parameter_server` with the returned IP address in order to
+        delete the parameter server and stop incurring charges.
+
+    Args:
+        executable (file): The Cirrus "parameter_server" excecutable to make
+            available on the server.
+        region (str): The region to create the instance in.
+        disk_size (int): The amount of disk space to give the instance, in
+            gigabytes.
+        instance_type (str): The type of EC2 instance to use.
+        ami_id (str): The ID of the AMI to create the instance from.
+        instance_type (str): The type of instance to create.
+
+    Returns:
+        str: The public IPv4 address of the server.
+    """
+    ctx = EC2InstanceContextManager(region, disk_size, ami_id, instance_type,
+        ssh_username, "launch_parameter_server")
+    ssh = ctx.__enter__()
+    print("launch_parameter_server: Uploading the parameter server executable "
+          "to the EC2 instance.")
+    sftp = ssh.open_sftp()
+    remote_path = f"/home/{ssh_username}/parameter_server"
+    sftp.putfo(executable, remote_path)
+    sftp.close()
+    ip = ssh.get_transport().getpeername()[0]
+    parameter_servers[ip] = ctx
+    return ip
+
+
+def delete_parameter_server(ip):
+    """Delete a parameter server.
+
+    Args:
+        ip (str): The public IPv4 address of the server.
+    """
+    parameter_servers[ip].__exit__()
+    del parameter_servers[ip]
+
+
 if __name__ == "__main__":
-    for name, file in compile().items():
-        print(name, len(file.read()))
+    executables = compile()
+    launch_parameter_server(executables["parameter_server"])
+

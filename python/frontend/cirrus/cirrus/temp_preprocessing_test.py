@@ -72,18 +72,18 @@ def test_load_libsvm(src_file, s3_bucket_output, wipe_keys=False, no_load=False)
     # TODO: Potentially parallelize.
     for r in range(X.shape[0]):
         rows, cols = X[r, :].nonzero()
+        obj_idx += 1
+        if obj_idx > 50000:
+            obj_idx = 0
+            obj_num += 1
+            try:
+                obj = get_data_from_s3(client, s3_bucket_output, objects[obj_num])
+            except Exception as e:
+                print("[TEST_LOAD] Error: Not enough chunks given the number of rows in original data. Finished on chunk index {0}, key {1}.".format(
+                    obj_num, objects[obj_num]))
+                return
         for idx, c in enumerate(cols):
             v_orig = X[r, c]
-            obj_idx += 1
-            if obj_idx > 50000:
-                obj_idx = 0
-                obj_num += 1
-                try:
-                    obj = get_data_from_s3(client, s3_bucket_output, objects[obj_num])
-                except Exception as e:
-                    print("[TEST_LOAD] Error: Not enough chunks given the number of rows in original data. Finished on chunk index {0}, key {1}.".format(
-                        obj_num, objects[obj_num]))
-                    return
             v_obj = obj[obj_idx][idx]
             if v_obj[0] != c:
                 print("[TEST_LOAD] Value on row {0} of S3 object {1} has column {2}, expected column {3}".format(
@@ -171,18 +171,18 @@ def test_exact(src_file, s3_bucket_output, min_v, max_v, objects=[], preprocess=
     # TODO: Potentially parallelize.
     for r in range(X.shape[0]):
         rows, cols = X[r, :].nonzero()
+        obj_idx += 1
+        if obj_idx > 50000:
+            obj_idx = 0
+            obj_num += 1
+            try:
+                obj = get_data_from_s3(client, s3_bucket_output, objects[obj_num])
+            except Exception as e:
+                print("[TEST_LOAD] Error: Not enough chunks given the number of rows in original data. Finished on chunk index {0}, key {1}.".format(
+                    obj_num, objects[obj_num]))
+                return
         for idx, c in enumerate(cols):
             v_orig = X[r, c]
-            obj_idx += 1
-            if obj_idx > 50000:
-                obj_idx = 0
-                obj_num += 1
-                try:
-                    obj = get_data_from_s3(client, s3_bucket_output, objects[obj_num])
-                except Exception as e:
-                    print("[TEST_EXACT] Error: Not enough chunks given the number of rows in original data. Finished on chunk index {0}, key {1}.".format(
-                        obj_num, objects[obj_num]))
-                    return
             v_obj = obj[obj_idx][idx]
             if v_obj[0] != c:
                 print("[TEST_EXACT] Value on row {0} of S3 object {1} has column {2}, expected column {3}".format(

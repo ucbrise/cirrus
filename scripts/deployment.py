@@ -9,9 +9,12 @@ import datetime
 import traceback
 import zipfile
 import io
+import configparser
+import os
 
 import boto3
 import paramiko
+import tqdm
 
 # Specifications for a compilation EC2 instance.
 COMPL_REGION = "us-west-1"
@@ -124,6 +127,10 @@ def run(event, context):
                            "as follows.\\n" + output.read().decode("utf-8"))
     }
 """
+
+# The S3 region in which datasets are stored. Follows hardcoded value in
+#   /src/S3Client.cpp.
+DATASET_REGION = "us-west-2"
 
 
 def compile(debug=False):
@@ -283,6 +290,7 @@ class EC2InstanceContextManager:
                         pkey=key,
                         timeout=self._CONNECT_TIMEOUT
                     )
+                    ssh.get_transport().window_size = 2147483647
                 except socket.timeout:
                     pass
                 except paramiko.ssh_exception.NoValidConnectionsError:
@@ -326,7 +334,7 @@ parameter_servers = {}
 
 def launch_parameter_server(executable, region="us-west-1", disk_size=16,
                             ami_id=COMPL_AMI_ID, instance_type="t3.xlarge",
-                            ssh_username=COMPL_SSH_USERNAME):
+                            ssh_username=COMPL_SSH_USERNAME, return_ssh=False):
     """Launch a parameter server.
 
     Call `delete_parameter_server` with the returned IP address in order to
@@ -353,7 +361,10 @@ def launch_parameter_server(executable, region="us-west-1", disk_size=16,
     sftp = ssh.open_sftp()
     remote_path = f"/home/{ssh_username}/parameter_server"
     sftp.putfo(executable, remote_path)
+    sftp.chmod(remote_path, 0o777)
     sftp.close()
+    if return_ssh:
+        return ssh
     ip = ssh.get_transport().getpeername()[0]
     parameter_servers[ip] = ctx
     return ip
@@ -401,7 +412,7 @@ def create_lambda_function(executable, region="us-west-1"):
     print("create_lambda_function: Deleting any previous function version.")
     try:
         lamb.delete_function(FunctionName=LAMBDA_NAME)
-    except:
+    except Exception:
         pass
 
     # If a previous version of the IAM role already exists, delete it.
@@ -411,7 +422,7 @@ def create_lambda_function(executable, region="us-west-1"):
         role = iam.Role(LAMBDA_NAME)
         role.detach_policy(PolicyArn=LAMBDA_ROLE_POLICY_ARN)
         role.delete()
-    except:
+    except Exception:
         pass
 
     # Create an IAM role for the function which allows it to read S3.
@@ -458,6 +469,71 @@ def create_lambda_function(executable, region="us-west-1"):
     )
 
 
+def upload_dataset(executable, config_path):
+    """Upload a dataset to S3.
+
+    Creates an S3 bucket to hold the dataset.
+
+    Args:
+        executable (file): The "parameter_server" executable to use.
+        config_path (str): The path to the configuration file to use.
+    """
+    print("upload_dataset: Reading configuration.")
+    config = configparser.ConfigParser()
+    config.read_string("[main]\n" + open(config_path).read())
+    assert "s3_bucket" in config["main"], \
+        "The configuration must specify an s3_bucket."
+    assert "load_input_path" in config["main"], \
+        "The configuration must specify a load_input_path."
+
+    print("upload_dataset: Deleting any old version of the bucket.")
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket(config["main"]["s3_bucket"])
+    try:
+        bucket.delete()
+    except Exception:
+        pass
+
+    print("upload_dataset: Creating the bucket.")
+    create_config = {"LocationConstraint": DATASET_REGION}
+    bucket.create(CreateBucketConfiguration=create_config)
+
+    print("upload_dataset: Launching a server to do the uploading.")
+    ssh = launch_parameter_server(executable, return_ssh=True)
+
+    print("upload_dataset: Uploading the data to the server.")
+    sftp = ssh.open_sftp()
+    with tqdm.tqdm() as pbar:
+        def make_put_callback():
+            prev = 0
+            def put_callback(curr, tot):
+                pbar.total = tot
+                nonlocal prev
+                pbar.update(curr - prev)
+                prev = curr
+            return put_callback
+        sftp.put(config["main"]["load_input_path"], f"/home/{COMPL_SSH_USERNAME}/data", callback=make_put_callback())
+    config["main"]["load_input_path"] = f"/home/{COMPL_SSH_USERNAME}/data"
+    f = io.StringIO()
+    config.write(f)
+    f.seek(0)
+    f.seek(f.getvalue().find("\n") + 1)
+    sftp.putfo(f, f"/home/{COMPL_SSH_USERNAME}/config")
+    sftp.close()
+    
+    print("upload_dataset: Uploading the dataset.")
+    _, stdout, stderr = ssh.exec_command(" ".join([
+        f"/home/{COMPL_SSH_USERNAME}/parameter_server",
+        f"--config /home/{COMPL_SSH_USERNAME}/config",
+        "--nworkers 4",
+        "--rank 0"
+    ]))
+    # exec_command is asynchronous. This waits for completion.
+    stdout.channel.recv_exit_status()
+    print(stdout.read())
+    print(stderr.read())
+    
+
 if __name__ == "__main__":
     with open("../../cirrus_ubuntu_compiled/src/parameter_server", "rb") as f:
-        create_lambda_function(f)
+        upload_dataset(f, "../configs/criteo_kaggle.cfg")

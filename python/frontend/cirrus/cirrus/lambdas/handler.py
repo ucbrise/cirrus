@@ -33,8 +33,11 @@ def handler(event, context):
             redis_client = StrictRedis(host=redis_host, port=redis_port, password=redis_password)
         else:
             redis_client = StrictRedisCluster(startup_nodes=startup_nodes, decode_responses=True, skip_full_coverage_check=True)
+        print("[CHUNK{0}] Initialized Redis client".format(event["s3_key"]))
         node_manager = NodeManager(startup_nodes)
+        print("[CHUNK{0}] Created NodeManager".format(event["s3_key"]))
         k_signal = redis_client.getset(unique_id, "Y")
+        print("[CHUNK{0}] Checked if lambda already launched".format(event["s3_key"]))
         if k_signal == "Y":
             print("[CHUNK{0}] Found duplicate - killing.".format(event["s3_key"]))
             return

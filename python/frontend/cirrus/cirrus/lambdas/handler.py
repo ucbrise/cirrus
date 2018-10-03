@@ -16,18 +16,15 @@ def handler(event, context):
     unique_id = str(event["invocation"]) + "_invocation_" + event["s3_key"] + "_nonce_" + str(event["nonce"])
     s3_client = boto3.client("s3")
     assert "s3_bucket_input" in event and "s3_key" in event and "redis" in event, "Must specify if Redis is used, input bucket, and key."
-    print("[CHUNK{0}] Getting data from S3...".format(event["s3_key"]))
-    t = time.time()
-    d, l = get_data_from_s3(s3_client, event["s3_bucket_input"], event["s3_key"], keep_label=True)
-    print("[CHUNK{0}] Getting S3 data took {1}".format(event["s3_key"], time.time() - t))
-    t = time.time()
     r = False
     redis_client = None
     node_manager = None
     if event["redis"] == "1":
         r = True
+        print("[CHUNK{0}] Opening redis.toml".format(event["s3_key"]))
         with open("redis.toml", "r") as f:
             creds = toml.load(f)
+        print("[CHUNK{0}] Opened redis.toml".format(event["s3_key"]))
         redis_host = creds["host"]
         redis_port = int(creds["port"])
         redis_password = creds["password"]
@@ -41,6 +38,12 @@ def handler(event, context):
         if k_signal == "Y":
             print("[CHUNK{0}] Found duplicate - killing.".format(event["s3_key"]))
             return
+    print("[CHUNK{0}] Took {1} to get past Redis".format(event["s3_key"], time.time() - total))
+    print("[CHUNK{0}] Getting data from S3...".format(event["s3_key"]))
+    t = time.time()
+    d, l = get_data_from_s3(s3_client, event["s3_bucket_input"], event["s3_key"], keep_label=True)
+    print("[CHUNK{0}] Getting S3 data took {1}".format(event["s3_key"], time.time() - t))
+    t = time.time()
     if event["normalization"] == "MIN_MAX":
         # Either calculates the local bounds, or scales data and puts the new data in
         # {src_object}_scaled.

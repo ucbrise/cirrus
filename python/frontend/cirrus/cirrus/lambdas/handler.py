@@ -1,11 +1,15 @@
 import boto3
+from redis import StrictRedis
 from rediscluster import StrictRedisCluster
 from rediscluster.nodemanager import NodeManager
+import toml
 import MinMaxHandler
 import NormalHandler
 from serialization import *
 import time
 import random
+
+cluster = False
 
 def handler(event, context):
     total = time.time()
@@ -22,10 +26,16 @@ def handler(event, context):
     node_manager = None
     if event["redis"] == "1":
         r = True
-        redis_host = "neel-redis5.lpfp73.clustercfg.usw2.cache.amazonaws.com"
-        redis_port = 6379
-        startup_nodes = [{"host": redis_host, "port": redis_port}]
-        redis_client = StrictRedisCluster(startup_nodes=startup_nodes, decode_responses=True, skip_full_coverage_check=True)
+        with open("redis.toml", "r") as f:
+            creds = toml.load(f)
+        redis_host = creds["host"]
+        redis_port = int(creds["port"])
+        redis_password = creds["password"]
+        startup_nodes = [{"host": redis_host, "port": redis_port, "password": redis_password}]
+        if not cluster:
+            redis_client = StrictRedis(host=redis_host, port=redis_port, password=redis_password)
+        else:
+            redis_client = StrictRedisCluster(startup_nodes=startup_nodes, decode_responses=True, skip_full_coverage_check=True)
         node_manager = NodeManager(startup_nodes)
         k_signal = redis_client.getset(unique_id, "Y")
         if k_signal == "Y":

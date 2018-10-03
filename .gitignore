@@ -1,4 +1,5 @@
 *.o
+*.toml
 *.log
 *.status
 *.in

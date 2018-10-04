@@ -15,11 +15,12 @@
 #include <vector>
 #include <map>
 
-#include <poll.h>
-#include <sys/socket.h>
-#include <sys/types.h>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
+#include <poll.h>
+#include <pthread.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 namespace cirrus {
@@ -298,6 +299,8 @@ class PSSparseServerTask : public MLTask {
 
   void kill_server();
 
+  static void destroy_pthread_barrier(pthread_barrier_t*);
+
   /**
     * Attributes
     */
@@ -345,11 +348,16 @@ class PSSparseServerTask : public MLTask {
   std::map<int, bool> task_to_status;            //< keep track of task status
   std::map<int, std::string> operation_to_name;  //< request id to name
 
-  char* thread_msg_buffer[NUM_PS_WORK_THREADS];  // per-thread buffer
+  // per-thread buffer
+  std::shared_ptr<char[]> thread_msg_buffer[NUM_PS_WORK_THREADS];
   std::atomic<int> thread_count;  //< keep track of each thread's id
 
-  uint32_t num_updates = 0;       // Last measured num updates
-  std::atomic<bool> kill_signal;  // Used to coordinate thread kills
+  uint32_t num_updates = 0;       //< Last measured num updates
+  std::atomic<bool> kill_signal;  //< Used to coordinate thread kills
+
+  // barrier to synchronize threads init
+  std::unique_ptr<pthread_barrier_t, void (*)(pthread_barrier_t*)>
+      threads_barrier;
 };
 
 class MFNetflixTask : public MLTask {

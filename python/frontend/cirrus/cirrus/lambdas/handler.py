@@ -27,10 +27,11 @@ def handler(event, context):
         print("[CHUNK{0}] Opened redis.toml".format(event["s3_key"]))
         redis_host = creds["host"]
         redis_port = int(creds["port"])
+        redis_db = int(creds["db"])
         redis_password = creds["password"]
         startup_nodes = [{"host": redis_host, "port": redis_port, "password": redis_password}]
         if not cluster:
-            redis_client = StrictRedis(host=redis_host, port=redis_port, password=redis_password)
+            redis_client = StrictRedis(host=redis_host, port=redis_port, password=redis_password, db=redis_db)
         else:
             redis_client = StrictRedisCluster(startup_nodes=startup_nodes, decode_responses=True, skip_full_coverage_check=True)
         print("[CHUNK{0}] Initialized Redis client".format(event["s3_key"]))

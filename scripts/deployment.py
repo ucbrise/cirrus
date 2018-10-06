@@ -18,7 +18,7 @@ import tqdm
 
 # Specifications for a compilation EC2 instance.
 COMPL_REGION = "us-west-1"
-COMPL_DISK_SIZE = 16  # GB
+COMPL_DISK_SIZE = 32  # GB
 COMPL_AMI_ID = "ami-3a674d5a"  # This is amzn-ami-hvm-2017.03.1.20170812-x86_64-gp2,
                          #  which is recommended by AWS as of Sep 27, 2018 for
                          #  compiling executables for Lambda.
@@ -114,7 +114,7 @@ def run(event, context):
                 "--rank", str(3),
                 "--ps_ip", event["ps_ip"],
                 "--ps_port", str(event["ps_port"])
-            ], stderr=subprocess.STDOUT)
+            ], stderr=subprocess.STDOUT, shell=True)
     except subprocess.CalledProcessError as e:
         return {
             "statusCode": 500,
@@ -124,7 +124,7 @@ def run(event, context):
     return {
         "statusCode": 200,
         "body": json.dumps("The worker ran successfully. The stdout/stderr was "
-                           "as follows.\\n" + output.read().decode("utf-8"))
+                           "as follows.\\n" + output.decode("utf-8"))
     }
 """
 
@@ -406,6 +406,7 @@ def create_lambda_function(executable, region="us-west-1"):
               "code ZIP file.")
         info = zipfile.ZipInfo("parameter_server")
         info.external_attr = 0o777 << 16
+        executable.seek(0)
         upload_zipfile.writestr(info, executable.read())
 
     # If a previous version of the function already exists, delete it.

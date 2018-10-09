@@ -6,9 +6,10 @@ import boto3
 from collections import deque
 from serialization import LambdaThread, get_all_keys
 from threading import Thread
+import random
 
 class HashingThread(LambdaThread):
-    def __init__(self, s3_bucket_input, s3_bucket_output, s3_key, columns, N):
+    def __init__(self, s3_bucket_input, s3_bucket_output, s3_key, columns, N, invocation):
         Thread.__init__(self)
         self.d = {
             "s3_bucket_input": s3_bucket_input,
@@ -16,7 +17,10 @@ class HashingThread(LambdaThread):
             "s3_key": s3_key,
             "action": "HASHING_TRICK",
             "columns": columns,
-            "N": N
+            "N": N,
+            "redis": "1",
+            "invocation": invocation,
+            "nonce": (random.random() * 1000000) // 1.0
         }
 
 def HashingTrick(s3_bucket_input, s3_bucket_output, columns, N, objects=[]):
@@ -29,11 +33,12 @@ def HashingTrick(s3_bucket_input, s3_bucket_output, columns, N, objects=[]):
     start_hash = time.time()
     l_client = boto3.client("lambda")
     threads = deque()
+    invocation = (random.random() * 100000) // 1.0
     for i in objects:
         while len(threads) > 400:
             t = threads.popleft()
             t.join()
-        l = HashingThread(s3_bucket_input, s3_bucket_output, i, columns, N)
+        l = HashingThread(s3_bucket_input, s3_bucket_output, i, columns, N, invocation)
         l.start()
         threads.append(l)
 

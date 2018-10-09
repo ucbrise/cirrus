@@ -6,6 +6,7 @@ import sklearn.datasets
 import time
 import MinMaxScaler
 import NormalScaler
+import HashingTrick
 import boto3
 from serialization import serialize_data
 
@@ -28,6 +29,12 @@ class Preprocessing:
             MinMaxScaler.MinMaxScaler(s3_bucket_input, s3_bucket_output, *args)
         elif normalization_type == Normalization.NORMAL:
             NormalScaler.NormalScaler(s3_bucket_input, s3_bucket_output, *args)
+
+    @staticmethod
+    def hashing_trick(s3_bucket_input, s3_bucket_output, columns, N, objects=[]):
+        """ Perform the hashing trick on the specifiec columns.
+        All other columns are untouched. """
+        HashingTrick.HashingTrick(s3_bucket_input, s3_bucket_output, columns, N, objects)
 
     @staticmethod
     def load_libsvm(path, s3_bucket):

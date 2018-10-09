@@ -5,6 +5,7 @@ from rediscluster.nodemanager import NodeManager
 import toml
 import MinMaxHandler
 import NormalHandler
+import HashingTrickHandler
 from serialization import *
 import time
 import random
@@ -51,7 +52,15 @@ def handler(event, context):
     d, l = get_data_from_s3(s3_client, event["s3_bucket_input"], event["s3_key"], keep_label=True)
     print("[CHUNK{0}] Getting S3 data took {1}".format(event["s3_key"], time.time() - t))
     t = time.time()
-    if event["normalization"] == "MIN_MAX":
+    if event["action"] == "HASHING_TRICK":
+        print("[CHUNK{0}] Hashing data".format(event["s3_key"]))
+        h = HashingTrickHandler.hash_data(d, event["columns"], event["N"])
+        print("[CHUNK{0}] Serializing data".format(event["s3_key"]))
+        serialized = serialize_data(h, l)
+        print("[CHUNK{0}] Putting object in S3".format(event["s3_key"]))
+        s3_client.put_object(Bucket=event["s3_bucket_output"], Key=event["s3_key"], Body=serialized)
+        print("[CHUNK{0}] Process took {1}".format(event["s3_key"], time.time() - t))
+    elif event["normalization"] == "MIN_MAX":
         # Either calculates the local bounds, or scales data and puts the new data in
         # {src_object}_scaled.
         if event["action"] == "LOCAL_BOUNDS":
@@ -97,6 +106,7 @@ def handler(event, context):
             serialized = serialize_data(scaled, l)
             print("Putting in S3...")
             s3_client.put_object(Bucket=event["s3_bucket_output"], Key=event["s3_key"], Body=serialized)
+    elif event[""]
     # if r:
     #     # Unregister lambda.
     #     redis_client.set(unique_id, "")

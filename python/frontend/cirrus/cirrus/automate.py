@@ -4,6 +4,7 @@ import tempfile
 import socket
 import sys
 import io
+import atexit
 
 import paramiko
 import boto3
@@ -54,6 +55,7 @@ class Instance(object):
         self._key_pair = None
         self._private_key = None
         self._security_group = None
+        self._instance = None
         self._ssh_client = None
         self._sftp_client = None
 
@@ -62,7 +64,13 @@ class Instance(object):
 
     def start(self):
         """Start the instance.
+
+        When finished, call `cleanup`. `cleanup` will also be registered as an
+            `atexit` cleanup function so that it will still be called despite
+            any errors.
         """
+        atexit.register(self.cleanup)
+
         self._log.debug("start: Calling _make_key_pair.")
         self._make_key_pair()
 
@@ -73,10 +81,6 @@ class Instance(object):
         self._start_and_wait()
 
         self._log.debug("start: Done.")
-
-
-    def __enter__(self):
-        pass
 
 
     def run_command(self, command):
@@ -118,12 +122,40 @@ class Instance(object):
         pass
 
 
-    def terminate(self):
-        pass
-
-
-    def __exit__(self):
-        pass
+    def cleanup(self):
+        """Terminate the instance and clean up all associated resources.
+        """
+        try:
+            if self._sftp_client is not None:
+                self._log.debug("cleanup: Closing SFTP client.")
+                self._sftp_client.close()
+                self._sftp_client = None
+            if self._ssh_client is not None:
+                self._log.debug("cleanup: Closing SSH client.")
+                self._ssh_client.close()
+                self._ssh_client = None
+            if self._instance is not None:
+                self._log.debug("cleanup: Terminating instance.")
+                self._instance.terminate()
+                self._log.debug("cleanup: Waiting for instance to terminate.")
+                self._instance.wait_until_terminated()
+                self._instance = None
+            if self._security_group is not None:
+                self._log.debug("cleanup: Deleting security group.")
+                self._security_group.delete()
+                self._security_group = None
+            if self._key_pair is not None:
+                self._log.debug("cleanup: Deleting key pair.")
+                self._key_pair.delete()
+                self._key_pair = None
+            self._log.debug("cleanup: Done.")
+        except:
+            MESSAGE = "An error occured during cleanup. Some EC2 resources " \
+                  "may remain. Delete them manually."
+            print("=" * len(MESSAGE))
+            print(MESSAGE)
+            print("=" * len(MESSAGE))
+            raise sys.exc_info()[1]
 
 
     def _make_key_pair(self):
@@ -331,7 +363,8 @@ if __name__ == "__main__":
     log.setLevel(logging.DEBUG)
     log.addHandler(logging.StreamHandler(sys.stdout))
 
-    instance = Instance(name="test21", **BUILD_INSTANCE)
+    instance = Instance(name="test28", **BUILD_INSTANCE)
     instance.start()
     instance.run_command("ls")
     instance.run_command("pwd")
+    raise RuntimeError()

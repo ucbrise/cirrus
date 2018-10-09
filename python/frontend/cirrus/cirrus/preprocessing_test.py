@@ -42,6 +42,37 @@ class SimpleTest(Thread):
                         ))
                     return
 
+class HashTest(Thread):
+    def __init__(self, s3_bucket_input, s3_bucket_output, columns, N, obj_key):
+        Thread.__init__(self)
+        self.s3_bucket_input = s3_bucket_input
+        self.s3_bucket_output = s3_bucket_output
+        self.columns = set([int(i) for i in columns])
+        self.N = N
+        self.obj_key = obj_key
+
+    def run(self):
+        client = boto3.client("s3")
+        src_obj = get_data_from_s3(client, self.s3_bucket_input, self.obj_key)
+        dest_obj = get_data_from_s3(client, self.s3_bucket_output, self.obj_key)
+        for idx, r in enumerate(src_obj):
+            row_old = {}
+            for idx2, v in r:
+                if idx2 in self.columns:
+                    c = hash(v) % self.N
+                    if c not in row_old:
+                        row_old[c] = 0
+                    row_old[c] += 1
+                else:
+                    row_old[idx2] = v
+            row_new = {}
+            for idx2, v in dest_obj[idx]:
+                row_new[idx2] = v
+            assert len(row_new) == len(row_old)
+            for k in row_new:
+                assert row_new[k] == row_old[k]
+
+
 def load_data(path):
     X, y = sklearn.datasets.load_svmlight_file(path)
     return X, y
@@ -134,6 +165,34 @@ def test_simple(s3_bucket_input, s3_bucket_output, min_v, max_v, objects=[], pre
     for t in threads:
         t.join()
     print("[TEST_SIMPLE] Took {0} s for all threads to finish".format(time.time() - t0))
+
+def test_hash(s3_bucket_input, s3_bucket_output, columns, N, objects=[], hashing_trick=True):
+    t0 = time.time()
+    print("[TEST_HASH] Getting all keys")
+    if len(objects) == 0:
+        # Allow user to specify objects, or otherwise get all objects.
+        objects = get_all_keys(s3_bucket_input)
+    print("[TEST_HASH] Took {0} s to get all keys".format(time.time() - t0))
+    if hashing_trick:
+        t1 = time.time()
+        print("[TEST_HASH] Running hashing trick")
+        Preprocessing.hashing_trick(s3_bucket_input, s3_bucket_output, columns, N, objects)
+        print("[TEST_HASH] Took {0} s to run hashing trick".format(time.time() - t1))
+    t0 = time.time()
+    print("[TEST_HASH] Starting threads for each object")
+    threads = deque()
+    # TODO: Turn into assertion; potentially add errors to list and check length of list.
+    for o in objects:
+        while len(threads) > MAX_THREADS:
+            t = threads.popleft()
+            t.join()
+        t = HashTest(s3_bucket_input, s3_bucket_output, columns, N, o)
+        t.start()
+        threads.append(t)
+    print("[TEST_HASH] Took {0} s to start all threads".format(time.time() - t0))
+    for t in threads:
+        t.join()
+    print("[TEST_HASH] Took {0} s for all threads to finish".format(time.time() - t0))
 
 def test_exact(src_file, s3_bucket_output, min_v, max_v, objects=[], preprocess=False):
     """ Check that data was scaled correctly, assuming src_file was serialized sequentially into the keys

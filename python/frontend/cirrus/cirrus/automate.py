@@ -1,126 +1,298 @@
-import argparse
+import logging
+import time
+import tempfile
+import socket
+import sys
 
+import paramiko
+import boto3
+
+# Specifications for EC2 instances used to build Cirrus.
+BUILD_INSTANCE = {
+    "region": "us-west-1",
+    "disk_size": 32,  # GB
+    # This is amzn-ami-hvm-2017.03.1.20170812-x86_64-gp2, which is recommended
+    #   by AWS as of Sep 27, 2018 for compiling executables for Lambda.
+    "ami_id": "ami-3a674d5a",
+    "typ": "t3.xlarge",
+    "username": "ec2-user"
+}
 BUILD_IMAGE_NAME = "cirrus_build_image"
 SERVER_IMAGE_NAME = "cirrus_server_image"
 EXECUTABLES_PATH = "s3://cirrus/executables"
-LAMBDA_PACKAGE_PATH = "s3://cirrus_automate/lambda_package"
-LAMBDA_NAME = "cirrus_worker_lambda"
+LAMBDA_PACKAGE_PATH = "s3://cirrus/lambda_package"
+LAMBDA_NAME = "cirrus_lambda"
 
 
 class Instance(object):
-	"""AN EC2 instance."""
+    """An EC2 instance."""
 
-	def __init__(self, ...):
-		pass
+    def __init__(self, name, region, disk_size, ami_id, typ, username):
+        """Define an EC2 instance.
 
-	def start(self):
-		pass
-	
-	def __enter__(self):
-		pass
+        Args:
+            name (str): Name for the instance. The same name will be used for
+                the key pair and security group that get created.
+            region (str): Region for the instance.
+            disk_size (int): Disk space for the instance, in GB.
+            ami_id (str): ID of the AMI for the instance.
+            typ (str): Type for the instance.
+            username (str): SSH username for the AMI.
+        """
+        self._name = name
+        self._region = region
+        self._disk_size = disk_size
+        self._ami_id = ami_id
+        self._type = typ
+        self._username = username
+        self._ec2 = boto3.resource("ec2", self._region)
+        self._log = logging.getLogger("cirrus.automate.Instance")
 
-	def ssh(self):
-		pass
+        self._key_pair = None
+        self._key_file = None
+        self._security_group = None
+        self._ssh_client = None
+        self._sftp_client = None
 
-	def sftp(self):
-		pass
+    def start(self):
+        """Start the instance.
+        """
+        self._make_key_pair()
+        self._make_security_group()
+        self._start_and_wait()
 
-	def terminate(self):
-		pass
 
-	def __exit__(self):
-		pass
+    def __enter__(self):
+        pass
+
+
+    def run_command(self, command):
+        """Run a command on this instance.
+
+        Args:
+            command (str): The command to run.
+
+        Returns:
+            tuple[int, str, str]: The exit code, stdout, and stderr,
+                respectively, of the process.
+        """
+        if self._ssh_client is None:
+            self._connect_ssh()
+        _, stdout, stderr = self._ssh_client.exec_command(command)
+        # exec_command is asynchronous. This waits for completion.
+        status = stdout.channel.recv_exit_status()
+        return status, stdout.read(), stderr.read()
+
+
+    def download(self):
+        pass
+
+
+    def upload(self):
+        pass
+
+
+    def terminate(self):
+        pass
+
+
+    def __exit__(self):
+        pass
+
+
+    def _make_key_pair(self):
+        self._log.debug("Creating key pair.")
+        response = self._ec2.meta.client.create_key_pair(
+                KeyName=self._name)
+        self._log.debug("Saving key.")
+        self._key_file = tempfile.NamedTemporaryFile("w+")
+        self._key_file.write(response["KeyMaterial"])
+        self._key_file.seek(0)
+        self._log.debug("Creating key resource.")
+        self._key_pair = self._ec2.KeyPair(self._name)
+        self._key_pair.load()
+        self._log.debug("Done with key pair.")
+
+
+    def _make_security_group(self):
+        self._log.debug("Creating security group.")
+        self._security_group = self._ec2.create_security_group(
+            GroupName=self._name, Description="bla")
+        self._log.debug("Configuring security group.")
+        # Allow TCP port 22 access from anywhere so that we can control the
+        #   instance.
+        self._security_group.authorize_ingress(
+            IpProtocol="tcp",
+            FromPort=22,
+            ToPort=22,
+            CidrIp="0.0.0.0/0"
+        )
+        self._log.debug("Done with security group.")
+
+
+    def _start_and_wait(self):
+        self._log.debug("Starting instance.")
+        # The EC2 instance will be created with an EBS volume that gets
+        #   deleted automatically when the instance is terminated.
+        instances = self._ec2.create_instances(
+            BlockDeviceMappings=[
+                {
+                    "DeviceName": "/dev/xvda",
+                    "Ebs": {
+                        "DeleteOnTermination": True,
+                        "VolumeSize": self._disk_size,
+                    }
+                },
+            ],
+            KeyName=self._key_pair.name,
+            ImageId=self._ami_id,
+            InstanceType=self._type,
+            MinCount=1,
+            MaxCount=1,
+            SecurityGroups=[self._security_group.group_name]
+        )
+        self._instance = instances[0]
+        self._log.debug("Waiting for instance to enter running state.")
+        self._instance.wait_until_running()
+        # Reloads metadata about the instance. In particular, retreives its
+        #   public_ip_address.
+        self._log.debug("Reloading instance metadata.")
+        self._instance.load()
+        self._log.debug("Done with instance.")
+
+
+    def _connect_ssh(self, timeout=10, attempts=10):
+        self._log.debug("Configuring SSH client.")
+        key = paramiko.RSAKey.from_private_key(self._key_file)  # FIXME
+        self._ssh_client = paramiko.SSHClient()
+        self._ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+        for _ in range(attempts):
+            try:
+                self._log.debug("Making connection attempt.")
+                self._ssh_client.connect(
+                    hostname=self._instance.public_ip_address,
+                    username=self._username,
+                    pkey=key,
+                    timeout=timeout
+                )
+                self._ssh_client.get_transport().window_size = 2147483647
+            except socket.timeout:
+                self._log.debug("Connection attempt timed out.")
+                pass
+            except paramiko.ssh_exception.NoValidConnectionsError:
+                self._log.debug("Connection attempt failed. Sleeping.")
+                time.sleep(timeout)
+                pass
+            else:
+                break
+        else:
+            pass  # FIXME
 
 
 def make_build_image(name, replace=False):
-	"""Make an AMI sutiable for building the backend on.
+    """Make an AMI sutiable for compiling Cirrus on.
 
-	Args:
-		name (str): The name to give the AMI.
-		replace (bool): Whether to replace any existing AMI with the same name.
-			If False or omitted, and an AMI with the same name exists, will do
-			nothing.
-	"""
-	pass
+    Args:
+        name (str): The name to give the AMI.
+        replace (bool): Whether to replace any existing AMI with the same name.
+            If False or omitted and an AMI with the same name exists, nothing
+            will be done.
+    """
+    pass
 
 
 def make_executables(path, instance):
-	"""Build the backend and publish its executables.
+    """Compile Cirrus and publish its executables.
 
-	Args:
-		path (str): A S3 path to a "directory" in which to publish the
-			executables.
-		instance (EC2Instance): The instance on which to build. Should be a
-			fresh launch of the AMI produced by `make_build_image`.
-	"""
-	pass
+    Args:
+        path (str): A S3 path to a "directory" in which to publish the
+            executables.
+        instance (EC2Instance): The instance on which to compile. Should use an
+            AMI produced by `make_build_image`.
+    """
+    pass
 
 
 def make_lambda_package(path, executables_path):
-	"""Make and publish the ZIP package for the worker Lambda function.
+    """Make and publish the ZIP package for Cirrus' Lambda function.
 
-	Args:
-		path (str): An S3 path at which to publish the package.
-		executables_path (str): An S3 path to a "directory" from which to get
-			the parameter server executable.
-	"""
-	pass
+    Args:
+        path (str): An S3 path at which to publish the package.
+        executables_path (str): An S3 path to a "directory" from which to get
+            Cirrus' executables.
+    """
+    pass
 
 
 def make_server_image(name, executables_path, instance):
-	"""Make an AMI that runs parameter servers.
+    """Make an AMI that runs parameter servers.
 
-	Args:
-		name (str): The name to give the AMI.
-		executables_path (str): An S3 path to a "directory" from which to get
-			the parameter server executable.
-		instance (EC2Instance): The instance to use to set up the image. Should
-			be a fresh launch of the AMI produced by `make_build_image`.
-	"""
-	pass
+    Args:
+        name (str): The name to give the AMI.
+        executables_path (str): An S3 path to a "directory" from which to get
+            Cirrus' executables.
+        instance (EC2Instance): The instance to use to set up the image. Should
+            use an AMI produced by `make_build_image`.
+    """
+    pass
 
 
 def make_lambda(name, lambda_package_path):
-	"""Make a worker Lambda function.
+    """Make a worker Lambda function.
 
-	Args:
-		name (str): The name to give to the Lambda.
-		lambda_package_path (str): An S3 path to the Lambda ZIP package.
-	"""
-	pass
+    Args:
+        name (str): The name to give the Lambda.
+        lambda_package_path (str): An S3 path to a Lambda ZIP package produced
+            by `make_lambda_package`.
+    """
+    pass
 
 
 def launch_worker(lambda_name):
-	"""Launch a worker.
+    """Launch a worker.
 
-	Args:
-		lambda_name (str): The name of the worker Lambda function.
-	"""
-	pass
+    Args:
+        lambda_name (str): The name of a worker Lambda function.
+    """
+    pass
 
 
-def launch_server(server_image_name):
-	"""Launch a parameter server.
+def launch_server(instance):
+    """Launch a parameter server.
 
-	Args:
-		server_image_name (str): The AMI to use for the server. Should be an AMI
-			produced by `make_server_image`.
-	"""
-	pass
+    Args:
+        instance (EC2Instance): The instance on which to launch the server.
+            Should use an AMI produced by `make_server_image`.
+    """
+    pass
 
 
 def build():
-	"""Build Cirrus. Publishes backend executables, a Lambda ZIP package, and a
-		parameter server AMI.
-	"""
-	make_build_image(BUILD_IMAGE_NAME)
-	with Instance(BUILD_IMAGE_NAME) as instance:
-		make_executables(EXECUTABLES_PATH, instance)
-		make_lambda_package(LAMBDA_PACKAGE_PATH, EXECUTABLES_PATH)
-		make_server_image(SERVER_IMAGE_NAME, EXECUTABLES_PATH, instance)
+    """Build Cirrus.
+
+    Publishes Cirrus' executables, a worker Lambda ZIP package, and a parameter
+        server AMI on S3.
+    """
+    make_build_image(BUILD_IMAGE_NAME)
+    with Instance(**BUILD_INSTANCE) as instance:  # FIXME
+        make_executables(EXECUTABLES_PATH, instance)
+        make_lambda_package(LAMBDA_PACKAGE_PATH, EXECUTABLES_PATH)
+        make_server_image(SERVER_IMAGE_NAME, EXECUTABLES_PATH, instance)
 
 
 def deploy():
-	"""Deploy Cirrus. Creates a worker Lambda.
-	"""
-	make_lambda(LAMBDA_NAME, LAMBDA_PACKAGE_PATH)
+    """Deploy Cirrus.
+
+    Creates a worker Lambda function.
+    """
+    make_lambda(LAMBDA_NAME, LAMBDA_PACKAGE_PATH)
+
+
+if __name__ == "__main__":
+    log = logging.getLogger("cirrus")
+    log.setLevel(logging.DEBUG)
+    log.addHandler(logging.StreamHandler(sys.stdout))
+
+    instance = Instance(name="test18", **BUILD_INSTANCE)
+    instance.start()

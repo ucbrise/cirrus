@@ -40,6 +40,8 @@ def get_all_keys(bucket, contains="_"):
     kwargs = {"Bucket": bucket}
     while True:
         r = s3.list_objects_v2(**kwargs)
+        if "Contents" not in r:
+            break
         for o in r["Contents"]:
             keys.append(o["Key"])
         try:

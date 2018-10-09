@@ -15,18 +15,21 @@ class Normalization(Enum):
 
 class Preprocessing:
     """ Static preprocessing module for Min Max scaling, normal scaling. """
-
+ 
+    @staticmethod
     def normalize(s3_bucket_input, s3_bucket_output, normalization_type, *args):
         """ Usage:
         Preprocessing.normalize(s3_bucket_input, s3_bucket_output, Normalization.MIN_MAX, 0.0, 1.0)
         Preprocessing.normalize(s3_bucket_input, s3_bucket_output, Normalization.NORMAL)
         """
         if normalization_type == Normalization.MIN_MAX:
-            assert len(args) >= 2 and len(args) <= 4, "Must specify min and max."
+            assert len(args) >= 2, "Must specify min and max."
+            print("[Preprocessing] Calling MinMaxScaler with args {0}".format(args))
             MinMaxScaler.MinMaxScaler(s3_bucket_input, s3_bucket_output, *args)
         elif normalization_type == Normalization.NORMAL:
             NormalScaler.NormalScaler(s3_bucket_input, s3_bucket_output, *args)
 
+    @staticmethod
     def load_libsvm(path, s3_bucket):
         """ Load a libsvm file into S3 in the specified bucket. """
         client = boto3.client("s3")

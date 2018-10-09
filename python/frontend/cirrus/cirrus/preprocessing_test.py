@@ -30,15 +30,17 @@ class SimpleTest(Thread):
                 try:
                     if dest_obj[idx][idx2][0] != v[0]:
                         print("[TEST_SIMPLE] Missing column {0} on row {1} of object {2}".format(v[0], idx, self.obj_key))
-                        continue
+                        return
                     if dest_obj[idx][idx2][1] < self.min_v or dest_obj[idx][idx2][1] > self.max_v:
                         print("[TEST_SIMPLE] Value {0} at column {1} on row {2} of object {3} falls out of bounds".format(
                             v[1], v[0], idx, self.obj_key
                             ))
+                        return
                 except Exception as e:
                     print("[TEST_SIMPLE] Caught error on row {0}, column {1} of object {2}: {3}".format(
                         idx, idx2, self.obj_key, e
                         ))
+                    return
 
 def load_data(path):
     X, y = sklearn.datasets.load_svmlight_file(path)
@@ -99,8 +101,13 @@ def test_load_libsvm(src_file, s3_bucket_output, wipe_keys=False, no_load=False)
                     obj_idx, c, obj_num, v_obj[1], v_orig, r, c))
     print("[TEST_LOAD] Testing all chunks of data took {0} s".format(time.time() - t0))
 
-def test_simple(s3_bucket_input, s3_bucket_output, min_v, max_v, objects=[], preprocess=False):
+def test_simple(s3_bucket_input, s3_bucket_output, min_v, max_v, objects=[], preprocess=False, wipe_keys=False, skip_bounds=False):
     # Make sure all data is in bounds in output, and all data is present from input
+    if wipe_keys:
+        t0 = time.time()
+        print("[TEST_SIMPLE] Wiping keys in bucket")
+        delete_all_keys(s3_bucket_output)
+        print("[TEST_SIMPLE] Took {0} to wipe keys".format(time.time() - t0))
     t0 = time.time()
     print("[TEST_SIMPLE] Getting all keys")
     if len(objects) == 0:
@@ -110,7 +117,7 @@ def test_simple(s3_bucket_input, s3_bucket_output, min_v, max_v, objects=[], pre
     if preprocess:
         t1 = time.time()
         print("[TEST_SIMPLE] Running preprocessing")
-        Preprocessing.normalize(s3_bucket_input, s3_bucket_output, Normalization.MIN_MAX, min_v, max_v, objects)
+        Preprocessing.normalize(s3_bucket_input, s3_bucket_output, Normalization.MIN_MAX, min_v, max_v, objects, True, False, skip_bounds)
         print("[TEST_SIMPLE] Took {0} s to run preprocessing".format(time.time() - t1))
     t0 = time.time()
     print("[TEST_SIMPLE] Starting threads for each object")

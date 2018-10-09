@@ -14,6 +14,9 @@ cluster = False
 def handler(event, context):
     total = time.time()
     unique_id = str(event["invocation"]) + "_invocation_" + event["s3_key"] + "_nonce_" + str(event["nonce"])
+    kill_dupes = True
+    if "kill_dupes" in event:
+        kill_dupes = bool(event["kill_dupes"])
     s3_client = boto3.client("s3")
     assert "s3_bucket_input" in event and "s3_key" in event and "redis" in event, "Must specify if Redis is used, input bucket, and key."
     r = False
@@ -39,9 +42,9 @@ def handler(event, context):
         print("[CHUNK{0}] Created NodeManager".format(event["s3_key"]))
         k_signal = redis_client.getset(unique_id, "Y")
         print("[CHUNK{0}] Checked if lambda already launched".format(event["s3_key"]))
-        if k_signal == "Y":
+        if kill_dupes and k_signal == "Y":
             print("[CHUNK{0}] Found duplicate - killing.".format(event["s3_key"]))
-            return
+            return ["DUPLICATE"]
     print("[CHUNK{0}] Took {1} to get past Redis".format(event["s3_key"], time.time() - total))
     print("[CHUNK{0}] Getting data from S3...".format(event["s3_key"]))
     t = time.time()
@@ -65,6 +68,7 @@ def handler(event, context):
             assert "s3_bucket_output" in event, "Must specify output bucket."
             assert "min_v" in event, "Must specify min."
             assert "max_v" in event, "Must specify max."
+            t = time.time()
             print("Getting global bounds...")
             b = MinMaxHandler.get_global_bounds(s3_client, redis_client, event["s3_bucket_input"], event["s3_key"], r, event["s3_key"])
             print("[CHUNK{0}] Global bounds took {1} to get".format(event["s3_key"], time.time() - t))
@@ -74,7 +78,7 @@ def handler(event, context):
             print("[CHUNK{0}] Scaling took {1}".format(event["s3_key"], time.time() - t))
             print("Serializing...")
             serialized = serialize_data(scaled, l)
-            print("Putting in S3...")
+            print("[CHUNK{0}] Putting in S3...".format(event["s3_key"]))
             s3_client.put_object(Bucket=event["s3_bucket_output"], Key=event["s3_key"], Body=serialized)
             print("[CHUNK{0}] Total time was {1}".format(event["s3_key"], time.time() - total))
     elif event["normalization"] == "NORMAL":

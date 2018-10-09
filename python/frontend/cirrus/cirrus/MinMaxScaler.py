@@ -25,6 +25,7 @@ class LocalBounds(LambdaThread):
             "invocation": invocation,
             "nonce": (random.random() * 1000000) // 1.0
         }
+        print("Running with the following dictionary: {0}".format(self.d))
 
 class LocalScale(LambdaThread):
     def __init__(self, s3_bucket_input, s3_key, s3_bucket_output, lower, upper, redis, invocation):
@@ -44,32 +45,39 @@ class LocalScale(LambdaThread):
             "invocation": invocation,
             "nonce": (random.random() * 1000000) // 1.0
         }
+        print("Running with the following dictionary: {0}".format(self.d))
 
-def MinMaxScaler(s3_bucket_input, s3_bucket_output, lower, upper, objects=[], redis=True, dry_run=False):
+def MinMaxScaler(s3_bucket_input, s3_bucket_output, lower, upper, objects=[], redis=True, dry_run=False, skip_bounds=False):
     invocation = (random.random() * 1000000) // 1.0
     s3_resource = boto3.resource("s3")
     if len(objects) == 0:
         # Allow user to specify objects, or otherwise get all objects.
         objects = get_all_keys(s3_bucket_input)
+
+    print("Verifying presence of input keys...")
+    client = boto3.client("s3")
+    for i in objects:
+        client.get_object(Bucket=s3_bucket_input, Key=str(i))["Body"].read()
+
     # Calculate bounds for each chunk.
     start_bounds = time.time()
     l_client = boto3.client("lambda")
-    b_threads = deque()
-    for i in objects:
-        while len(b_threads) > MAX_LAMBDAS:
-            t = b_threads.popleft()
-            t.join()
-        l = LocalBounds(s3_bucket_input, i, redis, invocation)
-        l.start()
-        b_threads.append(l)
+    if not skip_bounds:
+        b_threads = deque()
+        for i in objects:
+            while len(b_threads) > MAX_LAMBDAS:
+                t = b_threads.popleft()
+                t.join()
+            l = LocalBounds(s3_bucket_input, i, redis, invocation)
+            l.start()
+            b_threads.append(l)
 
-    for t in b_threads:
-        t.join()
+        for t in b_threads:
+            t.join()
 
     start_global = time.time()
     print("LocalBounds took {0} seconds...".format(start_global - start_bounds))
     if not redis:
-        client = boto3.client("s3")
         f_ranges = {}
         # Get global min/max map.
         for i in objects:
@@ -118,6 +126,10 @@ def MinMaxScaler(s3_bucket_input, s3_bucket_output, lower, upper, objects=[], re
             t.join()
     end_scale = time.time()
     print("Local scaling took {0} seconds...".format(end_scale - start_scale))
+
+    print("Verifying presence of output keys...")
+    for i in objects:
+        client.get_object(Bucket=s3_bucket_output, Key=str(i))["Body"].read()
 
     for i in objects:
         s3_resource.Object(s3_bucket_input, str(i) + "_bounds").delete()

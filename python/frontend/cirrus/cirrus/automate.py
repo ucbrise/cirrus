@@ -21,9 +21,15 @@ BUILD_INSTANCE = {
 }
 BUILD_IMAGE_NAME = "cirrus_build_image"
 SERVER_IMAGE_NAME = "cirrus_server_image"
-EXECUTABLES_PATH = "s3://cirrus/executables"
-LAMBDA_PACKAGE_PATH = "s3://cirrus/lambda_package"
+EXECUTABLES_PATH = "s3://cirrus-public/executables"
+LAMBDA_PACKAGE_PATH = "s3://cirrus-public/lambda_package"
 LAMBDA_NAME = "cirrus_lambda"
+
+# The ARN of an IAM policy that allows full access to S3.
+S3_ACCESS_POLICY_ARN = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+
+# The estimated delay of IAM's eventual consistency, in seconds.
+IAM_CONSISTENCY_DELAY = 20
 
 
 class Instance(object):
@@ -52,6 +58,8 @@ class Instance(object):
         self._log.debug("__init__: Initializing EC2.")
         self._ec2 = boto3.resource("ec2", self._region)
 
+        self._role = None
+        self._instance_profile = None
         self._key_pair = None
         self._private_key = None
         self._security_group = None
@@ -70,6 +78,9 @@ class Instance(object):
             any errors.
         """
         atexit.register(self.cleanup)
+
+        self._log.debug("start: Calling _make_instance_profile.")
+        self._make_instance_profile()
 
         self._log.debug("start: Calling _make_key_pair.")
         self._make_key_pair()
@@ -114,12 +125,45 @@ class Instance(object):
         return status, stdout, stderr
 
 
-    def download(self):
-        pass
+    def download_s3(self, src, dest):
+        """Download a file from S3 to this instance.
+
+        Args:
+            src (str): A path to a file on S3.
+            dest (str): The path at which to save the file on this instance.
+                If relative, then relative to the home folder of this instance's
+                SSH user.
+        """
+        assert src.startswith("s3://")
+        assert not dest.startswith("s3://")
+
+        instance.run_command(" ".join((
+            "aws",
+            "s3",
+            "cp",
+            src,
+            dest
+        )))
 
 
-    def upload(self):
-        pass
+    def upload_s3(self, src, dest):
+        """Upload a file from this instance to S3.
+
+        Args:
+            src (str): A path to a file on this instance. If relative, then
+                relative to the home folder of this instance's SSH user.
+            dest (str): A path on S3 to upload to.
+        """
+        assert not src.startswith("s3://")
+        assert dest.startswith("s3://")
+
+        instance.run_command(" ".join((
+            "aws",
+            "s3",
+            "cp",
+            src,
+            dest
+        )))
 
 
     def cleanup(self):
@@ -148,6 +192,16 @@ class Instance(object):
                 self._log.debug("cleanup: Deleting key pair.")
                 self._key_pair.delete()
                 self._key_pair = None
+            if self._instance_profile is not None:
+                self._log.debug("cleanup: Deleting instance profile.")
+                self._instance_profile.remove_role(RoleName=self._role.name)
+                self._instance_profile.delete()
+                self._instance_profile = None
+            if self._role is not None:
+                self._log.debug("cleanup: Deleting role.")
+                self._role.detach_policy(PolicyArn=S3_ACCESS_POLICY_ARN)
+                self._role.delete()
+                self._role = None
             self._log.debug("cleanup: Done.")
         except:
             MESSAGE = "An error occured during cleanup. Some EC2 resources " \
@@ -156,6 +210,50 @@ class Instance(object):
             print(MESSAGE)
             print("=" * len(MESSAGE))
             raise sys.exc_info()[1]
+
+
+    def _make_instance_profile(self):
+        self._log.debug("_make_instance_profile: Initializing IAM.")
+        iam = boto3.resource("iam", self._region)
+
+        self._log.debug("_make_instance_profile: Creating role.")
+        self._role = iam.create_role(
+            RoleName=self._name,
+            AssumeRolePolicyDocument="""{
+                  "Version": "2012-10-17",
+                  "Statement": [
+                    {
+                      "Effect": "Allow",
+                      "Principal": {
+                        "Service": "ec2.amazonaws.com"
+                      },
+                      "Action": "sts:AssumeRole"
+                    }
+                  ]
+            }"""
+        )
+
+        self._log.debug("_make_instance_profile: Attaching policy to role.")
+        self._role.attach_policy(PolicyArn=S3_ACCESS_POLICY_ARN)
+
+        self._log.debug("_make_instance_profile: Creating instance profile.")
+        self._instance_profile = iam.create_instance_profile(
+            InstanceProfileName=self._name
+        )
+
+        self._log.debug("_make_instance_profile: Adding role to instance " \
+                        "profile.")
+        self._instance_profile.add_role(RoleName=self._role.name)
+
+        self._log.debug("_make_instance_profile: Waiting for changes to take " \
+                        "effect.")
+        # IAM is eventually consistent, so we need to wait for our changes to be
+        #   reflected. The delay distribution is heavy-tailed, so this might
+        #   still error, rarely. The right way is to retry at an interval.
+        time.sleep(IAM_CONSISTENCY_DELAY)
+
+
+        self._log.debug("_make_instance_profile: Done.")
 
 
     def _make_key_pair(self):
@@ -211,7 +309,8 @@ class Instance(object):
             InstanceType=self._type,
             MinCount=1,
             MaxCount=1,
-            SecurityGroups=[self._security_group.group_name]
+            SecurityGroups=[self._security_group.group_name],
+            IamInstanceProfile={"Name": self._instance_profile.name}
         )
         self._instance = instances[0]
 
@@ -363,8 +462,7 @@ if __name__ == "__main__":
     log.setLevel(logging.DEBUG)
     log.addHandler(logging.StreamHandler(sys.stdout))
 
-    instance = Instance(name="test28", **BUILD_INSTANCE)
+    instance = Instance(name="testabc", **BUILD_INSTANCE)
     instance.start()
     instance.run_command("ls")
     instance.run_command("pwd")
-    raise RuntimeError()

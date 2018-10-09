@@ -59,7 +59,7 @@ class HashTest(Thread):
             row_old = {}
             for idx2, v in r:
                 if idx2 in self.columns:
-                    c = hash(v) % self.N
+                    c = hash(str(v)) % self.N
                     if c not in row_old:
                         row_old[c] = 0
                     row_old[c] += 1

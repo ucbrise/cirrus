@@ -10,7 +10,7 @@ def hash_data(data, columns, N):
         for col, val in r:
             s_c = int(col)
             if s_c in c:
-                h = hash(val) % N
+                h = hash(str(val)) % N
                 if h not in row_map:
                     row_map[h] = 0
                 row_map[h] += 1

@@ -61,15 +61,16 @@ def handler(event, context):
         event["s3_key"], time.time() - t))
     # Call the appropriate handler
     if event["action"] == "FEATURE_HASHING":
-        feature_hashing_handler(s3_client, d, event)
+        feature_hashing_handler(s3_client, d, l, event)
     elif event["normalization"] == "MIN_MAX":
         min_max_handler(s3_client, redis_client, d, l, node_manager, r, event)
     elif event["normalization"] == "NORMAL":
         normal_scaling_handler(s3_client, d, l, event)
+    print("[CHUNK{0}] Total time was {1}".format(event["s3_key"], time.time() - total))
     return []
 
 
-def feature_hashing_handler(s3_client, d, event):
+def feature_hashing_handler(s3_client, d, l, event):
     # Handle a call for feature hashing
     t = time.time()
     print("[CHUNK{0}] Hashing data".format(event["s3_key"]))
@@ -98,10 +99,8 @@ def min_max_handler(s3_client, redis_client, d, l, node_manager, r, event):
             s3_client, redis_client, b, event["s3_bucket_input"], event["s3_key"] + "_bounds", r, node_manager, event["s3_key"])
         print(
             "[CHUNK{0}] Putting bounds in S3 / Redis took {1}".format(event["s3_key"], time.time() - t))
-        print("[CHUNK{0}] Total time was {1}".format(
-            event["s3_key"], time.time() - total))
         print("[CHUNK{0}NONCE] LOCAL {1} GLOBAL {2} TIME {3}".format(
-            event["s3_key"], (random.random() * 1000) // 1.0, event["nonce"], time.time() - total))
+            event["s3_key"], (random.random() * 1000) // 1.0, event["dupe_nonce"], time.time() - t))
     elif event["action"] == "LOCAL_SCALE":
         assert "s3_bucket_output" in event, "Must specify output bucket."
         assert "min_v" in event, "Must specify min."
@@ -122,8 +121,6 @@ def min_max_handler(s3_client, redis_client, d, l, node_manager, r, event):
         print("[CHUNK{0}] Putting in S3...".format(event["s3_key"]))
         s3_client.put_object(
             Bucket=event["s3_bucket_output"], Key=event["s3_key"], Body=serialized)
-        print("[CHUNK{0}] Total time was {1}".format(
-            event["s3_key"], time.time() - total))
 
 
 def normal_scaling_handler(s3_client, d, l, event):

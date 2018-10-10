@@ -164,7 +164,7 @@ def get_global_bounds(s3_client, redis_client, bucket, src_object, use_redis, ch
     p1.join()
     p2.join()
     print("[CHUNK{0}] Getting 2 * {1} elements from Redis took {2}...".format(
-        chunk, len(m["max"]), time.time() - i))
+        chunk, len(bounds["max"]), time.time() - i))
     # Format the map the way we want it
     max_v = res["max"]
     min_v = res["min"]

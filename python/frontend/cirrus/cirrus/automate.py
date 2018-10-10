@@ -32,9 +32,8 @@ S3_ACCESS_POLICY_ARN = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
 # The estimated delay of IAM's eventual consistency, in seconds.
 IAM_CONSISTENCY_DELAY = 20
 
-# A series of commands that will result in ~/cirrus/src containing Cirrus'
-#   compiled executables.
-BUILD_COMMANDS = """
+# A series of commands that sets up the proper build environment.
+ENVIRONMENT_COMMANDS = """
 # Install some necessary packages.
 yes | sudo yum install git glibc-static openssl-static.x86_64 \
     zlib-static.x86_64 libcurl-devel
@@ -52,24 +51,31 @@ tar -xvzf cmake-3.10.0.tar.gz
 cd cmake-3.10.0; ./bootstrap
 cd cmake-3.10.0; make
 cd cmake-3.10.0; sudo make install
-
-# Finally, clone Cirrus and compile it.
-git clone https://github.com/jcarreira/cirrus
-cd cirrus; ./bootstrap.sh
-cd cirrus; make -j 10
 """
-
-# The maximum number of times to poll for an AMI becoming available.
-IMAGE_POLL_MAX = (3 * 60) // IMAGE_POLL_INTERVAL
 
 # The interval at which to poll for an AMI becoming available, in seconds.
 IMAGE_POLL_INTERVAL = 10
+
+# The maximum number of times to poll for an AMI becoming available.
+IMAGE_POLL_MAX = (5 * 60) // IMAGE_POLL_INTERVAL
+
+# A series of commands that results in ~/cirrus/src containing Cirrus'
+#   executables.
+BUILD_COMMANDS = """
+git clone https://github.com/jcarreira/cirrus
+cd cirrus; ./bootstrap.sh
+cd cirrus; ./configure --enable-static-nss --disable-option-checking --prefix=/home/ec2-user/glibc
+cd cirrus; make -j 10
+"""
+
+# The filenames of Cirrus' executables.
+EXECUTABLES = ("parameter_server", "ps_test", "csv_to_libsvm")
 
 
 class Instance(object):
     """An EC2 instance."""
 
-    def __init__(self, name, region, disk_size, ami_id, typ, username):
+    def __init__(self, name, region, disk_size, typ, username, ami_id=None, ami_name=None):
         """Define an EC2 instance.
 
         Args:
@@ -77,9 +83,11 @@ class Instance(object):
                 the key pair and security group that get created.
             region (str): Region for the instance.
             disk_size (int): Disk space for the instance, in GB.
-            ami_id (str): ID of the AMI for the instance.
             typ (str): Type for the instance.
             username (str): SSH username for the AMI.
+            ami_id (str): ID of the AMI for the instance. If omitted or None, `ami_name` must be provided.
+            ami_name (str): Name of the AMI for the instance. Only used if `ami_id` is not provided. The first AMI with
+                the name `ami_name` owned by the AWS account is used.
         """
         self._name = name
         self._region = region
@@ -91,6 +99,15 @@ class Instance(object):
 
         self._log.debug("__init__: Initializing EC2.")
         self._ec2 = boto3.resource("ec2", self._region)
+
+        if self._ami_id is None:
+            self._log.debug("__init__: Resolving AMI name to AMI ID.")
+            response = self._ec2.meta.client.describe_images(
+                Filters=[{"Name": "name", "Values": [ami_name]}], Owners=["self"])
+            if len(response["Images"]) > 0:
+                self._ami_id = response["Images"][0]["ImageId"]
+            else:
+                raise RuntimeError("No AMIs with the given name were found.")
 
         self._role = None
         self._instance_profile = None
@@ -423,7 +440,7 @@ def make_build_image(name, replace=False):
     instance = Instance("make_build_image", **BUILD_INSTANCE)
     instance.start()
 
-    for command in BUILD_COMMANDS.split("\n")[1:-1]:
+    for command in ENVIRONMENT_COMMANDS.split("\n")[1:-1]:
         log.debug("make_build_image: Running a build command.")
         status, stdout, stderr = instance.run_command(command)
         if status != 0:
@@ -470,7 +487,22 @@ def make_executables(path, instance):
         instance (EC2Instance): The instance on which to compile. Should use an
             AMI produced by `make_build_image`.
     """
-    pass
+    log = logging.getLogger("cirrus.automate.make_executables")
+
+    log.debug("make_executables: Running build commands.")
+    for command in BUILD_COMMANDS.split("\n")[1:-1]:
+        status, stdout, stderr = instance.run_command(command)
+        if status != 0:
+            MESSAGE = "A build command had nonzero exit status."
+            print("="*10, MESSAGE, "="*10)
+            print("command:", command, "\n")
+            print("stdout:", stdout, "\n")
+            print("stderr:", stderr, "\n")
+            raise RuntimeError(MESSAGE)
+
+    log.debug("make_executables:  Publishing executables.")
+    for executable in EXECUTABLES:
+        instance.upload_s3(f"~/cirrus/src/{executable}", f"{path}/{executable}")
 
 
 def make_lambda_package(path, executables_path):
@@ -553,4 +585,10 @@ if __name__ == "__main__":
     log.setLevel(logging.DEBUG)
     log.addHandler(logging.StreamHandler(sys.stdout))
 
-    make_build_image("build_image", replace=True)
+    # make_build_image("build_image", replace=True)
+    config = dict(BUILD_INSTANCE)
+    del config["ami_id"]
+    instance = Instance("test", ami_name="build_image", **config)
+    instance.start()
+    make_executables("s3://cirrus-public", instance)
+

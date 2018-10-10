@@ -91,7 +91,8 @@ def NormalScaler(s3_bucket_input, s3_bucket_output, objects=[], dry_run=False):
 
 
 def get_global_map(s3_bucket_input, objects):
-    # Aggregate the sample means, std. devs., etc. to get the global map.client = boto3.client("s3")
+    # Aggregate the sample means, std. devs., etc. to get the global map.
+    client = boto3.client("s3")
     f_ranges = {}
     for i in objects:
         obj = client.get_object(Bucket=s3_bucket_input,

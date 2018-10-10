@@ -22,7 +22,6 @@ class LocalBounds(LambdaThread):
             "normalization": "MIN_MAX",
             "use_redis": redis_signal
         }
-        print("Running with the following dictionary: {0}".format(self.d))
 
 
 class LocalScale(LambdaThread):
@@ -39,7 +38,6 @@ class LocalScale(LambdaThread):
             "normalization": "MIN_MAX",
             "use_redis": redis_signal
         }
-        print("Running with the following dictionary: {0}".format(self.d))
 
 
 def MinMaxScaler(s3_bucket_input, s3_bucket_output, lower, upper, objects=[], use_redis=True, dry_run=False, skip_bounds=False):

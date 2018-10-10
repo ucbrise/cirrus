@@ -53,12 +53,6 @@ cd cmake-3.10.0; make
 cd cmake-3.10.0; sudo make install
 """
 
-# The interval at which to poll for an AMI becoming available, in seconds.
-IMAGE_POLL_INTERVAL = 10
-
-# The maximum number of times to poll for an AMI becoming available.
-IMAGE_POLL_MAX = (5 * 60) // IMAGE_POLL_INTERVAL
-
 # A series of commands that results in ~/cirrus/src containing Cirrus'
 #   executables.
 BUILD_COMMANDS = """
@@ -71,9 +65,90 @@ cd cirrus; make -j 10
 # The filenames of Cirrus' executables.
 EXECUTABLES = ("parameter_server", "ps_test", "csv_to_libsvm")
 
+# The level of compression to use when creating the Lambda ZIP package.
+LAMBDA_COMPRESSION = zipfile.ZIP_DEFLATED
+
+# The name to give to the file containing the Lambda's handler code.
+LAMBDA_HANDLER_FILENAME = "main.py"
+
+# The Lambda's handler code.
+LAMBDA_HANDLER = """
+import json
+import os
+import subprocess
+
+CONFIG_PATH = "/tmp/config.cfg"
+
+
+def run(event, context):
+    executable_path = os.path.join(os.environ["LAMBDA_TASK_ROOT"],
+                                   "parameter_server")
+
+    with open(CONFIG_PATH, "w+") as f:
+        f.write(event["config"])
+
+    try:
+        output = subprocess.check_output([
+                executable_path,
+                "--config", CONFIG_PATH,
+                "--nworkers", str(event["num_workers"]),
+                "--rank", str(3),
+                "--ps_ip", event["ps_ip"],
+                "--ps_port", str(event["ps_port"])
+            ], stderr=subprocess.STDOUT, shell=True)
+    except subprocess.CalledProcessError as e:
+        return {
+            "statusCode": 500,
+            "body": json.dumps("The worker errored! The stdout/stderr was as "
+                               "follows.\\n" + e.output.decode("utf-8"))
+        }
+    return {
+        "statusCode": 200,
+        "body": json.dumps("The worker ran successfully. The stdout/stderr was "
+                           "as follows.\\n" + output.decode("utf-8"))
+    }
+"""
+
+# The estimated delay of S3's eventual consistency, in seconds.
+S3_CONSISTENCY_DELAY = 20
+
 
 class Instance(object):
     """An EC2 instance."""
+
+    # The interval at which to poll for an AMI becoming available, in seconds.
+    IMAGE_POLL_INTERVAL = 10
+
+    # The maximum number of times to poll for an AMI becoming available.
+    IMAGE_POLL_MAX = (5 * 60) // IMAGE_POLL_INTERVAL
+
+    @staticmethod
+    def images_exist(name):
+        ec2 = boto3.resource("ec2", BUILD_INSTANCE["region"])
+
+        log.debug("images_exist: Describing images.")
+        response = ec2.meta.client.describe_images(
+            Filters=[{"Name": "name", "Values": [name]}], Owners=["self"])
+        result = len(response["Images"]) > 0
+
+        log.debug("images_exist: Done.")
+
+        return result
+
+
+    @staticmethod
+    def delete_images(name):
+        ec2 = boto3.resource("ec2", BUILD_INSTANCE["region"])
+
+        log.debug("delete_images: Describing images.")
+        response = ec2.meta.client.describe_images(
+            Filters=[{"Name": "name", "Values": [name]}], Owners=["self"])
+
+        for info in response["Images"]:
+            log.debug(f"delete_images: Deleting image {info['ImageId']}.")
+            ec2.Image(info["ImageId"]).deregister()
+
+        log.debug("delete_images: Done.")
 
     def __init__(self, name, region, disk_size, typ, username, ami_id=None, ami_name=None):
         """Define an EC2 instance.
@@ -215,6 +290,31 @@ class Instance(object):
             src,
             dest
         )))
+
+
+    def save_image(self, name):
+        """Create an AMI from the current state of this instance.
+
+        Args:
+            name (str): The name to give the AMI.
+        """
+        log.debug("save_image: Starting image creation.")
+        image = self.instance.create_image(Name=name)
+
+        log.debug("save_image: Waiting for image creation.")
+        image.wait_until_exists()
+        for i in range(self.IMAGE_POLL_MAX):
+            log.debug(f"make_build_image: Doing poll #{i+1} out of "
+                      f"{self.IMAGE_POLL_MAX}.")
+            image.reload()
+            if image.state == "available":
+                break
+            time.sleep(self.IMAGE_POLL_INTERVAL)
+        else:
+            raise RuntimeError("AMI did not become available within time "
+                               "constraints.")
+
+        log.debug("save_image: Done.")
 
 
     def cleanup(self):
@@ -425,14 +525,10 @@ def make_build_image(name, replace=False):
     ec2 = boto3.resource("ec2", BUILD_INSTANCE["region"])
 
     log.debug("make_build_image: Checking for already-existent images.")
-    response = ec2.meta.client.describe_images(
-        Filters=[{"Name": "name", "Values": [name]}], Owners=["self"])
     if replace:
-        for info in response["Images"]:
-            log.debug("make_build_image: Deleting an already-existent image.")
-            ec2.Image(info["ImageId"]).deregister()
+        Instance.delete_images(name)
     else:
-        if len(response["Images"]) > 0:
+        if Instance.images_exist(name):
             log.debug("make_build_image: Done.")
             return
 
@@ -456,21 +552,7 @@ def make_build_image(name, replace=False):
             print()
             raise RuntimeError("A build command errored.")
 
-    log.debug("make_build_image: Starting image creation.")
-    image = instance.instance.create_image(Name=name)
-
-    log.debug("make_build_image: Waiting for image creation.")
-    image.wait_until_exists()
-    for i in range(IMAGE_POLL_MAX):
-        log.debug(f"make_build_image: Doing poll #{i+1} out of " \
-                  f"{IMAGE_POLL_MAX}.")
-        image.reload()
-        if image.state == "available":
-            break
-        time.sleep(IMAGE_POLL_INTERVAL)
-    else:
-        raise RuntimeError("AMI did not become available within time " \
-                           "constraints.")
+    instance.save_image(name)
 
     log.debug("make_build_image: Cleaning up instance.")
     instance.cleanup()
@@ -518,42 +600,43 @@ def make_lambda_package(path, executables_path):
     assert path.startswith("s3://")
     assert executables_path.startswith("s3://")
 
-    print("make_lambda_package: Initializing ZIP file.")
+    log = logging.getLogger("cirrus.automate.make_lambda_package")
+
+    log.debug("make_lambda_package: Initializing ZIP file.")
     file = io.BytesIO()
     with zipfile.ZipFile(file, "w", LAMBDA_COMPRESSION) as zip:
-
-        print(f"make_lambda_package: Writing handler.")
+        log.debug(f"make_lambda_package: Writing handler.")
         info = zipfile.ZipInfo(LAMBDA_HANDLER_FILENAME)
         info.external_attr = 0o777 << 16  # Allow, in particular, execute permissions.
         zip.writestr(info, LAMBDA_HANDLER)
 
-        print(f"make_lambda_package: Initializing S3.")
+        log.debug("make_lambda_package: Initializing S3.")
         s3_client = boto3.client("s3")
         executable = io.BytesIO()
 
-        print(f"make_lambda_package: Downloading executable.")
+        log.debug("make_lambda_package: Downloading executable.")
         executables_path += "/parameter_server"
         bucket, key = _split_s3_url(executables_path)
         s3_client.download_fileobj(bucket, key, executable)
 
-        print(f"make_lambda_package: Writing executable.")
+        log.debug("make_lambda_package: Writing executable.")
         info = zipfile.ZipInfo("parameter_server")
         info.external_attr = 0o777 << 16  # Allow, in particular, execute permissions.
         executable.seek(0)
         zip.writestr(info, executable.read())
 
-    print(f"make_lambda_package: Uploading package.")
+    log.debug("make_lambda_package: Uploading package.")
     file.seek(0)
     bucket, key = _split_s3_url(path)
     s3_client.upload_fileobj(file, bucket, key)
 
-    print(f"make_lambda_package: Waiting for changes to take effect.")
+    log.debug("make_lambda_package: Waiting for changes to take effect.")
     # Waits for S3's eventual consistency to catch up. Ideally, something more sophisticated would be used since the
     #   delay distribution is heavy-tailed. But this should in most cases ensure the package is visible on S3 upon
     #   return.
     time.sleep(S3_CONSISTENCY_DELAY)
 
-    print(f"make_lambda_package: Done.")
+    log.debug("make_lambda_package: Done.")
 
 
 def make_server_image(name, executables_path, instance):
@@ -566,7 +649,20 @@ def make_server_image(name, executables_path, instance):
         instance (EC2Instance): The instance to use to set up the image. Should
             use an AMI produced by `make_build_image`.
     """
-    pass
+    assert executables_path.startswith("s3://")
+
+    log = logging.getLogger("cirrus.automate.make_server_image")
+
+    log.debug("make_server_image: Checking for already-existent images.")
+    Instance.delete_images(name)
+
+    log.debug("make_server_image: Putting parameter_server executable on instance.")
+    instance.download_s3(executables_path + "/parameter_server", "~/parameter_server")
+
+    log.debug("make_server_image: Creating image from instance.")
+    instance.save_image(name)
+
+    log.debug("make_server_image: Done.")
 
 
 def make_lambda(name, lambda_package_path):
@@ -634,10 +730,11 @@ if __name__ == "__main__":
     log.addHandler(logging.StreamHandler(sys.stdout))
 
     #make_build_image("build_image", replace=True)
-    #config = dict(BUILD_INSTANCE)
-    #del config["ami_id"]
-    #instance = Instance("test", ami_name="build_image", **config)
-    #instance.start()
+    config = dict(BUILD_INSTANCE)
+    del config["ami_id"]
+    instance = Instance("test", ami_name="build_image", **config)
+    instance.start()
     #make_executables("s3://cirrus-public", instance)
-    make_lambda_package("s3://cirrus-public/lambda-package/v1", "s3://cirrus-public")
+    #make_lambda_package("s3://cirrus-public/lambda-package/v1", "s3://cirrus-public")
+    make_server_image("server_image", "s3://cirrus-public", instance)
 

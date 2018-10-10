@@ -42,7 +42,8 @@ class LogisticRegressionTask(BaseTask):
 
 def LogisticRegression(
             n_workers,
-            worker_size,
+            n_ps,
+            lambda_size,
             dataset,
             learning_rate, 
             progress_callback,
@@ -68,7 +69,8 @@ def LogisticRegression(
     return LogisticRegressionTask(
             n_workers=n_workers,
             n_ps=1,
-            worker_size=worker_size,
+            lambda_size=lambda_size,
+            n_ps=n_ps,
             dataset=dataset,
             learning_rate=learning_rate,
             epsilon=epsilon,

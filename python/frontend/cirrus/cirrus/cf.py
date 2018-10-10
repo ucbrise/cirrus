@@ -38,7 +38,7 @@ class CollaborativeFilteringTask(BaseTask):
 def CollaborativeFiltering(
             n_workers,
             n_ps,
-            worker_size,
+            lambda_size,
             dataset,
         learning_rate, epsilon,
         progress_callback,
@@ -62,7 +62,7 @@ def CollaborativeFiltering(
     return CollaborativeFilteringTask(
             n_workers=n_workers,
             n_ps=n_ps,
-            worker_size=worker_size,
+            lambda_size=lambda_size,
             dataset=dataset,
             learning_rate=learning_rate,
             epsilon=epsilon,

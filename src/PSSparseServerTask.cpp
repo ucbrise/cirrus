@@ -35,7 +35,8 @@ PSSparseServerTask::PSSparseServerTask(uint64_t model_size,
              ps_ip,
              ps_port),
       kill_signal(false),
-      main_thread(0) {
+      main_thread(0),
+      threads_barrier(new pthread_barrier_t, destroy_pthread_barrier) {
   std::cout << "PSSparseServerTask is built" << std::endl;
 
   std::atomic_init(&gradientUpdatesCount, 0UL);
@@ -53,8 +54,7 @@ PSSparseServerTask::PSSparseServerTask(uint64_t model_size,
   operation_to_name[9] = "GET_NUM_CONNS";
 
   for (int i = 0; i < NUM_PS_WORK_THREADS; i++) {
-    thread_msg_buffer[i] =
-        new char[THREAD_MSG_BUFFER_SIZE];  // per-thread buffer
+    thread_msg_buffer[i].reset(new char[THREAD_MSG_BUFFER_SIZE]);
   }
 }
 
@@ -174,16 +174,15 @@ bool PSSparseServerTask::process_get_mf_sparse_model(
 #endif
 
   SparseMFModel sparse_mf_model((uint64_t) 0, 0, 0);
-  sparse_mf_model.serializeFromDense(
-      *mf_model, base_user_id, minibatch_size,
-      k_items, thread_buffer.data(), thread_msg_buffer[thread_number]);
-
+  sparse_mf_model.serializeFromDense(*mf_model, base_user_id, minibatch_size,
+                                     k_items, thread_buffer.data(),
+                                     thread_msg_buffer[thread_number].get());
   //uint32_t to_send_size = data_to_send.size();
   if (send_all(req.sock, &to_send_size, sizeof(uint32_t)) == -1) {
     return false;
   }
-  if (send_all(req.sock, thread_msg_buffer[thread_number], to_send_size) ==
-      -1) {
+  if (send_all(req.sock, thread_msg_buffer[thread_number].get(),
+               to_send_size) == -1) {
     return false;
   }
   return true;
@@ -483,16 +482,27 @@ void PSSparseServerTask::start_server() {
   lr_model.reset(new SparseLRModel(model_size));
   lr_model->randomize();
 
-  sem_init(&sem_new_req, 0, 0);
+  mf_model.reset(new MFModel(task_config.get_users(), task_config.get_items(),
+                             NUM_FACTORS));
+  mf_model->randomize();
 
-  for (int i = NUM_POLL_THREADS - 1; i >= 0; i--) {
-    server_threads.push_back(std::make_unique<std::thread>(
-          std::bind(&PSSparseServerTask::main_poll_thread_fn, this, i)));
-  }
+
+  sem_init(&sem_new_req, 0, 0);
 
   for (uint32_t i = 0; i < NUM_PS_WORK_THREADS; ++i) {
     gradient_thread.push_back(std::make_unique<std::thread>(
           std::bind(&PSSparseServerTask::gradient_f, this)));
+  }
+
+  // create barrier for all poll threads
+  if (pthread_barrier_init(threads_barrier.get(), nullptr, NUM_POLL_THREADS) !=
+      0) {
+    throw std::runtime_error("Error in threads barrier");
+  }
+
+  for (int i = 0; i < NUM_POLL_THREADS; i++) {
+    server_threads.push_back(std::make_unique<std::thread>(
+        std::bind(&PSSparseServerTask::main_poll_thread_fn, this, i)));
   }
 
   // start checkpoing thread
@@ -558,6 +568,9 @@ void PSSparseServerTask::main_poll_thread_fn(int poll_id) {
     curr_indexes[poll_id] = 1;
 
   }
+
+  pthread_barrier_wait(threads_barrier.get());
+
   loop(poll_id);
 }
 
@@ -763,6 +776,15 @@ void PSSparseServerTask::checkpoint_model_file(
   std::ofstream fout(filename.c_str(), std::ofstream::binary);
   fout.write(data.get(), model_size);
   fout.close();
+}
+
+void PSSparseServerTask::destroy_pthread_barrier(pthread_barrier_t* barrier) {
+  // this fails if barrier has been allocated but not initialized
+  // we don't handle this situation
+  if (pthread_barrier_destroy(barrier) != 0) {
+    throw std::runtime_error("Error destroying barrier");
+  }
+  delete barrier;
 }
 
 } // namespace cirrus

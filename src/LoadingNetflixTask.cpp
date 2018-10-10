@@ -12,8 +12,8 @@ SparseDataset LoadingNetflixTask::read_dataset(
     const Configuration& config,
     int& number_movies, int& number_users) {
   InputReader input;
-  SparseDataset dataset =
-    input.read_netflix_ratings(config.get_input_path(), &number_movies, &number_users);
+  SparseDataset dataset = input.read_netflix_ratings(
+      config.get_load_input_path(), &number_movies, &number_users);
   std::cout << "Processed netflix dataset."
     << " #movies: " << number_movies
     << " #users: " << number_users
@@ -55,7 +55,6 @@ void LoadingNetflixTask::run(const Configuration& config) {
   std::cout << "[LOADER-SPARSE] " << "Reading Netflix input..." << std::endl;
 
   uint64_t s3_obj_num_samples = config.get_s3_size();
-  s3_initialize_aws();
   std::unique_ptr<S3Client> s3_client = std::make_unique<S3Client>();
 
   int number_movies, number_users;

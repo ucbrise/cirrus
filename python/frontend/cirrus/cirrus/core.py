@@ -19,7 +19,7 @@ class BaseTask(object):
 
     def __init__(self,
             n_workers,
-            worker_size,
+            lambda_size,
             n_ps,
             dataset,
             learning_rate,
@@ -44,7 +44,6 @@ class BaseTask(object):
         self.thread = threading.Thread(target=self.run)
         self.n_workers = n_workers
         self.n_ps = n_ps
-        self.worker_size = worker_size
         self.dataset=dataset
         self.learning_rate = learning_rate
         self.epsilon = epsilon
@@ -78,7 +77,7 @@ class BaseTask(object):
                     self.n_ps,
                     0,
                     self.n_workers,
-                    self.worker_size)
+                    self.lambda_size)
 
         self.time_cps_lst = []
         self.time_ups_lst = []

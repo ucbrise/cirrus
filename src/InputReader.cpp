@@ -27,6 +27,7 @@ static const int REPORT_LINES = 10000;    // how often to report readin progress
 static const int REPORT_THREAD = 100000;  // how often proc. threads report
 static const int MAX_STR_SIZE = 10000;    // max size for dataset line
 static const int RCV1_STR_SIZE = 20000;   // max size for dataset line
+static const int JESTER_DEFAULT = 10000;  // default size for Jester dataset
 
 Dataset InputReader::read_input_criteo(const std::string& samples_input_file,
     const std::string& labels_input_file) {
@@ -439,6 +440,46 @@ SparseDataset InputReader::read_movielens_ratings(const std::string& input_file,
 
     *number_users = std::max(*number_users, userId);
     *number_movies = std::max(*number_movies, movieId);
+  }
+
+  return SparseDataset(sparse_ds);
+}
+
+// TODO: Consolidate with read MovieLens function.
+SparseDataset InputReader::read_jester_ratings(const std::string& input_file,
+                                               int* number_users,
+                                               int* number_jokes) {
+  std::ifstream fin(input_file, std::ifstream::in);
+  if (!fin) {
+    throw std::runtime_error("Error opening input file " + input_file);
+  }
+
+  *number_jokes = *number_users = 0;
+
+  std::vector<std::vector<std::pair<int, FEATURE_TYPE>>> sparse_ds;
+
+  sparse_ds.resize(JESTER_DEFAULT);
+
+  std::string line;
+  while (getline(fin, line)) {
+    char str[MAX_STR_SIZE];
+    // Ignore empty or malformed lines.
+    if (line.size() < 3)
+      continue;
+    assert(line.size() < MAX_STR_SIZE - 1);
+    strncpy(str, line.c_str(), MAX_STR_SIZE - 1);
+    char* s = str;
+    char* l = strsep(&s, ",");
+    int userId = string_to<int>(l);
+    l = strsep(&s, ",");
+    int jokeId = string_to<int>(l);
+    l = strsep(&s, ",");
+    FEATURE_TYPE rating = string_to<FEATURE_TYPE>(l);
+
+    sparse_ds[userId].push_back(std::make_pair(jokeId, rating));
+
+    *number_users = std::max(*number_users, userId);
+    *number_jokes = std::max(*number_jokes, jokeId);
   }
 
   return SparseDataset(sparse_ds);

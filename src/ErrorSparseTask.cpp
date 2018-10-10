@@ -173,7 +173,7 @@ void ErrorSparseTask::run(const Configuration& config) {
 
   // get data first
   // what we are going to use as a test set
-  std::vector<SparseDataset> minibatches_vec;
+  std::vector<std::shared_ptr<SparseDataset>> minibatches_vec;
   std::cout << "[ERROR_TASK] getting minibatches from "
     << left << " to " << right
     << std::endl;
@@ -187,6 +187,7 @@ void ErrorSparseTask::run(const Configuration& config) {
         reinterpret_cast<const char*>(minibatch_data),
         config.get_minibatch_size(),
         config.get_model_type() == Configuration::LOGISTICREGRESSION);
+
     minibatches_vec.push_back(ds);
   }
 
@@ -229,11 +230,12 @@ void ErrorSparseTask::run(const Configuration& config) {
 
       for (auto& ds : minibatches_vec) {
         std::pair<FEATURE_TYPE, FEATURE_TYPE> ret =
-            model->calc_loss(ds, start_index);
+        model->calc_loss(ds, start_index);
+
         total_loss += ret.first;
         total_accuracy += ret.second;
-        total_num_samples += ds.num_samples();
-        total_num_features += ds.num_features();
+        total_num_samples += ds->num_samples();
+        total_num_features += ds->num_features();
         start_index += config.get_minibatch_size();
         if (config.get_model_type() == Configuration::LOGISTICREGRESSION) {
           curr_error = (total_loss / total_num_samples);

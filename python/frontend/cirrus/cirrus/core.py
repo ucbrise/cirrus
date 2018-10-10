@@ -29,7 +29,6 @@ class BaseTask(object):
             n_workers,
             lambda_size,
             n_ps,
-            worker_size,
             dataset,
             learning_rate,
             epsilon,
@@ -52,9 +51,7 @@ class BaseTask(object):
             ):
         self.thread = threading.Thread(target=self.run)
         self.n_workers = n_workers
-        self.lambda_size = lambda_size
         self.n_ps = n_ps
-        self.worker_size = worker_size
         self.dataset=dataset
         self.learning_rate = learning_rate
         self.epsilon = epsilon
@@ -88,7 +85,7 @@ class BaseTask(object):
                     self.n_ps,
                     0,
                     self.n_workers,
-                    self.worker_size)
+                    self.lambda_size)
 
         self.start_time = time.time()
 
@@ -109,7 +106,87 @@ class BaseTask(object):
         return string
 
 
+    def get_cost_per_second(self):
+        return self.time_cps_lst
 
+    def get_num_lambdas(self, fetch=True):
+        if self.is_dead():
+            return 0
+        if fetch:
+            out = messenger.get_num_lambdas(self.ps_ip_public, self.ps_ip_port)
+            if out is not None:
+                self.last_num_lambdas = out
+            return self.last_num_lambdas
+        else:
+            return self.last_num_lambdas
+
+    def get_updates_per_second(self, fetch=True):
+        if self.is_dead():
+            return self.time_ups_lst
+        if fetch:
+            t = time.time() - self.start_time
+            ups = messenger.get_num_updates(self.ps_ip_public, self.ps_ip_port)
+            self.time_ups_lst.append((t, ups))
+
+            cost_per_second = self.cost_model.get_cost(t)
+            if ups is not None and not (ups == 0):
+                self.time_cps_lst.append((t, cost_per_second / ups))
+
+            return self.time_ups_lst
+        else:
+            return self.time_ups_lst
+
+        num_lambdas = self.get_num_lambdas()
+        self.get_updates_per_second()
+        num_task = 3
+
+        if num_lambdas == None:
+            return
+
+        if num_lambdas < self.n_workers:
+            shortage = self.n_workers - num_lambdas
+
+            payload = '{"num_task": %d, "num_workers": %d, "ps_ip": \"%s\", "ps_port": %d}' \
+                        % (num_task, self.n_workers, self.ps_ip_private, self.ps_ip_port)
+            for i in range(shortage):
+                try:
+                    response = lambda_client.invoke(
+                        FunctionName="%s_%d" % (lambda_name, self.worker_size),
+                        InvocationType='Event',
+                        LogType='Tail',
+                        Payload=payload)
+                except Exception as e:
+                    print "client.invoke exception caught"
+                    print str(e)
+
+    def get_time_loss(self, rtl=False):
+
+        if self.is_dead():
+            if rtl:
+                return self.real_time_loss_lst
+            else:
+                return self.time_loss_lst
+        out = messenger.get_last_time_error(self.ps_ip_public, self.ps_ip_port + 1)
+        if out == None:
+            if rtl:
+                return self.real_time_loss_lst
+            else:
+                return self.time_loss_lst
+        t, loss, real_time_loss = out
+
+        if t == 0:
+            if rtl:
+                return self.real_time_loss_lst
+            else:
+                return self.time_loss_lst
+
+        if len(self.time_loss_lst) == 0 or not ((t, loss) == self.time_loss_lst[-1]):
+            self.time_loss_lst.append((t, loss))
+        self.real_time_loss_lst.append((time.time() - self.start_time, real_time_loss))
+        if rtl:
+            return self.real_time_loss_lst
+        else:
+            return self.time_loss_lst
 
     def run(self):
         self.define_config(self.ps_ip_public)
@@ -139,7 +216,7 @@ class BaseTask(object):
 
     def launch_ps(self, command_dict=None):
         cmd = 'nohup ./parameter_server --config config_%d.txt --nworkers %d --rank 1 --ps_port %d &> ps_out_%d & ' % (
-            self.ps_ip_port, self.n_workers * 2, self.ps_ip_port, self.ps_ip_port)
+            self.ps_ip_port, self.n_workers * 100, self.ps_ip_port, self.ps_ip_port)
         if command_dict is not None:
             command_dict[self.ps_ip_public].append(cmd)
         else:

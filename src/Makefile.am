@@ -4,9 +4,7 @@ AUTOMAKE_OPTIONS = foreign
 
 CXX = g++
 
-bin_PROGRAMS = parameter_server ps_test csv_to_libsvm $(TOP_DIR)/tests/test_travis/test_lr \
-	       $(TOP_DIR)/tests/test_travis/test_ps $(TOP_DIR)/tests/test_travis/worker \
-	       $(TOP_DIR)/tests/test_travis/error
+bin_PROGRAMS = parameter_server ps_test csv_to_libsvm 
 
 LIBS         =  -laws-cpp-sdk-s3 -laws-cpp-sdk-core \
 		-lcurl -lssl -lcrypto -lz -ldl -lkrb5 -lk5crypto \
@@ -46,28 +44,12 @@ CPP_SOURCES = InputReader.cpp Utils.cpp \
 	      MFNetflixTask.cpp \
 	      LoadingSparseTaskS3.cpp LoadingNetflixTask.cpp \
               TasksWait.cpp MurmurHash3.cpp \
-	      S3Iterator.cpp S3SparseIterator.cpp \
-	      PerformanceLambdaTask.cpp \
+	      S3SparseIterator.cpp S3Iterator.cpp S3IteratorLibsvm.cpp \
 	      S3.cpp SparseDataset.cpp \
-	      PSSparseServerTask.cpp PSSparseServerInterface.cpp MultiplePSSparseServerInterface.cpp
-
-CPP_SOURCES_SOFTMAX = InputReader.cpp Utils.cpp \
-              Dataset.cpp Matrix.cpp Model.cpp LRModel.cpp \
-              ModelGradient.cpp MlUtils.cpp Configuration.cpp \
-              Checksum.cpp SoftmaxModel.cpp \
-              Serializers.cpp  \
-              SparseDataset.cpp MurmurHash3.cpp
+	      PSSparseServerTask.cpp PSSparseServerInterface.cpp
 
 parameter_server_SOURCES  = parameter_server.cpp $(CPP_SOURCES)
 
 ps_test_SOURCES = PSSparseServerTaskTest.cpp $(CPP_SOURCES)
 
 csv_to_libsvm_SOURCES = CriteoCsvToLibSVM.cpp $(CPP_SOURCES)
-
-__TOP_DIR__tests_test_travis_test_lr_SOURCES = $(TOP_DIR)/tests/test_travis/check_correctness_cirrus_sgd.cpp $(CPP_SOURCES)
-
-__TOP_DIR__tests_test_travis_test_ps_SOURCES = $(TOP_DIR)/tests/test_travis/ps_test.cpp $(CPP_SOURCES)
-
-__TOP_DIR__tests_test_travis_worker_SOURCES = $(TOP_DIR)/tests/test_travis/worker.cpp $(CPP_SOURCES)
-
-__TOP_DIR__tests_test_travis_error_SOURCES = $(TOP_DIR)/tests/test_travis/error.cpp $(CPP_SOURCES)

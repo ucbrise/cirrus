@@ -131,7 +131,7 @@ def get_traces(num, metric=BaseTask.LOSS_VS_TIME):
                 name=get_name_for(i),
                 mode='markers+lines',
                 line = dict(color = bundle.get_info(i, 'color')),
-                customdata =str(i) * lll
+                customdata = [str(i)] * lll
             )
             trace_lst.append(trace)
     else:
@@ -149,7 +149,7 @@ def get_traces(num, metric=BaseTask.LOSS_VS_TIME):
                 name=get_name_for(i),
                 mode='markers+lines',
                 line = dict(color = (bundle.get_info(i, 'color'))),
-                customdata= str(i) * lll
+                customdata= [str(i)] * lll
             )
             if (len(ys) > 0):
                 q.append((ys[-1], trace))
@@ -189,6 +189,7 @@ def get_info_for(i):
     return bundle.get_info_for(i)
 
 # Callbacks
+
 
 # Kill and Info logic
 @app.callback(
@@ -286,14 +287,25 @@ def gen_cost(interval):
         State('mapControls', 'values')
     ])
 def gen_loss(interval, menu, graph_type, oldfig, relayoutData, lockCamera):
-    if menu=="top_ten":
-        how_many = -5
+
+    if menu == "top_ten":
+        if graph_type == "LOSS":
+            how_many = -5
+        elif graph_type == "CPS":
+            how_many = -5
+        elif graph_type == "UPS":
+            how_many = 5
     elif menu == 'last_ten':
-        how_many = 5
+        if graph_type == "LOSS":
+            how_many = 5
+        elif graph_type == "CPS":
+            how_many = 5
+        elif graph_type == "UPS":
+            how_many = -5
     else:
         how_many = 0
 
-    trace_lst = get_traces(how_many, graph_type)
+    trace_lst = get_traces(how_many, metric=graph_type)
 
     graph_names = {
             BaseTask.LOSS_VS_TIME : "Loss", 

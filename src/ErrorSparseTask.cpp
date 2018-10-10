@@ -138,8 +138,10 @@ void ErrorSparseTask::error_response() {
 
     if (operation == GET_LAST_TIME_ERROR) {
       double time_error[4] = {last_time, last_error, curr_error, total_loss};
-
       ret = sendto(fd, time_error, 4 * sizeof(double), 0,
+      double time_error[3] = {last_time, last_error, curr_error};
+      std::cout << "Current error: " << curr_error << std::endl;
+      ret = sendto(fd, time_error, 3 * sizeof(double), 0,
                    (struct sockaddr*) &remaddr, addrlen);
       if (ret < 0) {
         throw std::runtime_error("Error in sending response");
@@ -175,10 +177,11 @@ void ErrorSparseTask::run(const Configuration& config) {
 
   // get data first
   // what we are going to use as a test set
-  std::vector<SparseDataset> minibatches_vec;
+  std::vector<std::shared_ptr<SparseDataset>> minibatches_vec;
   std::cout << "[ERROR_TASK] getting minibatches from "
-            << config.get_train_range().first << " to "
-            << config.get_train_range().second << std::endl;
+    << left << " to " << right
+    << std::endl;
+
 
   uint32_t minibatches_per_s3_obj =
       config.get_s3_size() / config.get_minibatch_size();
@@ -188,6 +191,7 @@ void ErrorSparseTask::run(const Configuration& config) {
         reinterpret_cast<const char*>(minibatch_data),
         config.get_minibatch_size(),
         config.get_model_type() == Configuration::LOGISTICREGRESSION);
+
     minibatches_vec.push_back(ds);
   }
 
@@ -230,17 +234,18 @@ void ErrorSparseTask::run(const Configuration& config) {
 
       for (auto& ds : minibatches_vec) {
         std::pair<FEATURE_TYPE, FEATURE_TYPE> ret =
-            model->calc_loss(ds, start_index);
+        model->calc_loss(ds, start_index);
         total_loss = total_loss + ret.first;
+
         total_accuracy += ret.second;
-        total_num_samples += ds.num_samples();
-        total_num_features += ds.num_features();
+        total_num_samples += ds->num_samples();
+        total_num_features += ds->num_features();
         start_index += config.get_minibatch_size();
         if (config.get_model_type() == Configuration::LOGISTICREGRESSION) {
-          curr_error = (total_loss / total_num_features);
+          curr_error = (total_loss / total_num_samples);
         } else if (config.get_model_type() ==
                    Configuration::COLLABORATIVE_FILTERING) {
-          curr_error = std::sqrt(total_loss / total_num_features);
+          curr_error = std::sqrt(total_loss / total_num_samples);
         }
       }
 
@@ -252,9 +257,8 @@ void ErrorSparseTask::run(const Configuration& config) {
                   << " Accuracy: " << (total_accuracy / minibatches_vec.size())
                   << " time(us): " << get_time_us()
                   << " time from start (sec): " << last_time << std::endl;
-      } else if (config.get_model_type() ==
-                 Configuration::COLLABORATIVE_FILTERING) {
-        last_error = std::sqrt(total_loss / total_num_features);
+      } else if (config.get_model_type() == Configuration::COLLABORATIVE_FILTERING) {
+        last_error = std::sqrt(total_loss / total_num_samples);
         std::cout << "[ERROR_TASK] RMSE (Total): " << last_error
                   << " time(us): " << get_time_us()
                   << " time from start (sec): " << last_time << std::endl;

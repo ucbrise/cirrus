@@ -1,24 +1,22 @@
 #include <Tasks.h>
 
-#include <pthread.h>
-#include <memory>
-#include "MultiplePSSparseServerInterface.h"
-#include "PSSparseServerInterface.h"
-#include "S3SparseIterator.h"
 #include "Serializers.h"
 #include "Utils.h"
+#include "S3SparseIterator.h"
+#include "PSSparseServerInterface.h"
+
+#include <pthread.h>
 
 #undef DEBUG
 
 namespace cirrus {
 
 void LogisticSparseTaskS3::push_gradient(LRSparseGradient* lrg) {
+#ifdef DEBUG
   auto before_push_us = get_time_us();
-
-  if (is_sharded)
-    sparse_model_get->mpsi->send_gradient(*lrg);
-  else
-    sparse_model_get->psi->send_lr_gradient(*lrg);
+  std::cout << "Publishing gradients" << std::endl;
+#endif
+  psint->send_lr_gradient(*lrg);
 #ifdef DEBUG
   std::cout << "Published gradients!" << std::endl;
   auto elapsed_push_us = get_time_us() - before_push_us;
@@ -41,18 +39,16 @@ void LogisticSparseTaskS3::push_gradient(LRSparseGradient* lrg) {
 
 // get samples and labels data
 bool LogisticSparseTaskS3::get_dataset_minibatch(
-    std::unique_ptr<SparseDataset>& dataset,
+    std::shared_ptr<SparseDataset>& dataset,
     S3SparseIterator& s3_iter) {
 #ifdef DEBUG
   auto start = get_time_us();
 #endif
 
-  const void* minibatch = s3_iter.get_next_fast();
+  dataset = s3_iter.getNext();
 #ifdef DEBUG
   auto finish1 = get_time_us();
 #endif
-  dataset.reset(new SparseDataset(reinterpret_cast<const char*>(minibatch),
-        config.get_minibatch_size())); // this takes 11 us
 
 #ifdef DEBUG
   auto finish2 = get_time_us();
@@ -70,15 +66,15 @@ bool LogisticSparseTaskS3::get_dataset_minibatch(
 }
 
 void LogisticSparseTaskS3::run(const Configuration& config, int worker) {
-  std::cout << "Starting LogisticSparseTaskS3 " << ps_ips.size() << std::endl;
+  std::cout << "Starting LogisticSparseTaskS3"
+    << std::endl;
   uint64_t num_s3_batches = config.get_limit_samples() / config.get_s3_size();
   this->config = config;
 
-  if (is_sharded)
-    sparse_model_get = std::make_unique<SparseModelGet>(ps_ips, ps_ports);
-  else
-    sparse_model_get = std::make_unique<SparseModelGet>(ps_ip, ps_port);
-
+  psint = new PSSparseServerInterface(ps_ip, ps_port);
+  psint->connect();
+  sparse_model_get = std::make_unique<SparseModelGet>(ps_ip, ps_port);
+  
   std::cout << "[WORKER] " << "num s3 batches: " << num_s3_batches
     << std::endl;
   wait_for_start(worker, nworkers);
@@ -103,7 +99,7 @@ void LogisticSparseTaskS3::run(const Configuration& config, int worker) {
 #ifdef DEBUG
     std::cout << get_time_us() << " [WORKER] running phase 1" << std::endl;
 #endif
-    std::unique_ptr<SparseDataset> dataset;
+    std::shared_ptr<SparseDataset> dataset;
     if (!get_dataset_minibatch(dataset, s3_iter)) {
       continue;
     }
@@ -118,6 +114,7 @@ void LogisticSparseTaskS3::run(const Configuration& config, int worker) {
 
     // we get the model subset with just the right amount of weights
     sparse_model_get->get_new_model_inplace(*dataset, model, config);
+
 #ifdef DEBUG
     std::cout << "get model elapsed(us): " << get_time_us() - now << std::endl;
     std::cout << "Checking model" << std::endl;

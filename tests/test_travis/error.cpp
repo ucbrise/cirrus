@@ -55,18 +55,12 @@ int main() {
 #endif
 
       std::cout << "[ERROR_TASK] computing loss." << std::endl;
-      FEATURE_TYPE total_loss = 0;
-      FEATURE_TYPE total_accuracy = 0;
-      uint64_t total_num_samples = 0;
-      uint64_t total_num_features = 0;
-      uint64_t start_index = 0;
       std::pair<FEATURE_TYPE, FEATURE_TYPE> ret =
-          model->calc_loss(test_data, start_index);
-      total_loss += ret.first;
-      total_accuracy += ret.second;
-      total_num_samples += test_data.num_samples();
-      total_num_features += test_data.num_features();
-      start_index += config.get_minibatch_size();
+          model->calc_loss(test_data, 0);  // XXX fix second param
+      FEATURE_TYPE total_loss = ret.first;
+      FEATURE_TYPE total_accuracy = ret.second;
+      uint64_t total_num_samples = test_data.num_samples();
+      uint64_t total_num_features = test_data.num_features();
 
       std::cout << "[ERROR_TASK] Loss (Total/Avg): " << total_loss << "/"
                 << (total_loss / total_num_samples)
@@ -74,11 +68,11 @@ int main() {
                 << " time(us): " << get_time_us() << " time from start (sec): "
                 << (get_time_us() - start_time) / 1000000.0 << std::endl;
       avg_loss = (total_loss / total_num_samples);
-    } catch (...) {
-      throw std::runtime_error("Error");
+    } catch (const std::exception &exec) {
+      throw std::runtime_error(std::string("Error ") + exec.what());
     }
   }
-  if (avg_loss < 0.6) {
+  if (avg_loss < 0.66) {
     exit(EXIT_SUCCESS);
   } else {
     exit(EXIT_FAILURE);

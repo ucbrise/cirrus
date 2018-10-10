@@ -9,7 +9,7 @@ data_bucket = 'cirrus-criteo-kaggle-19b-random'
 model = 'model_v1'
 
 basic_params = {
-    'n_workers': 20,
+    'n_workers': 10,
     'n_ps': 1,
     'worker_size': 128,
     'dataset': data_bucket,
@@ -44,14 +44,15 @@ if __name__ == "__main__":
         
     machines = zip(urls, ips)
 
-    learning_rates = [1/(i * 10) for i in range(1, 2)]
+
+    learning_rates = [0.5/i for i in range(1, 20)]
 
     gs = cirrus.GridSearch(task=cirrus.LogisticRegression,
                            param_base=basic_params,
                            hyper_vars=["learning_rate", "worker_size"],
-                           hyper_params=[learning_rates, [128, 246]],
+                           hyper_params=[learning_rates, [256, 1000, 2000]],
                            machines=machines)
-    gs.set_threads(4)
+    gs.set_threads(10)
     gs.run(UI=True)
 
 

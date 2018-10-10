@@ -2,6 +2,7 @@ import boto3
 import json
 import struct
 
+
 def get_data_ranges(data):
     # Return a dict where each index is a list of [E[X^2], mean, n].
     # Assumes labels are being stored right now.
@@ -22,6 +23,7 @@ def get_data_ranges(data):
     for k in x_squared_col:
         final[k] = [x_squared_col[k] / n_col[k], x_col[k] / n_col[k], n_col[k]]
     return final
+
 
 def scale_data(data, g):
     # Takes g, a map to [std_dev, mean]

@@ -6,17 +6,19 @@ import sklearn.datasets
 import time
 import MinMaxScaler
 import NormalScaler
-import HashingTrick
+import FeatureHashing
 import boto3
-from serialization import serialize_data
+from utils import serialize_data
+
 
 class Normalization(Enum):
     MIN_MAX = 1,
     NORMAL = 2
 
+
 class Preprocessing:
     """ Static preprocessing module for Min Max scaling, normal scaling. """
- 
+
     @staticmethod
     def normalize(s3_bucket_input, s3_bucket_output, normalization_type, *args):
         """ Usage:
@@ -25,16 +27,18 @@ class Preprocessing:
         """
         if normalization_type == Normalization.MIN_MAX:
             assert len(args) >= 2, "Must specify min and max."
-            print("[Preprocessing] Calling MinMaxScaler with args {0}".format(args))
+            print(
+                "[Preprocessing] Calling MinMaxScaler with args {0}".format(args))
             MinMaxScaler.MinMaxScaler(s3_bucket_input, s3_bucket_output, *args)
         elif normalization_type == Normalization.NORMAL:
             NormalScaler.NormalScaler(s3_bucket_input, s3_bucket_output, *args)
 
     @staticmethod
-    def hashing_trick(s3_bucket_input, s3_bucket_output, columns, N, objects=[]):
-        """ Perform the hashing trick on the specifiec columns.
+    def feature_hashing(s3_bucket_input, s3_bucket_output, columns, N, objects=[]):
+        """ Perform feature hashing on the specifiec columns.
         All other columns are untouched. """
-        HashingTrick.HashingTrick(s3_bucket_input, s3_bucket_output, columns, N, objects)
+        FeatureHashing.FeatureHashing(
+            s3_bucket_input, s3_bucket_output, columns, N, objects)
 
     @staticmethod
     def load_libsvm(path, s3_bucket):
@@ -49,6 +53,7 @@ class Preprocessing:
         batch_num = 1
         batch_size = 0
         for r in range(X.shape[0]):
+            # Iterate through the rows
             if r % 10000 == 0:
                 print("[{0} s] On row {1}...".format(time.time() - start, r))
             rows, cols = X[r, :].nonzero()
@@ -58,7 +63,9 @@ class Preprocessing:
             batch.append(curr_row)
             batch_size += 1
             if batch_size == 50000:
-                print("[{0} s] Writing batch {1}...".format(time.time() - start, batch_num))
+                # Put the lines in S3, 50000 lines at a time
+                print("[{0} s] Writing batch {1}...".format(
+                    time.time() - start, batch_num))
                 s = serialize_data(batch)
                 client.put_object(Bucket=s3_bucket, Key=str(batch_num), Body=s)
                 batch = []
@@ -66,7 +73,9 @@ class Preprocessing:
                 batch_size = 0
 
         if batch_size > 0:
-            print("[{0} s] Writing final batch {1}...".format(time.time() - start, batch_num))
+            # Put any remaining lines in S3
+            print("[{0} s] Writing final batch {1}...".format(
+                time.time() - start, batch_num))
             s = serialize_data(batch)
             client.put_object(Bucket=s3_bucket, Key=str(batch_num), Body=s)
 

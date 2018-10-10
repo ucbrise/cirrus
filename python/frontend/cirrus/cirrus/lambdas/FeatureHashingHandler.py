@@ -1,6 +1,8 @@
 import boto3
 import json
 import struct
+import hashlib
+
 
 def hash_data(data, columns, N):
     # Replace the appropriate columns for this row.
@@ -10,7 +12,9 @@ def hash_data(data, columns, N):
         for col, val in r:
             s_c = int(col)
             if s_c in c:
-                h = hash(str(val)) % N
+                hasher = hashlib.sha256()
+                hasher.update(str(val))
+                h = int(hasher.digest(), 16) % N
                 if h not in row_map:
                     row_map[h] = 0
                 row_map[h] += 1

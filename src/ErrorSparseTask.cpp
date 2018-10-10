@@ -178,10 +178,8 @@ void ErrorSparseTask::run(const Configuration& config) {
   // get data first
   // what we are going to use as a test set
   std::vector<std::shared_ptr<SparseDataset>> minibatches_vec;
-  std::cout << "[ERROR_TASK] getting minibatches from "
-    << left << " to " << right
-    << std::endl;
-
+  std::cout << "[ERROR_TASK] getting minibatches from " << left << " to "
+            << right << std::endl;
 
   uint32_t minibatches_per_s3_obj =
       config.get_s3_size() / config.get_minibatch_size();
@@ -234,7 +232,7 @@ void ErrorSparseTask::run(const Configuration& config) {
 
       for (auto& ds : minibatches_vec) {
         std::pair<FEATURE_TYPE, FEATURE_TYPE> ret =
-        model->calc_loss(ds, start_index);
+            model->calc_loss(ds, start_index);
         total_loss = total_loss + ret.first;
 
         total_accuracy += ret.second;

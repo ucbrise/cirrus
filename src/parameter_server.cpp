@@ -31,7 +31,6 @@ void run_tasks(int rank,
   int features_per_sample = config.get_num_features();
   int samples_per_batch = config.get_minibatch_size();
 
-
   if (rank == PS_SPARSE_SERVER_TASK_RANK) {
     cirrus::PSSparseServerTask st((1 << config.get_model_bits()) + 1,
         batch_size, samples_per_batch, features_per_sample,
@@ -206,7 +205,6 @@ int main(int argc, char** argv) {
 
   cirrus::s3_initialize_aws();
   run_tasks(rank, nworkers, batch_size, config, FLAGS_ps_ip, FLAGS_ps_port);
-
 
   std::cout << "Test successful" << std::endl;
 

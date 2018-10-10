@@ -130,7 +130,6 @@ class LogisticSparseTaskS3 : public MLTask {
   private:
     class SparseModelGet {
       public:
-
         SparseModelGet(const std::string& ps_ip, int ps_port) :
           ps_ip(ps_ip), ps_port(ps_port) {
             psi = std::make_unique<PSSparseServerInterface>(ps_ip, ps_port);

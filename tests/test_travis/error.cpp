@@ -68,7 +68,7 @@ int main() {
                 << " time(us): " << get_time_us() << " time from start (sec): "
                 << (get_time_us() - start_time) / 1000000.0 << std::endl;
       avg_loss = (total_loss / total_num_samples);
-    } catch (const std::exception &exec) {
+    } catch (const std::exception& exec) {
       throw std::runtime_error(std::string("Error ") + exec.what());
     }
   }

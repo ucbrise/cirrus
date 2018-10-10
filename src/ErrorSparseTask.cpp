@@ -100,10 +100,7 @@ void ErrorSparseTask::error_response() {
     if (operation == GET_LAST_TIME_ERROR) {
       double time_error[4] = {last_time, last_error, curr_error, total_loss};
       ret = sendto(fd, time_error, 4 * sizeof(double), 0,
-      double time_error[3] = {last_time, last_error, curr_error};
       std::cout << "Current error: " << curr_error << std::endl;
-      ret = sendto(fd, time_error, 3 * sizeof(double), 0,
-                   (struct sockaddr*) &remaddr, addrlen);
       if (ret < 0) {
         throw std::runtime_error("Error in sending response");
       }

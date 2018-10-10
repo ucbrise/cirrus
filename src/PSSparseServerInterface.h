@@ -28,10 +28,7 @@ class PSSparseServerInterface {
 
   void send_lr_gradient(const LRSparseGradient&);
   void send_mf_gradient(const MFSparseGradient&);
-
-  int send_wrapper(uint32_t num, std::size_t size);
-  int send_all_wrapper(char* data, uint32_t size);
-
+  
   SparseLRModel get_lr_sparse_model(const SparseDataset& ds, const Configuration& config);
   void get_lr_sparse_model_inplace(const SparseDataset& ds, SparseLRModel&, const Configuration& config);
   SparseMFModel get_sparse_mf_model(const SparseDataset& ds, uint32_t, uint32_t);

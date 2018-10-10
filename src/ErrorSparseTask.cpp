@@ -39,27 +39,6 @@ ErrorSparseTask::ErrorSparseTask(uint64_t model_size,
   std::atomic_init(&total_loss, 0.0);
 }
 
-ErrorSparseTask::ErrorSparseTask(uint64_t model_size,
-                                 uint64_t batch_size,
-                                 uint64_t samples_per_batch,
-                                 uint64_t features_per_sample,
-                                 uint64_t nworkers,
-                                 uint64_t worker_id,
-                                 std::vector<std::string> ps_ips,
-                                 std::vector<uint64_t> ps_ports)
-    : MLTask(model_size,
-             batch_size,
-             samples_per_batch,
-             features_per_sample,
-             nworkers,
-             worker_id,
-             ps_ips,
-             ps_ports) {
-  ps_ports = ps_ports;
-  std::atomic_init(&curr_error, 0.0);
-  std::atomic_init(&total_loss, 0.0);
-}
-
 std::unique_ptr<CirrusModel> get_model(const Configuration& config,
                                        const std::string& ps_ip,
                                        uint64_t ps_port) {
@@ -196,8 +175,7 @@ void ErrorSparseTask::run(const Configuration& config) {
       std::cout << "[ERROR_TASK] getting the full model"
                 << "\n";
 #endif
-      std::unique_ptr<CirrusModel> model;
-      model = get_model(config, ps_ip, ps_port);
+      std::unique_ptr<CirrusModel> model = get_model(config, ps_ip, ps_port);
 #ifdef DEBUG
       std::cout << "[ERROR_TASK] received the model" << std::endl;
 #endif

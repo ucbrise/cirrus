@@ -39,7 +39,6 @@ void PSSparseServerInterface::connect() {
     throw std::runtime_error("Failed to make contact with server with ip: " +
                              ip + " port: " + std::to_string(port) + "\n");
   }
-  std::cout << "Connection established " << ip << " " << port << std::endl;
 }
 
 PSSparseServerInterface::~PSSparseServerInterface() {
@@ -74,7 +73,6 @@ void PSSparseServerInterface::send_lr_gradient(const LRSparseGradient& gradient)
     throw std::runtime_error("Error sending grad");
   }
 }
-
 
 void PSSparseServerInterface::get_lr_sparse_model_inplace(const SparseDataset& ds, SparseLRModel& lr_model,
     const Configuration& config) {
@@ -131,7 +129,7 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace(const SparseDataset& d
   // build a truly sparse model and return
   // XXX this copy could be avoided
   lr_model.loadSerializedSparse((FEATURE_TYPE*)buffer, (uint32_t*)msg, num_weights, config);
-
+  
   delete[] msg_begin;
   delete[] buffer;
 }
@@ -140,30 +138,6 @@ SparseLRModel PSSparseServerInterface::get_lr_sparse_model(const SparseDataset& 
   SparseLRModel model(0);
   get_lr_sparse_model_inplace(ds, model, config);
   return std::move(model);
-}
-
-void PSSparseServerInterface::get_full_model_inplace(
-    std::unique_ptr<SparseLRModel>& model,
-    int server_id,
-    int num_ps) {
-  // 1. Send operation
-  uint32_t operation = GET_LR_FULL_MODEL;
-  send_all(sock, &operation, sizeof(uint32_t));
-  // 2. receive size from PS
-  int model_size;
-  if (read_all(sock, &model_size, sizeof(int)) == 0) {
-    throw std::runtime_error("Error talking to PS");
-  }
-  char* model_data = new char[sizeof(int) + model_size * sizeof(FEATURE_TYPE)];
-  char* model_data_ptr = model_data;
-  store_value<int>(model_data_ptr, model_size);
-
-  if (read_all(sock, model_data_ptr, model_size * sizeof(FEATURE_TYPE)) == 0) {
-    throw std::runtime_error("Error talking to PS");
-  }
-  model->loadSerialized(model_data, server_id, num_ps);
-
-  delete[] model_data;
 }
 
 std::unique_ptr<CirrusModel> PSSparseServerInterface::get_full_model(

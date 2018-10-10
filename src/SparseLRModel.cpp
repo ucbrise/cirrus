@@ -68,6 +68,10 @@ uint64_t SparseLRModel::getSerializedSize() const {
   return ret;
 }
 
+/** FORMAT
+ *   * number of weights (int)
+ *     * list of weights: weight1 (FEATURE_TYPE) | weight2 (FEATURE_TYPE) | ..
+ *       */
 void SparseLRModel::loadSerialized(const void* data) {
   int num_weights = load_value<int>(data);
 #ifdef DEBUG

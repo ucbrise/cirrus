@@ -3,7 +3,6 @@
 
 #include "Configuration.h"
 #include "Constants.h"
-#include "MultiplePSSparseServerInterface.h"
 #include "PSSparseServerInterface.h"
 #include "S3SparseIterator.h"
 #include "Serializers.h"

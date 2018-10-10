@@ -1,10 +1,10 @@
 import logging
 import time
-import tempfile
 import socket
 import sys
 import io
 import atexit
+import zipfile
 
 import paramiko
 import boto3
@@ -504,6 +504,8 @@ def make_executables(path, instance):
     for executable in EXECUTABLES:
         instance.upload_s3(f"~/cirrus/src/{executable}", f"{path}/{executable}")
 
+    log.debug("make_executables:  Done.")
+
 
 def make_lambda_package(path, executables_path):
     """Make and publish the ZIP package for Cirrus' Lambda function.
@@ -513,7 +515,45 @@ def make_lambda_package(path, executables_path):
         executables_path (str): An S3 path to a "directory" from which to get
             Cirrus' executables.
     """
-    pass
+    assert path.startswith("s3://")
+    assert executables_path.startswith("s3://")
+
+    print("make_lambda_package: Initializing ZIP file.")
+    file = io.BytesIO()
+    with zipfile.ZipFile(file, "w", LAMBDA_COMPRESSION) as zip:
+
+        print(f"make_lambda_package: Writing handler.")
+        info = zipfile.ZipInfo(LAMBDA_HANDLER_FILENAME)
+        info.external_attr = 0o777 << 16  # Allow, in particular, execute permissions.
+        zip.writestr(info, LAMBDA_HANDLER)
+
+        print(f"make_lambda_package: Initializing S3.")
+        s3_client = boto3.client("s3")
+        executable = io.BytesIO()
+
+        print(f"make_lambda_package: Downloading executable.")
+        executables_path += "/parameter_server"
+        bucket, key = _split_s3_url(executables_path)
+        s3_client.download_fileobj(bucket, key, executable)
+
+        print(f"make_lambda_package: Writing executable.")
+        info = zipfile.ZipInfo("parameter_server")
+        info.external_attr = 0o777 << 16  # Allow, in particular, execute permissions.
+        executable.seek(0)
+        zip.writestr(info, executable.read())
+
+    print(f"make_lambda_package: Uploading package.")
+    file.seek(0)
+    bucket, key = _split_s3_url(path)
+    s3_client.upload_fileobj(file, bucket, key)
+
+    print(f"make_lambda_package: Waiting for changes to take effect.")
+    # Waits for S3's eventual consistency to catch up. Ideally, something more sophisticated would be used since the
+    #   delay distribution is heavy-tailed. But this should in most cases ensure the package is visible on S3 upon
+    #   return.
+    time.sleep(S3_CONSISTENCY_DELAY)
+
+    print(f"make_lambda_package: Done.")
 
 
 def make_server_image(name, executables_path, instance):
@@ -580,15 +620,24 @@ def deploy():
     make_lambda(LAMBDA_NAME, LAMBDA_PACKAGE_PATH)
 
 
+def _split_s3_url(url):
+    assert url.startswith("s3://")
+
+    bucket = url[len("s3://"):].split("/")[0]
+    key = url[len("s3://") + len(bucket) + 1:]
+    return bucket, key
+
+
 if __name__ == "__main__":
     log = logging.getLogger("cirrus")
     log.setLevel(logging.DEBUG)
     log.addHandler(logging.StreamHandler(sys.stdout))
 
-    # make_build_image("build_image", replace=True)
-    config = dict(BUILD_INSTANCE)
-    del config["ami_id"]
-    instance = Instance("test", ami_name="build_image", **config)
-    instance.start()
-    make_executables("s3://cirrus-public", instance)
+    #make_build_image("build_image", replace=True)
+    #config = dict(BUILD_INSTANCE)
+    #del config["ami_id"]
+    #instance = Instance("test", ami_name="build_image", **config)
+    #instance.start()
+    #make_executables("s3://cirrus-public", instance)
+    make_lambda_package("s3://cirrus-public/lambda-package/v1", "s3://cirrus-public")
 

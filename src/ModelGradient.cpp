@@ -151,12 +151,10 @@ void LRSparseGradient::serialize(void* mem) const {
   }
 }
 
-
 uint64_t LRSparseGradient::getSerializedSize() const {
   return weights.size() * (sizeof(FEATURE_TYPE) + sizeof(int)) + // pairs (index, weight value)
     sizeof(int) * 2; // version + number of weights
 }
-
 
 void LRSparseGradient::print() const {
   std::cout << "Printing LRSparseGradient. version: " << version << std::endl;

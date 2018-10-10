@@ -64,8 +64,8 @@ def push_keys_values_to_redis(node_manager, chunk, batch_push_to_redis, keys, va
                     slot_k[slot] = []
                     slot_vals[slot] = []
                 slot_k[slot].append(k)
-                slot_vals[slot].append(max_v[idx])
-            print("[CHUNK{0}] Took {1} to make slot maps for max_f".format(
+                slot_vals[slot].append(values[idx])
+            print("[CHUNK{0}] Took {1} to make slot maps".format(
                 chunk, time.time() - t1))
             t1 = time.time()
             w = deque()
@@ -74,12 +74,12 @@ def push_keys_values_to_redis(node_manager, chunk, batch_push_to_redis, keys, va
                 if len(w) >= 4:
                     p2 = w.popleft()
                     p2.join()
-                p = ParallelFn(max_f, slot_k[k], slot_vals[k])
+                p = ParallelFn(redis_script, slot_k[k], slot_vals[k])
                 p.start()
                 w.append(p)
             for p in w:
                 p.join()
-            print("[CHUNK{0}] Took {1} to make {2} max_f requests".format(
+            print("[CHUNK{0}] Took {1} to make {2} key / value requests".format(
                 chunk, time.time() - t1, len(slot_k)))
         else:
             # If no node manager is specified, just push all at once
@@ -87,7 +87,7 @@ def push_keys_values_to_redis(node_manager, chunk, batch_push_to_redis, keys, va
     else:
         # Push each key value pair one at a time
         for idx, k in enumerate(keys):
-            max_f([k], [values[idx]])
+            redis_script([k], [values[idx]])
 
 
 def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, use_redis, node_manager, chunk, batch_push_to_redis=True):

@@ -83,17 +83,6 @@ std::unique_ptr<CirrusModel> get_model(const Configuration& config,
       config.get_model_type() == Configuration::COLLABORATIVE_FILTERING;
   return psi->get_full_model(use_col_filtering);
 }
-std::unique_ptr<CirrusModel> get_model(const Configuration& config,
-                                       const std::vector<std::string> ps_ips,
-                                       std::vector<uint64_t> ps_ports) {
-  static MultiplePSSparseServerInterface* psi;
-  static bool first_time = true;
-  if (first_time) {
-    first_time = false;
-    psi = new MultiplePSSparseServerInterface(ps_ips, ps_ports);
-  }
-  return psi->get_full_model();
-}
 
 void ErrorSparseTask::error_response() {
   int fd;
@@ -104,13 +93,7 @@ void ErrorSparseTask::error_response() {
   struct sockaddr_in serveraddr;
   serveraddr.sin_family = AF_INET;
   serveraddr.sin_addr.s_addr = INADDR_ANY;
-  int port_num;
-  if (is_sharded)
-    port_num = ps_ports.at(ps_ports.size() - 1) +
-               1;  // error response will bind to the port after the last PS
-  else
-    port_num = ps_port + 1;
-  serveraddr.sin_port = htons(port_num);
+  serveraddr.sin_port = htons(ps_port + 1);
   std::memset(serveraddr.sin_zero, 0, sizeof(serveraddr.sin_zero));
 
   int ret =
@@ -118,7 +101,7 @@ void ErrorSparseTask::error_response() {
 
   if (ret < 0) {
     throw std::runtime_error("Error in binding in port " +
-                             std::to_string((port_num)));
+                             std::to_string((ps_port + 1)));
   }
 
   uint32_t operation;
@@ -214,11 +197,7 @@ void ErrorSparseTask::run(const Configuration& config) {
                 << "\n";
 #endif
       std::unique_ptr<CirrusModel> model;
-      if (is_sharded) {
-        model = get_model(config, ps_ips, ps_ports);
-      } else {
-        model = get_model(config, ps_ip, ps_port);
-      }
+      model = get_model(config, ps_ip, ps_port);
 #ifdef DEBUG
       std::cout << "[ERROR_TASK] received the model" << std::endl;
 #endif

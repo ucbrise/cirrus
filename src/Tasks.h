@@ -3,14 +3,13 @@
 
 #include <Configuration.h>
 
+#include "config.h"
 #include "LRModel.h"
 #include "MFModel.h"
-#include "MultiplePSSparseServerInterface.h"
-#include "OptimizationMethod.h"
+#include "SparseLRModel.h"
 #include "PSSparseServerInterface.h"
 #include "S3SparseIterator.h"
-#include "SparseLRModel.h"
-#include "config.h"
+#include "OptimizationMethod.h"
 
 #include <string>
 #include <vector>
@@ -27,49 +26,25 @@
 namespace cirrus {
 class MLTask {
   public:
-   MLTask(uint64_t model_size,
-          uint64_t batch_size,
-          uint64_t samples_per_batch,
-          uint64_t features_per_sample,
-          uint64_t nworkers,
-          uint64_t worker_id,
-          const std::string& ps_ip,
-          uint64_t ps_port)
-       : model_size(model_size),
-         batch_size(batch_size),
-         samples_per_batch(samples_per_batch),
-         features_per_sample(features_per_sample),
-         nworkers(nworkers),
-         worker_id(worker_id),
-         ps_ip(ps_ip),
-         ps_port(ps_port) {
-     this->is_sharded = false;
-   }
-   MLTask(uint64_t model_size,
-          uint64_t batch_size,
-          uint64_t samples_per_batch,
-          uint64_t features_per_sample,
-          uint64_t nworkers,
-          uint64_t worker_id,
-          std::vector<std::string> ps_ips,
-          std::vector<uint64_t> ps_ports)
-       : model_size(model_size),
-         batch_size(batch_size),
-         samples_per_batch(samples_per_batch),
-         features_per_sample(features_per_sample),
-         nworkers(nworkers),
-         worker_id(worker_id) {
-     this->is_sharded = true;
-     this->ps_ports = ps_ports;
-     this->ps_ips = ps_ips;
-     std::cout << "MLTASK" << this->ps_ips.size() << std::endl;
-   }
+    MLTask(
+        uint64_t model_size,
+        uint64_t batch_size, uint64_t samples_per_batch,
+        uint64_t features_per_sample, uint64_t nworkers,
+        uint64_t worker_id,
+        const std::string& ps_ip,
+        uint64_t ps_port) :
+      model_size(model_size),
+      batch_size(batch_size), samples_per_batch(samples_per_batch),
+      features_per_sample(features_per_sample),
+      nworkers(nworkers), worker_id(worker_id),
+      ps_ip(ps_ip), ps_port(ps_port)
+  {}
 
-   /**
-    * Worker here is a value 0..nworkers - 1
-    */
-   void run(const Configuration& config, int worker);
-   void wait_for_start(int index, int nworkers);
+    /**
+     * Worker here is a value 0..nworkers - 1
+     */
+    void run(const Configuration& config, int worker);
+    void wait_for_start(int index, int nworkers);
 
   protected:
     uint64_t model_size;
@@ -80,52 +55,27 @@ class MLTask {
     uint64_t worker_id;
     std::string ps_ip;
     uint64_t ps_port;
-    std::vector<std::string> ps_ips;
-    std::vector<uint64_t> ps_ports;
     Configuration config;
-    bool is_sharded;
 };
 
 class LogisticSparseTaskS3 : public MLTask {
   public:
-   LogisticSparseTaskS3(uint64_t model_size,
-                        uint64_t batch_size,
-                        uint64_t samples_per_batch,
-                        uint64_t features_per_sample,
-                        uint64_t nworkers,
-                        uint64_t worker_id,
-                        const std::string& ps_ip,
-                        uint64_t ps_port)
-       : MLTask(model_size,
-                batch_size,
-                samples_per_batch,
-                features_per_sample,
-                nworkers,
-                worker_id,
-                ps_ip,
-                ps_port) {}
-   LogisticSparseTaskS3(uint64_t model_size,
-                        uint64_t batch_size,
-                        uint64_t samples_per_batch,
-                        uint64_t features_per_sample,
-                        uint64_t nworkers,
-                        uint64_t worker_id,
-                        std::vector<std::string> ps_ips,
-                        std::vector<uint64_t> ps_ports)
-       : MLTask(model_size,
-                batch_size,
-                samples_per_batch,
-                features_per_sample,
-                nworkers,
-                worker_id,
-                ps_ips,
-                ps_ports) {}
+    LogisticSparseTaskS3(
+        uint64_t model_size,
+        uint64_t batch_size, uint64_t samples_per_batch,
+        uint64_t features_per_sample, uint64_t nworkers,
+        uint64_t worker_id,
+        const std::string& ps_ip,
+        uint64_t ps_port) :
+      MLTask(model_size,
+          batch_size, samples_per_batch, features_per_sample,
+          nworkers, worker_id, ps_ip, ps_port), psint(nullptr)
+  {}
 
-   /**
-    * Worker here is a value 0..nworkers - 1
-    */
-
-   void run(const Configuration& config, int worker);
+    /**
+     * Worker here is a value 0..nworkers - 1
+     */
+    void run(const Configuration& config, int worker);
 
   private:
     class SparseModelGet {
@@ -138,23 +88,18 @@ class LogisticSparseTaskS3 : public MLTask {
 
         SparseLRModel get_new_model(const SparseDataset& ds,
                                     const Configuration& config) {
-          if (is_sharded)
-            return std::move(mpsi->get_lr_sparse_model(ds, config));
-          else
-            return std::move(psi->get_lr_sparse_model(ds, config));
+          return std::move(psi->get_lr_sparse_model(ds, config));
         }
         void get_new_model_inplace(const SparseDataset& ds,
                                    SparseLRModel& model,
                                    const Configuration& config) {
-          if (is_sharded)
-            mpsi->get_lr_sparse_model(ds, model, config);
-          else
-            psi->get_lr_sparse_model_inplace(ds, model, config);
+          psi->get_lr_sparse_model_inplace(ds, model, config);
         }
 
-        bool is_sharded;
-        std::unique_ptr<MultiplePSSparseServerInterface> mpsi;
+      private:
         std::unique_ptr<PSSparseServerInterface> psi;
+        std::string ps_ip;
+        int ps_port;
     };
 
     bool get_dataset_minibatch(std::shared_ptr<SparseDataset>& dataset,
@@ -162,9 +107,9 @@ class LogisticSparseTaskS3 : public MLTask {
     void push_gradient(LRSparseGradient*);
 
     std::mutex redis_lock;
-    std::unique_ptr<PSSparseServerInterface> psi;
-    std::unique_ptr<MultiplePSSparseServerInterface> mpsi;
+  
     std::unique_ptr<SparseModelGet> sparse_model_get;
+    PSSparseServerInterface* psint;
 };
 
 class PSSparseTask : public MLTask {
@@ -209,15 +154,6 @@ class ErrorSparseTask : public MLTask {
                    uint64_t worker_id,
                    const std::string& ps_ip,
                    uint64_t ps_port);
-
-   ErrorSparseTask(uint64_t model_size,
-                   uint64_t batch_size,
-                   uint64_t samples_per_batch,
-                   uint64_t features_per_sample,
-                   uint64_t nworkers,
-                   uint64_t worker_id,
-                   std::vector<std::string> ps_ips,
-                   std::vector<uint64_t> ps_ports);
 
    void run(const Configuration& config);
    void error_response();

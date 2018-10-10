@@ -75,46 +75,6 @@ void PSSparseServerInterface::send_lr_gradient(const LRSparseGradient& gradient)
   }
 }
 
-int PSSparseServerInterface::send_wrapper(uint32_t num, std::size_t size) {
-  return send(sock, &num, size, 0);
-}
-
-int PSSparseServerInterface::send_all_wrapper(char* data, uint32_t size) {
-  return send_all(sock, data, size);
-}
-
-void PSSparseServerInterface::get_lr_sparse_model_inplace_sharded(
-    SparseLRModel& lr_model,
-    const Configuration& config,
-    char* msg_begin,
-    uint32_t num_weights,
-    int server_id,
-    int num_ps) {
-#ifdef DEBUG
-  std::cout << "Getting LR sparse model inplace sharded" << std::endl;
-#endif
-
-  char* msg = msg_begin;
-  // 4. receive weights from PS
-  uint32_t to_receive_size = sizeof(FEATURE_TYPE) * num_weights;
-
-#ifdef DEBUG
-  std::cout << "Receiving " << to_receive_size << " bytes" << std::endl;
-#endif
-  char* buffer = new char[to_receive_size];
-  read_all(sock, buffer,
-           to_receive_size);  // XXX this takes 2ms once every 5 runs
-
-#ifdef DEBUG
-  std::cout << "Loading model from memory" << std::endl;
-#endif
-  // build a truly sparse model and return
-  // XXX this copy could be avoided
-  lr_model.loadSerializedSparse((FEATURE_TYPE*) buffer, (uint32_t*) msg,
-                                num_weights, config, server_id, num_ps);
-
-  delete[] buffer;
-}
 
 void PSSparseServerInterface::get_lr_sparse_model_inplace(const SparseDataset& ds, SparseLRModel& lr_model,
     const Configuration& config) {
@@ -170,8 +130,7 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace(const SparseDataset& d
 #endif
   // build a truly sparse model and return
   // XXX this copy could be avoided
-  lr_model.loadSerializedSparse((FEATURE_TYPE*) buffer, (uint32_t*) msg_begin,
-                                num_weights, config);
+  lr_model.loadSerializedSparse((FEATURE_TYPE*)buffer, (uint32_t*)msg, num_weights, config);
 
   delete[] msg_begin;
   delete[] buffer;

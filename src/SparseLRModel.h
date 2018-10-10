@@ -49,9 +49,7 @@ class SparseLRModel : public CirrusModel {
     void loadSerializedSparse(const FEATURE_TYPE* weights,
                               const uint32_t* weight_indices,
                               uint64_t num_weights,
-                              const Configuration& config,
-                              int server_id = 0,
-                              int num_ps = 1);
+                              const Configuration& config);
 
     /**
       * serializes this model into memory

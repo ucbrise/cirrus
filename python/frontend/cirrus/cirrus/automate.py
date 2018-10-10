@@ -27,7 +27,13 @@ LAMBDA_PACKAGE_PATH = "s3://cirrus-public/lambda_package"
 LAMBDA_NAME = "cirrus_lambda"
 
 # The ARN of an IAM policy that allows full access to S3.
-S3_ACCESS_POLICY_ARN = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+S3_FULL_ACCESS_ARN = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+
+# The ARN of an IAM policy that allows read-only access to S3.
+S3_READ_ONLY_ARN = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
+
+# The ARN of an IAM policy that allows write access to Cloudwatch logs.
+CLOUDWATCH_WRITE_ARN = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 
 # The estimated delay of IAM's eventual consistency, in seconds.
 IAM_CONSISTENCY_DELAY = 20
@@ -111,6 +117,22 @@ def run(event, context):
 
 # The estimated delay of S3's eventual consistency, in seconds.
 S3_CONSISTENCY_DELAY = 20
+
+# The runtime for the worker Lambda.
+LAMBDA_RUNTIME = "python3.6"
+
+# The fully-qualified identifier of the handler of the worker Lambda.
+LAMBDA_HANDLER_FQID = "main.run"
+
+# The maximum execution time to give the worker Lambda, in seconds. Capped by AWS at 5 minutes.
+LAMBDA_TIMEOUT = 5 * 60
+
+# The amount of memory (and in proportion, CPU/network) to give to the worker Lambda, in megabytes.
+LAMBDA_SIZE = 3_008
+
+# The number of reserved concurrent executions to allocate to the worker Lambda. Depletes some of the AWS account's
+#   reserved concurrent executions. 100 concurrent executions must be held unassigned to any lambda.
+LAMBDA_CONCURRENCY = 900
 
 
 class Instance(object):
@@ -350,7 +372,7 @@ class Instance(object):
                 self._instance_profile = None
             if self._role is not None:
                 self._log.debug("cleanup: Deleting role.")
-                self._role.detach_policy(PolicyArn=S3_ACCESS_POLICY_ARN)
+                self._role.detach_policy(PolicyArn=S3_FULL_ACCESS_ARN)
                 self._role.delete()
                 self._role = None
             self._log.debug("cleanup: Done.")
@@ -385,7 +407,7 @@ class Instance(object):
         )
 
         self._log.debug("_make_instance_profile: Attaching policy to role.")
-        self._role.attach_policy(PolicyArn=S3_ACCESS_POLICY_ARN)
+        self._role.attach_policy(PolicyArn=S3_FULL_ACCESS_ARN)
 
         self._log.debug("_make_instance_profile: Creating instance profile.")
         self._instance_profile = iam.create_instance_profile(
@@ -668,12 +690,87 @@ def make_server_image(name, executables_path, instance):
 def make_lambda(name, lambda_package_path):
     """Make a worker Lambda function.
 
+    Replaces any existing Lambda function with the same name.
+
     Args:
         name (str): The name to give the Lambda.
         lambda_package_path (str): An S3 path to a Lambda ZIP package produced
             by `make_lambda_package`.
     """
-    pass
+    # TODO: Make region an argument.
+    log = logging.getLogger("cirrus.automate.make_lambda")
+
+    log.debug("make_lambda: Initializing Lambda and IAM.")
+    lamb = boto3.client("lambda", BUILD_INSTANCE["region"])
+    iam = boto3.resource("iam", BUILD_INSTANCE["region"])
+
+    log.debug("make_lambda: Deleting any existing Lambda.")
+    try:
+        lamb.delete_function(FunctionName=name)
+    except Exception:
+        # This is a hack. An error may be caused by something other than the
+        #   Lambda not existing.
+        pass
+
+    log.debug("make_lambda: Deleting any existing IAM role.")
+    try:
+        role = iam.Role(name)
+        for policy in role.attached_policies.all():
+            role.detach_policy(PolicyArn=policy.arn)
+        role.delete()
+    except Exception:
+        # This is a hack. An error may be caused by something other than the
+        #   Lambda not existing.
+        pass
+
+    log.debug("make_lambda: Creating IAM role")
+    role = iam.create_role(
+        RoleName=name,
+        AssumeRolePolicyDocument=\
+        """{
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Service": "lambda.amazonaws.com"
+                  },
+                  "Action": "sts:AssumeRole"
+                }
+              ]
+        }"""
+    )
+    role.attach_policy(PolicyArn=S3_READ_ONLY_ARN)
+    role.attach_policy(PolicyArn=CLOUDWATCH_WRITE_ARN)
+
+    log.debug("make_lambda: Waiting for changes to propogate.")
+    # HACK: IAM is eventually consistent, so we sleep and hope that the role
+    #   changes take effect in the meantime. But the delay distribtuion is
+    #   heavy-tailed, so we actually need a retry mechanism.
+    time.sleep(IAM_CONSISTENCY_DELAY)
+
+    print("make_lambda: Uploading ZIP package and creating Lambda.")
+    bucket, key = _split_s3_url(lambda_package_path)
+    lamb.create_function(
+        FunctionName=name,
+        Runtime=LAMBDA_RUNTIME,
+        Role=role.arn,
+        Handler=LAMBDA_HANDLER_FQID,
+        Code={
+            "S3Bucket": bucket,
+            "S3Key": key
+        },
+        Timeout=LAMBDA_TIMEOUT,
+        MemorySize=LAMBDA_SIZE
+    )
+
+    log.debug("make_lambda: Allocating reserved concurrent executions to the Lambda.")
+    lamb.put_function_concurrency(
+        FunctionName=name,
+        ReservedConcurrentExecutions=LAMBDA_CONCURRENCY
+    )
+
+    log.debug("make_lambda: Done.")
 
 
 def launch_worker(lambda_name):
@@ -730,11 +827,11 @@ if __name__ == "__main__":
     log.addHandler(logging.StreamHandler(sys.stdout))
 
     #make_build_image("build_image", replace=True)
-    config = dict(BUILD_INSTANCE)
-    del config["ami_id"]
-    instance = Instance("test", ami_name="build_image", **config)
-    instance.start()
+    #config = dict(BUILD_INSTANCE)
+    #del config["ami_id"]
+    #instance = Instance("test", ami_name="build_image", **config)
+    #instance.start()
     #make_executables("s3://cirrus-public", instance)
     #make_lambda_package("s3://cirrus-public/lambda-package/v1", "s3://cirrus-public")
-    make_server_image("server_image", "s3://cirrus-public", instance)
-
+    #make_server_image("server_image", "s3://cirrus-public", instance)
+    make_lambda("test", "s3://cirrus-public/lambda-package/v1")

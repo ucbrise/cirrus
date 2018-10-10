@@ -9,6 +9,7 @@ import atexit
 import paramiko
 import boto3
 
+
 # A configuration to use for EC2 instances that will be used to build Cirrus.
 BUILD_INSTANCE = {
     "region": "us-west-1",
@@ -30,6 +31,39 @@ S3_ACCESS_POLICY_ARN = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
 
 # The estimated delay of IAM's eventual consistency, in seconds.
 IAM_CONSISTENCY_DELAY = 20
+
+# A series of commands that will result in ~/cirrus/src containing Cirrus'
+#   compiled executables.
+BUILD_COMMANDS = """
+# Install some necessary packages.
+yes | sudo yum install git glibc-static openssl-static.x86_64 \
+    zlib-static.x86_64 libcurl-devel
+yes | sudo yum groupinstall "Development Tools"
+
+# The above installed a recent version of gcc, but an old version of g++.
+#   Install a newer version of g++.
+yes | sudo yum remove gcc48-c++
+yes | sudo yum install gcc72-c++
+
+# The above pulled in an old version of cmake. Install a newer version of cmake
+#   by compiling from source.
+wget https://cmake.org/files/v3.10/cmake-3.10.0.tar.gz
+tar -xvzf cmake-3.10.0.tar.gz
+cd cmake-3.10.0; ./bootstrap
+cd cmake-3.10.0; make
+cd cmake-3.10.0; sudo make install
+
+# Finally, clone Cirrus and compile it.
+git clone https://github.com/jcarreira/cirrus
+cd cirrus; ./bootstrap.sh
+cd cirrus; make -j 10
+"""
+
+# The maximum number of times to poll for an AMI becoming available.
+IMAGE_POLL_MAX = (3 * 60) // IMAGE_POLL_INTERVAL
+
+# The interval at which to poll for an AMI becoming available, in seconds.
+IMAGE_POLL_INTERVAL = 10
 
 
 class Instance(object):
@@ -63,7 +97,7 @@ class Instance(object):
         self._key_pair = None
         self._private_key = None
         self._security_group = None
-        self._instance = None
+        self.instance = None
         self._ssh_client = None
         self._sftp_client = None
 
@@ -137,7 +171,7 @@ class Instance(object):
         assert src.startswith("s3://")
         assert not dest.startswith("s3://")
 
-        instance.run_command(" ".join((
+        self.run_command(" ".join((
             "aws",
             "s3",
             "cp",
@@ -157,7 +191,7 @@ class Instance(object):
         assert not src.startswith("s3://")
         assert dest.startswith("s3://")
 
-        instance.run_command(" ".join((
+        self.run_command(" ".join((
             "aws",
             "s3",
             "cp",
@@ -178,12 +212,12 @@ class Instance(object):
                 self._log.debug("cleanup: Closing SSH client.")
                 self._ssh_client.close()
                 self._ssh_client = None
-            if self._instance is not None:
+            if self.instance is not None:
                 self._log.debug("cleanup: Terminating instance.")
-                self._instance.terminate()
+                self.instance.terminate()
                 self._log.debug("cleanup: Waiting for instance to terminate.")
-                self._instance.wait_until_terminated()
-                self._instance = None
+                self.instance.wait_until_terminated()
+                self.instance = None
             if self._security_group is not None:
                 self._log.debug("cleanup: Deleting security group.")
                 self._security_group.delete()
@@ -312,16 +346,16 @@ class Instance(object):
             SecurityGroups=[self._security_group.group_name],
             IamInstanceProfile={"Name": self._instance_profile.name}
         )
-        self._instance = instances[0]
+        self.instance = instances[0]
 
         self._log.debug("_start_and_wait: Waiting for instance to enter " \
                         "running state.")
-        self._instance.wait_until_running()
+        self.instance.wait_until_running()
 
         self._log.debug("_start_and_wait: Fetching instance metadata.")
         # Reloads metadata about the instance. In particular, retreives its
         #   public_ip_address.
-        self._instance.load()
+        self.instance.load()
 
         self._log.debug("_start_and_wait: Done.")
 
@@ -337,7 +371,7 @@ class Instance(object):
                 self._log.debug(f"_connect_ssh: Making connection attempt " \
                                 f"#{i+1} out of {attempts}.")
                 self._ssh_client.connect(
-                    hostname=self._instance.public_ip_address,
+                    hostname=self.instance.public_ip_address,
                     username=self._username,
                     pkey=key,
                     timeout=timeout
@@ -363,11 +397,68 @@ def make_build_image(name, replace=False):
 
     Args:
         name (str): The name to give the AMI.
+        region (str): The region for the AMI.
         replace (bool): Whether to replace any existing AMI with the same name.
             If False or omitted and an AMI with the same name exists, nothing
             will be done.
     """
-    pass
+    log = logging.getLogger("cirrus.automate.make_build_image")
+
+    log.debug("make_build_image: Initializing EC2.")
+    ec2 = boto3.resource("ec2", BUILD_INSTANCE["region"])
+
+    log.debug("make_build_image: Checking for already-existent images.")
+    response = ec2.meta.client.describe_images(
+        Filters=[{"Name": "name", "Values": [name]}], Owners=["self"])
+    if replace:
+        for info in response["Images"]:
+            log.debug("make_build_image: Deleting an already-existent image.")
+            ec2.Image(info["ImageId"]).deregister()
+    else:
+        if len(response["Images"]) > 0:
+            log.debug("make_build_image: Done.")
+            return
+
+    log.debug("make_build_image: Launching an instance.")
+    instance = Instance("make_build_image", **BUILD_INSTANCE)
+    instance.start()
+
+    for command in BUILD_COMMANDS.split("\n")[1:-1]:
+        log.debug("make_build_image: Running a build command.")
+        status, stdout, stderr = instance.run_command(command)
+        if status != 0:
+            MESSAGE = "A build command errored."
+            print("=" * len(MESSAGE))
+            print(MESSAGE)
+            print("=" * len(MESSAGE))
+            print("command:", command)
+            print()
+            print("stdout:", stdout)
+            print()
+            print("stderr:", stderr)
+            print()
+            raise RuntimeError("A build command errored.")
+
+    log.debug("make_build_image: Starting image creation.")
+    image = instance.instance.create_image(Name=name)
+
+    log.debug("make_build_image: Waiting for image creation.")
+    image.wait_until_exists()
+    for i in range(IMAGE_POLL_MAX):
+        log.debug(f"make_build_image: Doing poll #{i+1} out of " \
+                  f"{IMAGE_POLL_MAX}.")
+        image.reload()
+        if image.state == "available":
+            break
+        time.sleep(IMAGE_POLL_INTERVAL)
+    else:
+        raise RuntimeError("AMI did not become available within time " \
+                           "constraints.")
+
+    log.debug("make_build_image: Cleaning up instance.")
+    instance.cleanup()
+
+    log.debug("make_build_image: Done.")
 
 
 def make_executables(path, instance):
@@ -462,7 +553,4 @@ if __name__ == "__main__":
     log.setLevel(logging.DEBUG)
     log.addHandler(logging.StreamHandler(sys.stdout))
 
-    instance = Instance(name="testabc", **BUILD_INSTANCE)
-    instance.start()
-    instance.run_command("ls")
-    instance.run_command("pwd")
+    make_build_image("build_image", replace=True)

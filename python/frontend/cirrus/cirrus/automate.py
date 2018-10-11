@@ -101,7 +101,7 @@ def run(event, context):
                 "--rank", str(3),
                 "--ps_ip", event["ps_ip"],
                 "--ps_port", str(event["ps_port"])
-            ], stderr=subprocess.STDOUT, shell=True)
+            ], stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
         return {
             "statusCode": 500,

@@ -33,7 +33,16 @@ class InputReader {
    */
   SparseDataset read_movielens_ratings(const std::string& input_file,
       int *number_users, int* number_movies);
-  
+
+  /**
+   * Read Jester dataset
+   * @param input_file Path to csv file with dataset
+   * @returns The dataset
+   */
+  SparseDataset read_jester_ratings(const std::string& input_file,
+                                    int* number_users,
+                                    int* number_jokes);
+
   /**
    * Read netflix dataset
    * @param input_file Path to csv file with dataset

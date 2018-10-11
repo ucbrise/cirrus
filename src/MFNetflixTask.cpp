@@ -39,18 +39,16 @@ void MFNetflixTask::push_gradient(MFSparseGradient& mfg) {
 
 // get samples and labels data
 bool MFNetflixTask::get_dataset_minibatch(
-    std::unique_ptr<SparseDataset>& dataset,
+    std::shared_ptr<SparseDataset>& dataset,
     S3SparseIterator& s3_iter) {
 #ifdef DEBUG
   auto start = get_time_us();
 #endif
 
-  const void* minibatch = s3_iter.get_next_fast();
+  dataset = s3_iter.getNext();
 #ifdef DEBUG
   auto finish1 = get_time_us();
 #endif
-  dataset.reset(new SparseDataset(reinterpret_cast<const char*>(minibatch),
-        config.get_minibatch_size(), false));  // this takes 11 us
 
 #ifdef DEBUG
   auto finish2 = get_time_us();
@@ -74,6 +72,7 @@ void MFNetflixTask::run(const Configuration& config, int worker) {
   this->config = config;
 
   psint = std::make_unique<PSSparseServerInterface>(ps_ip, ps_port);
+  psint->connect();
 
   mf_model_get = std::make_unique<MFModelGet>(ps_ip, ps_port);
 
@@ -110,9 +109,9 @@ void MFNetflixTask::run(const Configuration& config, int worker) {
 
   }
 
-  S3SparseIterator s3_iter(
-      l, r + 1, config, config.get_s3_size(), config.get_minibatch_size(),
-      false, worker, false);
+  S3SparseIterator s3_iter(l, r + 1, config, config.get_s3_size(),
+                           config.get_minibatch_size(), false, worker, false,
+                           false);
 
   std::cout << "[WORKER] starting loop" << std::endl;
 
@@ -121,7 +120,7 @@ void MFNetflixTask::run(const Configuration& config, int worker) {
 #ifdef DEBUG
     std::cout << "[WORKER] running phase 1" << std::endl;
 #endif
-    std::unique_ptr<SparseDataset> dataset;
+    std::shared_ptr<SparseDataset> dataset;
     if (!get_dataset_minibatch(dataset, s3_iter)) {
       continue;
     }

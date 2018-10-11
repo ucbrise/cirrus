@@ -3,7 +3,7 @@
 
 AC_PREREQ([2.69])
 AC_INIT(CIRRUS, 0.1, joao@berkeley.edu)
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([subdir-objects])
 
 # Checks for programs.
 AC_PROG_CXX([mpic++])
@@ -16,7 +16,7 @@ AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 AX_CXX_COMPILE_STDCXX_14
 
-CXXFLAGS="-O3 -fPIC -std=c++1z -Werror"
+CXXFLAGS="-O3 -fPIC -std=c++17 -Werror"
 
 # Checks for header files.
 AC_CHECK_HEADERS([ arpa/inet.h netdb.h string.h stdint.h\
@@ -35,6 +35,11 @@ AC_FUNC_MALLOC
 AC_FUNC_STRCOLL
 AC_CHECK_FUNCS([gettimeofday localtime_r memchr memmove memset mkdir stpcpy strchr strcspn strdup strerror strpbrk strrchr strspn strstr])
 AC_CONFIG_FILES([Makefile
-                 src/Makefile])
+                 src/Makefile
+                 tests/Makefile
+                 tests/iterator/Makefile
+                 tests/test_s3/Makefile
+                 tests/test_travis/Makefile
+                 tests/test_travis_mf/Makefile])
 
 AC_OUTPUT

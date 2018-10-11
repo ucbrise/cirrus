@@ -174,6 +174,8 @@ double SparseLRModel::dot_product(
     int index = feat.first;
     FEATURE_TYPE value = feat.second;
     if ((uint64_t)index >= weights_.size()) {
+      std::cerr << "index: " << index << " weights.size: " << weights_.size()
+                << std::endl;
       throw std::runtime_error("Index too high");
     }
     assert(index >= 0 && (uint64_t)index < weights_.size());
@@ -192,8 +194,8 @@ double SparseLRModel::dot_product(
 }
 
 std::unique_ptr<ModelGradient> SparseLRModel::minibatch_grad(
-        const SparseDataset& dataset,
-        double epsilon) const {
+    const SparseDataset& dataset,
+    const Configuration& config) const {
   if (is_sparse_) {
     throw std::runtime_error("This model is sparse");
   }
@@ -244,8 +246,8 @@ std::unique_ptr<ModelGradient> SparseLRModel::minibatch_grad(
     for (const auto& v : part3) {
       uint64_t index = v.first;
       FEATURE_TYPE value = v.second;
-      res.push_back(std::make_pair(index, value + weights_[index] * 2 * epsilon));
-      //res[index] = res[index] * 2 * epsilon + value;
+      res.push_back(std::make_pair(
+          index, value + weights_[index] * 2 * config.get_epsilon()));
     }
 #ifdef DEBUG
     auto after_3 = get_time_us();
@@ -412,9 +414,7 @@ void SparseLRModel::ensure_preallocated_vectors(const Configuration& config) con
 std::unique_ptr<ModelGradient> SparseLRModel::minibatch_grad_sparse(
         const SparseDataset& dataset,
         const Configuration& config) const {
-  if (!is_sparse_) {
-    throw std::runtime_error("This model is not sparse");
-  }
+  // this method should work regardless of whether model is sparse
 
   ensure_preallocated_vectors(config);
 

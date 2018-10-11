@@ -13,7 +13,7 @@ Requirements
 The Cirrus backend has been tested on Ubuntu 14.04/16.04/18.04 and Amazon AMI.
 
 It has been tested with the following environment / dependencies:
-* g++ 6
+* g++-7
 
 In the Amazon AMI please do:
 
@@ -23,7 +23,7 @@ In the Amazon AMI please do:
 
 In Ubuntu please do:
 
-    $ sudo apt-get install build-essential cmake automake zlib1g-dev libssl-dev libcurl4-nss-dev bison
+    $ sudo apt-get install build-essential cmake automake zlib1g-dev libssl-dev libcurl4-nss-dev bison libldap2-dev libkrb5-dev
 
 Building
 =========

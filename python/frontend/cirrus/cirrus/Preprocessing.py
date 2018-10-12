@@ -4,17 +4,17 @@
 from enum import Enum
 import sklearn.datasets
 import time
-import MinMaxScaler
-import NormalScaler
-import FeatureHashing
+import minmaxscaler
+import normalscaler
+import featurehashing
 import boto3
 from utils import serialize_data
 
+ROWS_PER_CHUNK = 50000
 
 class Normalization(Enum):
     MIN_MAX = 1,
     NORMAL = 2
-
 
 class Preprocessing:
     """ Static preprocessing module for Min Max scaling, normal scaling. """
@@ -45,7 +45,6 @@ class Preprocessing:
         """ Load a libsvm file into S3 in the specified bucket. """
         client = boto3.client("s3")
         start = time.time()
-        # path = "../../tests/test_data/criteo.train.min.svm"
         print("[{0} s] Reading file...".format(time.time() - start))
         X, y = sklearn.datasets.load_svmlight_file(path)
         print("[{0} s] Finished reading file...".format(time.time() - start))
@@ -62,7 +61,7 @@ class Preprocessing:
                 curr_row.append((c, X[r, c]))
             batch.append(curr_row)
             batch_size += 1
-            if batch_size == 50000:
+            if batch_size == ROWS_PER_CHUNK:
                 # Put the lines in S3, 50000 lines at a time
                 print("[{0} s] Writing batch {1}...".format(
                     time.time() - start, batch_num))

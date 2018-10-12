@@ -5,6 +5,44 @@ import time
 from threading import Thread
 from collections import deque
 
+UPPER_BOUND_SCRIPT = "for i, v in ipairs(KEYS)" \
+    " do local current = tonumber(redis.call('get', KEYS[i])); " \
+    "if current then " \
+        "if tonumber(ARGV[i]) > current then redis.call('set', KEYS[i], ARGV[i]) end " \
+    "else redis.call('set', KEYS[i], ARGV[i]) end " \
+    "end"
+
+LOWER_BOUND_SCRIPT = "for i, v in ipairs(KEYS)" \
+    " do local current = tonumber(redis.call('get', KEYS[i])); " \
+    "if current then " \
+        "if tonumber(ARGV[i]) < current then redis.call('set', KEYS[i], ARGV[i]) end " \
+    "else redis.call('set', KEYS[i], ARGV[i]) end " \
+    "end"
+
+def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, use_redis, node_manager, chunk, batch_push_to_redis=True):
+    # Add the dictionary of bounds to an S3 bucket or Redis instance.
+    s = json.dumps(bounds)
+    s3_client.put_object(Bucket=dest_bucket, Key=dest_object, Body=s)
+    if not use_redis:
+        # Stop here and let the master thread aggregate if not using Redis
+        return
+
+    upper_bound_func = redis_client.register_script(UPPER_BOUND_SCRIPT)
+    lower_bound_func = redis_client.register_script(LOWER_BOUND_SCRIPT)
+    
+    max_k, max_v, min_k, min_v = get_keys_values(bounds)
+    print("[CHUNK{0}] Took {1} to make lists".format(chunk, time.time() - t0))
+
+    t0 = time.time()
+    push_keys_values_to_redis(
+        node_manager, chunk, batch_push_to_redis, max_k, max_v, upper_bound_func)
+    print("[CHUNK{0}] upper_bound_func took {1}".format(chunk, time.time() - t0))
+
+    t0 = time.time()
+    push_keys_values_to_redis(
+        node_manager, chunk, batch_push_to_redis, min_k, min_v, lower_bound_func)
+    print("[CHUNK{0}] lower_bound_func took {1}".format(chunk, time.time() - t0))
+
 
 class ParallelFn(Thread):
     """ Run a function on a particular key value pair. """
@@ -50,58 +88,8 @@ def get_data_bounds(data):
     }
 
 
-def push_keys_values_to_redis(node_manager, chunk, batch_push_to_redis, keys, values, redis_script):
-    # Apply a Redis script to a list of Redis keys and values
-    slot_k = {}
-    slot_vals = {}
-    if batch_push_to_redis:
-        if node_manager is not None:
-            # Separate the keys and values into slots determined by Redis
-            t1 = time.time()
-            for idx, k in enumerate(keys):
-                slot = node_manager.keyslot(k)
-                if slot not in slot_k:
-                    slot_k[slot] = []
-                    slot_vals[slot] = []
-                slot_k[slot].append(k)
-                slot_vals[slot].append(values[idx])
-            print("[CHUNK{0}] Took {1} to make slot maps".format(
-                chunk, time.time() - t1))
-            t1 = time.time()
-            w = deque()
-            # Push the key / value batches in parallel
-            for idx, k in enumerate(slot_k):
-                if len(w) >= 4:
-                    p2 = w.popleft()
-                    p2.join()
-                p = ParallelFn(redis_script, slot_k[k], slot_vals[k])
-                p.start()
-                w.append(p)
-            for p in w:
-                p.join()
-            print("[CHUNK{0}] Took {1} to make {2} key / value requests".format(
-                chunk, time.time() - t1, len(slot_k)))
-        else:
-            # If no node manager is specified, just push all at once
-            redis_script(keys, values)
-    else:
-        # Push each key value pair one at a time
-        for idx, k in enumerate(keys):
-            redis_script([k], [values[idx]])
-
-
-def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, use_redis, node_manager, chunk, batch_push_to_redis=True):
-    # Add the dictionary of bounds to an S3 bucket or Redis instance.
-    s = json.dumps(bounds)
-    s3_client.put_object(Bucket=dest_bucket, Key=dest_object, Body=s)
-    if not use_redis:
-        # Stop here and let the master thread aggregate if not using Redis
-        return
-
-    max_f = redis_client.register_script(
-        "for i, v in ipairs(KEYS) do local c = tonumber(redis.call('get', KEYS[i])); if c then if tonumber(ARGV[i]) > c then redis.call('set', KEYS[i], ARGV[i]) end else redis.call('set', KEYS[i], ARGV[i]) end end")
-    min_f = redis_client.register_script(
-        "for i, v in ipairs(KEYS) do local c = tonumber(redis.call('get', KEYS[i])); if c then if tonumber(ARGV[i]) < c then redis.call('set', KEYS[i], ARGV[i]) end else redis.call('set', KEYS[i], ARGV[i]) end end")
+def get_keys_values(bounds):
+    # Get lists of keys and values to push to Redis.
     max_k = []
     max_v = []
     min_k = []
@@ -114,17 +102,46 @@ def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket, dest_object, 
         max_v.append(bounds["max"][idx])
         min_k.append(str(idx) + "_min")
         min_v.append(bounds["min"][idx])
-    print("[CHUNK{0}] Took {1} to make lists".format(chunk, time.time() - t0))
+    return max_k, max_v, min_k, min_v
 
-    t0 = time.time()
-    push_keys_values_to_redis(
-        node_manager, chunk, batch_push_to_redis, max_k, max_v, max_f)
-    print("[CHUNK{0}] max_f took {1}".format(chunk, time.time() - t0))
-
-    t0 = time.time()
-    push_keys_values_to_redis(
-        node_manager, chunk, batch_push_to_redis, min_k, min_v, min_f)
-    print("[CHUNK{0}] min_f took {1}".format(chunk, time.time() - t0))
+def push_keys_values_to_redis(node_manager, chunk, batch_push_to_redis, keys, values, redis_script):
+    # Apply a Redis script to a list of Redis keys and values
+    slot_k = {}
+    slot_vals = {}
+    if not batch_push_to_redis:
+        # Push each key value pair one at a time
+        for idx, k in enumerate(keys):
+            redis_script([k], [values[idx]])
+        return
+    if node_manager is None:
+        # If no node manager is specified, just push all at once
+        redis_script(keys, values)
+        return
+    # Separate the keys and values into slots determined by Redis
+    t1 = time.time()
+    for idx, k in enumerate(keys):
+        slot = node_manager.keyslot(k)
+        if slot not in slot_k:
+            slot_k[slot] = []
+            slot_vals[slot] = []
+        slot_k[slot].append(k)
+        slot_vals[slot].append(values[idx])
+    print("[CHUNK{0}] Took {1} to make slot maps".format(
+        chunk, time.time() - t1))
+    t1 = time.time()
+    w = deque()
+    # Push the key / value batches in parallel
+    for idx, k in enumerate(slot_k):
+        if len(w) >= 4:
+            p2 = w.popleft()
+            p2.join()
+        p = ParallelFn(redis_script, slot_k[k], slot_vals[k])
+        p.start()
+        w.append(p)
+    for p in w:
+        p.join()
+    print("[CHUNK{0}] Took {1} to make {2} key / value requests".format(
+        chunk, time.time() - t1, len(slot_k)))
 
 
 def get_global_bounds(s3_client, redis_client, bucket, src_object, use_redis, chunk):
@@ -179,6 +196,8 @@ def get_global_bounds(s3_client, redis_client, bucket, src_object, use_redis, ch
 
 
 def scale_data(data, g, new_min, new_max):
+    """ Scale the values in data based on the minima / maxima specified in g,
+    the global map of mins / maxes. """
     for r in data:
         for j in range(len(r)):
             idx_t, v = r[j]

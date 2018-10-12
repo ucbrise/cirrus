@@ -2,7 +2,7 @@
 
 # TODO: Pytest
 
-from Preprocessing import *
+from preprocessing import *
 from utils import *
 import boto3
 from threading import Thread

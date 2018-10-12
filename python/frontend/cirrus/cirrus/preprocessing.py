@@ -6,9 +6,9 @@ import sklearn.datasets
 from enum import Enum
 
 import boto3
-import cirrus.feature_hashing
-import cirrus.min_max_scaler
-import cirrus.normal_scaler
+import cirrus.feature_hashing as feature_hashing
+import cirrus.min_max_scaler as min_max_scaler
+import cirrus.normal_scaler as normal_scaler
 from cirrus.utils import serialize_data
 
 ROWS_PER_CHUNK = 50000

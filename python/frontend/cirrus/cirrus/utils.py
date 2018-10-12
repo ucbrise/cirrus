@@ -140,7 +140,7 @@ def serialize_data(data, labels=None):
     num_bytes = 0
     for idx, row in enumerate(data):
         current_line = []
-        label = DEFAULT
+        label = DEFAULT_LABEL
         if labels is not None:
             label = labels[idx]
         current_line.append(label)

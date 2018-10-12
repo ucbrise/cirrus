@@ -2,47 +2,56 @@
 
 import textwrap
 import os
-import configparser
+import sys
 
 import boto3
 import botocore.exceptions
+
+sys.path.insert(0, os.path.dirname(__file__))
+import configuration
+
+
+# The path at which boto3 expects the user's AWS credentials. Must be passed
+#   through os.path.expanduser.
+AWS_CREDENTIALS_PATH = "~/.aws/credentials"
 
 
 def run_interactive_setup():
     """Run an interactive command-line setup process.
     """
-    config = configparser.ConfigParser()
-    config["aws"] = {}
+    configuration.config["aws"] = {}
 
-    if not _aws_authorized():
-        _setup_aws_credentials()
+    _setup_aws_credentials()
 
-    _setup_region(config)
+    _setup_region()
 
-    _save_config(config)
+    _save_config()
 
 
 def _setup_aws_credentials():
+    """If the user does not already have functioning AWS credentials in place,
+        prompt for AWS credentials and obtain permission to save them to
+        AWS_CREDENTIALS_PATH.
+    """
+    # If we are authorized even without us specifying explicit credentials,
+    #   then the user already has credentials set up somewhere.
+    if _aws_authorized():
+        return
+
     EXPLANATION = textwrap.dedent("""\
         Please enter the ID of one of your AWS access keys. This will enable
             Cirrus to create AWS resources on your behalf. See
             https://amzn.to/2CagUqm for how to retrieve this information.""")
     PROMPTS = ("Access key ID", "Secret access key")
+    id, secret = prompt(EXPLANATION, PROMPTS, _aws_authorized)
 
-    def validator(id, secret):
-        session = boto3.session.Session(id, secret)
-        ec2 = session.client("ec2", "us-west-1")
-        return _aws_authorized(id, secret)
-
-    id, secret = prompt(EXPLANATION, PROMPTS, validator)
-
-    EXPLANATION = textwrap.dedent("""\
-        May Cirrus write your AWS credentials to ~/.aws/credentials?""")
+    EXPLANATION = textwrap.dedent("May Cirrus write your AWS credentials to " \
+                                  f"{AWS_CREDENTIALS_PATH}?")
     PROMPTS = ("y/n",)
     validator = lambda c: c  in ("y", "n")
     postprocessor = lambda c: c == "y"
-
     can_write = prompt(EXPLANATION, PROMPTS, validator, postprocessor)
+
     if not can_write:
         print("Please set up your AWS credentials manually, so that they can "
               "be read by boto3.")
@@ -52,12 +61,25 @@ def _setup_aws_credentials():
         [default]
         aws_access_key_id = {id}
         aws_secret_access_key = {secret}""")
-    os.makedirs(os.path.expanduser("~/.aws"), exist_ok=True)
-    with open(os.path.expanduser("~/.aws/credentials"), "w+") as f:
+    path = os.path.expanduser(AWS_CREDENTIALS_PATH)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w+") as f:
         f.write(credentials)
 
 
 def _aws_authorized(id=None, secret=None):
+    """Return whether the user is authorized to access AWS.
+
+    Args:
+        id (str): The user's access key ID. If omitted or None, the access key
+            ID that `boto3` is configured with, if any, will be used.
+        secret (str): The user's secret access key. If omitted or None, the
+            secret access key that `boto3` is configured with, if any, will be
+            used.
+
+    Returns:
+        bool: Whether the user is authorized.
+    """
     session = boto3.session.Session(id, secret)
     ec2 = session.client("ec2", "us-west-1")
     try:
@@ -69,11 +91,16 @@ def _aws_authorized(id=None, secret=None):
             return False
         else:
             raise e
+    except botocore.exceptions.NoCredentialsError:
+        return False
     else:
         return True
 
 
-def _setup_region(config):
+def _setup_region():
+    """Prompt the user for their preferred AWS region and add it to the
+        configuration.
+    """
     EXPLANATION = "What AWS region do you want Cirrus to use?"
     PROMPTS = ("Region",)
     regions = boto3.session.Session().get_available_regions("lambda")
@@ -81,15 +108,40 @@ def _setup_region(config):
 
     region = prompt(EXPLANATION, PROMPTS, validator)
 
-    config["aws"]["region"] = region
+    configuration.config["aws"]["region"] = region
 
 
-def _save_config(config):
-    with open(os.path.expanduser("~/.cirrus.cfg"), "w+") as f:
-        config.write(f)
+def _save_config():
+    """Save the configuration.
+    """
+    with open(os.path.expanduser(configuration.CONFIGURATION_PATH), "w+") as f:
+        configuration.config.write(f)
 
 
 def prompt(explanation, prompts, validator=None, postprocess=None):
+    """Prompt the user for some pieces of information.
+
+    Prints the explanation. Prints each prompt in turn. Uses `validator` to
+        check the user's provided values and retry if invalid. Uses
+        `postprocess` to process the values before returning them.
+
+    Args:
+        explanation (str): A paragraph explanation that provides context for
+            the request.
+        prompts (list[str]): Prompts, one for each piece of information that is
+            desired.
+        validator (func[str, ...] -> bool): A function that is called with the
+            user's provided values. Returns true iff the values are valid. If
+            omitted or None, all values are considered valid.
+        postprocess (func[str, ...] -> tuple[*]): A function that is called
+            with the user's provided values if they are valid. Should return
+            processed versions of them. If omitted or None, no postprocessing
+            occurs.
+
+    Returns:
+        *: The return value of `postprocess` called on the user's provided
+            values.
+    """
     if validator is None:
         def validator(*args):
             return True

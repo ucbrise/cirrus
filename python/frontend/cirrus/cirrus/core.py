@@ -24,11 +24,7 @@ class BaseTask(object):
             dataset,
             learning_rate,
             epsilon,
-            key_name, key_path, # aws key
-            ps_ip_public, # public parameter server ip
-            ps_ip_private, # private parameter server ip
-            ps_ip_port,
-            ps_username, # parameter server VM username
+            ps,
             opt_method, # adagrad, sgd, nesterov, momentum
             checkpoint_model, # checkpoint model every x seconds
             train_set,
@@ -48,12 +44,7 @@ class BaseTask(object):
         self.dataset=dataset
         self.learning_rate = learning_rate
         self.epsilon = epsilon
-        self.key_name = key_name
-        self.key_path = key_path
-        self.ps_ip_public = ps_ip_public
-        self.ps_ip_private = ps_ip_private
-        self.ps_ip_port = ps_ip_port
-        self.ps_username = ps_username
+        self.ps = ps
         self.opt_method = opt_method
         self.checkpoint_model = checkpoint_model
         self.train_set=train_set
@@ -104,7 +95,7 @@ class BaseTask(object):
         if self.is_dead():
             return 0
         if fetch:
-            out = messenger.get_num_lambdas(self.ps_ip_public, self.ps_ip_port)
+            out = messenger.get_num_lambdas(self.ps)
             if out is not None:
                 self.last_num_lambdas = out
             return self.last_num_lambdas
@@ -116,7 +107,7 @@ class BaseTask(object):
             return self.time_ups_lst
         if fetch:
             t = time.time() - self.start_time
-            ups = messenger.get_num_updates(self.ps_ip_public, self.ps_ip_port)
+            ups = messenger.get_num_updates(self.ps)
             self.time_ups_lst.append((t, ups))
             return self.time_ups_lst
         else:
@@ -138,7 +129,7 @@ class BaseTask(object):
             shortage = self.n_workers - num_lambdas
 
             payload = '{"num_task": %d, "num_workers": %d, "ps_ip": \"%s\", "ps_port": %d}' \
-                        % (num_task, self.n_workers, self.ps_ip_private, self.ps_ip_port)
+                        % (num_task, self.n_workers, self.ps.private_ip(), self.ps.ps_port())
             for i in range(shortage):
                 try:
                     response = lambda_client.invoke(
@@ -157,7 +148,7 @@ class BaseTask(object):
                 return self.real_time_loss_lst
             else:
                 return self.time_loss_lst
-        out = messenger.get_last_time_error(self.ps_ip_public, self.ps_ip_port + 1)
+        out = messenger.get_last_time_error(self.ps)
         if out == None:
             if rtl:
                 return self.real_time_loss_lst
@@ -180,45 +171,15 @@ class BaseTask(object):
             return self.time_loss_lst
 
     def run(self):
-        self.define_config(self.ps_ip_public)
-        self.launch_ps()
+        self.ps.start(self.define_config())
         self.relaunch_lambdas()
 
     def kill(self):
-        messenger.send_kill_signal(self.ps_ip_public, self.ps_ip_port)
-        self.kill_signal.set()
+        self.ps.stop()
         self.dead = True
 
     def is_dead(self):
         return self.dead
-
-    def get_command(self, command_dict):
-        self.copy_config(command_dict)
-        self.launch_ps(command_dict)
-        self.launch_error_task(command_dict)
-
-    def launch_error_task(self, command_dict=None):
-        cmd = 'nohup ./parameter_server --config config_%d.txt --nworkers %d --rank 2 --ps_ip %s --ps_port %d &> error_out_%d &' % (
-        self.ps_ip_port, self.n_workers, self.ps_ip_private, self.ps_ip_port, self.ps_ip_port)
-        if command_dict is not None:
-            command_dict[self.ps_ip_public].append(cmd)
-        else:
-            raise ValueError('SSH Error Task not implemented')
-
-    def launch_ps(self, command_dict=None):
-        cmd = 'nohup ./parameter_server --config config_%d.txt --nworkers %d --rank 1 --ps_port %d &> ps_out_%d & ' % (
-            self.ps_ip_port, self.n_workers * 2, self.ps_ip_port, self.ps_ip_port)
-        if command_dict is not None:
-            command_dict[self.ps_ip_public].append(cmd)
-        else:
-            raise ValueError('SSH Copy config not implemented')
-
-    def copy_config(self, command_dict=None):
-        config = self.define_config()
-        if command_dict is not None:
-            command_dict[self.ps_ip_public].append('echo "%s" > config_%d.txt' % (config, self.ps_ip_port))
-        else:
-            raise ValueError('SSH Copy config not implemented')
 
 
     @abstractmethod

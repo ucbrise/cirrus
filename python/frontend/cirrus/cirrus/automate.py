@@ -5,6 +5,7 @@ import sys
 import io
 import atexit
 import zipfile
+import shlex
 
 import paramiko
 import boto3
@@ -146,6 +147,15 @@ class Instance(object):
 
     @staticmethod
     def images_exist(name):
+        """Return whether any AMI with a given name, owned by the current user,
+            exists.
+
+        Args:
+            name (str): The name.
+
+        Returns:
+            bool: Whether any exists.
+        """
         ec2 = boto3.resource("ec2", BUILD_INSTANCE["region"])
 
         log.debug("images_exist: Describing images.")
@@ -160,6 +170,11 @@ class Instance(object):
 
     @staticmethod
     def delete_images(name):
+        """Delete any AMI with a given name, owned by the current user.
+
+        Args:
+            name (str): The name.
+        """
         ec2 = boto3.resource("ec2", BUILD_INSTANCE["region"])
 
         log.debug("delete_images: Describing images.")
@@ -215,6 +230,9 @@ class Instance(object):
         self._ssh_client = None
         self._sftp_client = None
 
+        self._buffering_commands = False
+        self._buffered_commands = []
+
         self._log.debug("__init__: Done.")
 
 
@@ -242,6 +260,10 @@ class Instance(object):
         self._log.debug("start: Done.")
 
 
+    def private_ip(self):
+        pass
+
+
     def run_command(self, command):
         """Run a command on this instance.
 
@@ -252,6 +274,10 @@ class Instance(object):
             tuple[int, bytes, bytes]: The exit code, stdout, and stderr,
                 respectively, of the process.
         """
+        if self._buffering_commands:
+            self._buffered_commands.append(command)
+            return 0, "", ""
+
         if self._ssh_client is None:
             self._log.debug("run_command: Calling _connect_ssh.")
             self._connect_ssh()
@@ -271,6 +297,18 @@ class Instance(object):
 
         self._log.debug("run_command: Done.")
         return status, stdout, stderr
+
+
+    def buffer_commands(self, flag):
+        if flag == False and self._buffering_commands == True:
+            concat_command = "\n".join(self._buffered_commands)
+            self._buffered_commands = []
+            self._buffering_commands = False
+            return self.run_command(concat_command)
+        else:
+            if flag == True and self._buffering_commands == False:
+                self._buffering_commands = True
+            return 0, "", ""
 
 
     def download_s3(self, src, dest):
@@ -312,6 +350,13 @@ class Instance(object):
             src,
             dest
         )))
+
+
+    def upload(self, content, dest):
+        if self._sftp_client is None:
+            self._connect_sftp()
+        fo = io.StringIO(content)
+        self._sftp_client.putfo(fo, dest)
 
 
     def save_image(self, name):
@@ -529,6 +574,84 @@ class Instance(object):
                 break
         else:
             pass  # FIXME
+
+
+    def _connect_sftp(self):
+        if self._ssh_client is None:
+            self._connect_ssh()
+        self._sftp_client = self._ssh_client.open_sftp()
+
+
+class ParameterServer(object):
+    def __init__(self, instance, ps_port, error_port, num_workers):
+        self._instance = instance
+        self._ps_port = ps_port
+        self._error_port = error_port
+        self._num_workers = num_workers
+
+        self._pid = None
+
+
+    def public_ip(self):
+        return self._instance.public_ip()
+
+
+    def private_ip(self):
+        return self._instance.private_ip()
+
+
+    def ps_port(self):
+        return self._ps_port
+
+
+    def error_port(self):
+        return self._error_port
+
+
+    def start(self, config):
+        config_filename = f"config_{self._ps_port}.txt"
+        self._instance.run_command(
+            f"echo {shlex.quote(config)} > {config_filename}")
+
+        ps_start_command = " ".join((
+            "nohup",
+            "./parameter_server",
+            "--config", config_filename,
+            "--nworkers", str(self._num_workers),
+            "--rank", "1",
+            "--ps_port", str(self._ps_port),
+            "&>", f"ps_out_{self._ps_port}"
+            "&"
+        ))
+        status, _, _ = self._instance.run_command(ps_start_command)
+        if status != 0:
+            pass
+
+        error_start_command = " ".join((
+            "nohup",
+            "./parameter_server",
+            "--config", config_filename,
+            "--nworkers", str(self._num_workers),
+            "--rank 2",
+            "--ps_ip", self._instance.private_ip,
+            "--ps_port", str(self._ps_port),
+            f"&> error_out_{self._ps_port}"
+            "&"
+        ))
+        status, _, _ = self._instance.run_command(error_start_command)
+        if status != 0:
+            pass
+
+        status, self._pid, _ = self._instance.run_command("echo $!")
+        if status != 0:
+            pass
+
+
+    def stop(self):
+        if self._pid is None:
+            pass
+        kill_command = " ".join(("kill", self._pid))
+        status, _, _ = self._instance.run_command(kill_command)
 
 
 def make_build_image(name, replace=False):

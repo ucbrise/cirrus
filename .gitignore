@@ -10,6 +10,7 @@ core
 .deps
 *.out
 *.txt
+!requirements.txt
 config.*
 Makefile
 *.tgz

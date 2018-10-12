@@ -148,7 +148,7 @@ def push_keys_values_to_redis(node_manager, chunk, batch_push_to_redis, keys, va
             other.join()
         thread = ParallelFn(redis_script, slot_k[k], slot_vals[k])
         thread.start()
-        push_threads.append(p)
+        push_threads.append(thread)
     for thread in push_threads:
         thread.join()
     print("[CHUNK{0}] Took {1} to make {2} key / value requests".format(

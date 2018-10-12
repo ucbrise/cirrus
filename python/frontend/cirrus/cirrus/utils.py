@@ -1,5 +1,6 @@
 import random
 import struct
+import time
 from collections import deque
 
 import boto3

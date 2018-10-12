@@ -4,15 +4,15 @@ import json
 import time
 import boto3
 from collections import deque
-from utils import get_all_keys
-from LambdaThread import LambdaThread
+from utils import get_all_keys, launch_lambdas
+from lambdathread import LambdaThread
 from threading import Thread
 
 MAX_LAMBDAS = 400
 
 
 class LocalBounds(LambdaThread):
-    def __init__(self, s3_bucket_input, s3_key, use_redis):
+    def __init__(self, s3_key, s3_bucket_input, use_redis):
         Thread.__init__(self)
         redis_signal = str(int(use_redis))
         self.lamdba_dict = {
@@ -25,7 +25,7 @@ class LocalBounds(LambdaThread):
 
 
 class LocalScale(LambdaThread):
-    def __init__(self, s3_bucket_input, s3_key, s3_bucket_output, lower, upper, use_redis):
+    def __init__(self, s3_key, s3_bucket_input, s3_bucket_output, lower, upper, use_redis):
         Thread.__init__(self)
         redis_signal = str(int(use_redis))
         self.lamdba_dict = {
@@ -40,54 +40,36 @@ class LocalScale(LambdaThread):
         }
 
 
-def MinMaxScaler(s3_bucket_input, s3_bucket_output, lower, upper, objects=[], use_redis=True, dry_run=False, skip_bounds=False):
+def MinMaxScaler(s3_bucket_input, s3_bucket_output, lower, upper, 
+        objects=[], use_redis=True, dry_run=False, skip_bounds=False):
+    """ Scale the values in a dataset to the range [lower, upper]. """
     s3_resource = boto3.resource("s3")
     if len(objects) == 0:
         # Allow user to specify objects, or otherwise get all objects.
         objects = get_all_keys(s3_bucket_input)
 
-    client = boto3.client("s3")
-
     # Calculate bounds for each chunk.
     start_bounds = time.time()
-    l_client = boto3.client("lambda")
     if not skip_bounds:
-        b_threads = deque()
-        for i in objects:
-            while len(b_threads) > MAX_LAMBDAS:
-                t = b_threads.popleft()
-                t.join()
-            l = LocalBounds(s3_bucket_input, i, use_redis)
-            l.start()
-            b_threads.append(l)
-
-        for t in b_threads:
-            t.join()
+        # Get the bounds
+        launch_lambdas(LocalBounds, objects, max_lambdas=MAX_LAMBDAS, 
+            s3_bucket_input, use_redis)
 
     print("LocalBounds took {0} seconds...".format(time.time() - start_bounds))
     # Aggregate the local maps if no Redis
     if not use_redis:
         no_redis_alternative(s3_bucket_input, objects)
 
-    # Update each chunk
     start_scale = time.time()
-    g_threads = deque()
     if not dry_run:
-        for i in objects:
-            if len(g_threads) > MAX_LAMBDAS:
-                t = g_threads.popleft()
-                t.join()
-            g = LocalScale(s3_bucket_input, i, s3_bucket_output,
-                           lower, upper, use_redis)
-            g.start()
-            g_threads.append(g)
+        # Scale the chunks
+        launch_lambdas(LocalScale, objects, max_lambdas=MAX_LAMBDAS, 
+            s3_bucket_input, s3_bucket_output, lower, upper, use_redis)
 
-        for t in g_threads:
-            t.join()
     end_scale = time.time()
     print("Local scaling took {0} seconds...".format(end_scale - start_scale))
 
-    # Delete any intermediate values in S3
+    # Delete any intermediary values in S3
     for i in objects:
         s3_resource.Object(s3_bucket_input, str(i) + "_bounds").delete()
         if not use_redis:

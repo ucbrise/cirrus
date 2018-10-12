@@ -1,28 +1,33 @@
-import boto3
+""" AWS Lambda handler to be deployed by the deploy.sh script. """
+
+import random
+import time
+
 from redis import StrictRedis
+
+import boto3
+import feature_hashing_helper
+import min_max_helper
+import normal_helper
+import toml
 from rediscluster import StrictRedisCluster
 from rediscluster.nodemanager import NodeManager
-import toml
-import minmaxhandler
-import normalhandler
-import featurehashinghandler
 from utils import *
-import time
-import random
 
-cluster = False
+CLUSTER = False
 
 
 def handler(event, context):
+    """ First entry point for lambda function. """
     total = time.time()
     assert "s3_bucket_input" in event and "s3_key" in event, "Must specify input bucket, and key."
     # Handle duplicate lambda launches
     unique_id = event["s3_key"] + "_nonce_" + str(event["dupe_nonce"])
-    r = bool(int(event["use_redis"]))
+    redis_flag = bool(int(event["use_redis"]))
     redis_client = None
     node_manager = None
     # Kill the function if this is a duplicate
-    if r:
+    if redis_flag:
         signal = kill_duplicates(event["s3_key"], unique_id)
         if signal is None:
             return ["DUPLICATE"]
@@ -33,27 +38,30 @@ def handler(event, context):
 
     # Get data from S3
     print("[CHUNK{0}] Getting data from S3...".format(event["s3_key"]))
-    t = time.time()
+    get_data_time = time.time()
     s3_client = boto3.client("s3")
-    d, l = get_data_from_s3(
+    data, labels = get_data_from_s3(
         s3_client, event["s3_bucket_input"], event["s3_key"], keep_label=True)
     print("[CHUNK{0}] Getting S3 data took {1}".format(
-        event["s3_key"], time.time() - t))
+        event["s3_key"], time.time() - get_data_time))
 
     # Call the appropriate handler
     if event["action"] == "FEATURE_HASHING":
-        feature_hashing_handler(s3_client, d, l, event)
+        feature_hashing_handler(s3_client, data, labels, event)
     elif event["normalization"] == "MIN_MAX":
-        min_max_handler(s3_client, redis_client, d, l, node_manager, r, event)
+        min_max_handler(s3_client, redis_client, data, labels, node_manager, redis_flag, event)
     elif event["normalization"] == "NORMAL":
-        normal_scaling_handler(s3_client, d, l, event)
-    print("[CHUNK{0}] Total time was {1}".format(event["s3_key"], time.time() - total))
+        normal_scaling_handler(s3_client, data, labels, event)
+    print("[CHUNK{0}] Total time was {1}".format(
+        event["s3_key"], time.time() - total))
     return []
 
+
 def kill_duplicates(chunk, unique_id):
+    """ Identify duplicates with Redis """
     print("[CHUNK{0}] Opening redis.toml".format(chunk))
-    with open("redis.toml", "r") as f:
-        creds = toml.load(f)
+    with open("redis.toml", "r") as file:
+        creds = toml.load(file)
     print("[CHUNK{0}] Opened redis.toml".format(chunk))
     redis_host = creds["host"]
     redis_port = int(creds["port"])
@@ -61,7 +69,7 @@ def kill_duplicates(chunk, unique_id):
     redis_password = creds["password"]
     startup_nodes = [{"host": redis_host,
                       "port": redis_port, "password": redis_password}]
-    if not cluster:
+    if not CLUSTER:
         redis_client = StrictRedis(
             host=redis_host, port=redis_port, password=redis_password, db=redis_db)
     else:
@@ -81,77 +89,83 @@ def kill_duplicates(chunk, unique_id):
     return redis_client, node_manager
 
 
-def feature_hashing_handler(s3_client, d, l, event):
-    # Handle a call for feature hashing
-    t = time.time()
+def feature_hashing_handler(s3_client, data, labels, event):
+    """ Handle a call for feature hashing """
+    start = time.time()
     print("[CHUNK{0}] Hashing data".format(event["s3_key"]))
-    h = featurehashinghandler.hash_data(d, event["columns"], event["N"])
+    hashed = feature_hashing_helper.hash_data(data, event["columns"], event["N"])
     print("[CHUNK{0}] Serializing data".format(event["s3_key"]))
-    serialized = serialize_data(h, l)
+    serialized = serialize_data(hashed, labels)
     print("[CHUNK{0}] Putting object in S3".format(event["s3_key"]))
     s3_client.put_object(
         Bucket=event["s3_bucket_output"], Key=event["s3_key"], Body=serialized)
     print("[CHUNK{0}] Process took {1}".format(
-        event["s3_key"], time.time() - t))
+        event["s3_key"], time.time() - start))
 
 
-def min_max_handler(s3_client, redis_client, d, l, node_manager, r, event):
-    # Either calculates the local bounds, or scales data and puts the new data in
-    # {src_object}_scaled.
-    t = time.time()
+def min_max_handler(s3_client, redis_client, data, labels,
+                    node_manager, redis_flag, event):
+    """ Either calculates the local bounds, or scales data and puts the new data in
+    {src_object}_scaled. """
+    start = time.time()
     if event["action"] == "LOCAL_BOUNDS":
         print("Getting local data bounds...")
-        b = minmaxhandler.get_data_bounds(d)
+        bounds = min_max_helper.get_data_bounds(data)
         print("[CHUNK{0}] Calculating bounds took {1}".format(
-            event["s3_key"], time.time() - t))
-        t = time.time()
+            event["s3_key"], time.time() - start))
+        bounds_time = time.time()
         print("Putting bounds in S3...")
-        minmaxhandler.put_bounds_in_db(
-            s3_client, redis_client, b, event["s3_bucket_input"], event["s3_key"] + "_bounds", r, node_manager, event["s3_key"])
+        min_max_helper.put_bounds_in_db(
+            s3_client, redis_client, bounds,
+            event["s3_bucket_input"], event["s3_key"] + "_bounds",
+            redis_flag, node_manager, event["s3_key"])
         print(
-            "[CHUNK{0}] Putting bounds in S3 / Redis took {1}".format(event["s3_key"], time.time() - t))
+            "[CHUNK{0}] Putting bounds in S3 / Redis took {1}".format(
+                event["s3_key"], time.time() - bounds_time))
         print("[CHUNK{0}NONCE] LOCAL {1} GLOBAL {2} TIME {3}".format(
-            event["s3_key"], (random.random() * 1000) // 1.0, event["dupe_nonce"], time.time() - t))
+            event["s3_key"], (random.random() * 1000) // 1.0,
+            event["dupe_nonce"], time.time() - start))
     elif event["action"] == "LOCAL_SCALE":
         assert "s3_bucket_output" in event, "Must specify output bucket."
         assert "min_v" in event, "Must specify min."
         assert "max_v" in event, "Must specify max."
-        t = time.time()
         print("Getting global bounds...")
-        b = minmaxhandler.get_global_bounds(
-            s3_client, redis_client, event["s3_bucket_input"], event["s3_key"], r, event["s3_key"])
+        bounds = min_max_helper.get_global_bounds(
+            s3_client, redis_client, event["s3_bucket_input"], event["s3_key"],
+            redis_flag, event["s3_key"])
         print("[CHUNK{0}] Global bounds took {1} to get".format(
-            event["s3_key"], time.time() - t))
-        t = time.time()
+            event["s3_key"], time.time() - start))
+        scale_time = time.time()
         print("Scaling data...")
-        scaled = minmaxhandler.scale_data(d, b, event["min_v"], event["max_v"])
+        scaled = min_max_helper.scale_data(data, bounds, event["min_v"], event["max_v"])
         print("[CHUNK{0}] Scaling took {1}".format(
-            event["s3_key"], time.time() - t))
+            event["s3_key"], time.time() - scale_time))
         print("Serializing...")
-        serialized = serialize_data(scaled, l)
+        serialized = serialize_data(scaled, labels)
         print("[CHUNK{0}] Putting in S3...".format(event["s3_key"]))
         s3_client.put_object(
             Bucket=event["s3_bucket_output"], Key=event["s3_key"], Body=serialized)
 
 
-def normal_scaling_handler(s3_client, d, l, event):
-    # Scale to a unit normal range
-    t = time.time()
+def normal_scaling_handler(s3_client, data, labels, event):
+    """ Scale to a unit normal range """
     if event["action"] == "LOCAL_RANGE":
         print("Getting local data ranges...")
-        b = normalhandler.get_data_ranges(d)
+        bounds = normal_helper.get_data_ranges(data)
         print("Putting ranges in S3...")
-        minmaxhandler.put_bounds_in_s3(
-            client, b, event["s3_bucket_input"], event["s3_key"] + "_bounds")
+        min_max_helper.put_bounds_in_db(
+            client, None, bounds, event["s3_bucket_input"], event["s3_key"] + "_bounds",
+            False, None, event["s3_key"])
     elif event["action"] == "LOCAL_SCALE":
         assert "s3_bucket_output" in event, "Must specify output bucket."
         print("Getting global bounds...")
-        b = minmaxhandler.get_global_bounds(
-            client, event["s3_bucket_input"], event["s3_key"])
+        bounds = min_max_helper.get_global_bounds(
+            client, None, event["s3_bucket_input"], event["s3_key"],
+            False, event["s3_key"])
         print("Scaling data...")
-        scaled = normalhandler.scale_data(d, b)
+        scaled = normal_helper.scale_data(data, bounds)
         print("Serializing...")
-        serialized = serialize_data(scaled, l)
+        serialized = serialize_data(scaled, labels)
         print("Putting in S3...")
         s3_client.put_object(
             Bucket=event["s3_bucket_output"], Key=event["s3_key"], Body=serialized)

@@ -1,7 +1,9 @@
 import random
-import boto3
 import struct
 from collections import deque
+
+import boto3
+
 
 def launch_lambdas(lambda_cls, objects, max_lambdas=400, *params):
     """ Launch one lambda for each of the objects passed in. """

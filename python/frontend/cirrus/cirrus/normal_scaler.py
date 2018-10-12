@@ -1,17 +1,19 @@
-# Unit normal normalization
+""" Unit normal normalization """
 
 import json
 import time
-import boto3
 from collections import deque
-from utils import get_all_keys, launch_lambdas
-from lambdathread import LambdaThread
 from threading import Thread
+
+import boto3
+from lambda_thread import LambdaThread
+from utils import get_all_keys, launch_lambdas
 
 MAX_LAMBDAS = 400
 
 
 class LocalRange(LambdaThread):
+    """ Get the mean and standard deviation for this chunk """
     def __init__(self, s3_key, s3_bucket_input):
         Thread.__init__(self)
         self.lamdba_dict = {
@@ -23,6 +25,8 @@ class LocalRange(LambdaThread):
 
 
 class LocalScale(LambdaThread):
+    """ Subtract the global mean and divide by the standard
+    deviation """
     def __init__(self, s3_key, s3_bucket_input, s3_bucket_output):
         Thread.__init__(self)
         self.lamdba_dict = {
@@ -34,7 +38,7 @@ class LocalScale(LambdaThread):
         }
 
 
-def NormalScaler(s3_bucket_input, s3_bucket_output, objects=[], dry_run=False):
+def normal_scaler(s3_bucket_input, s3_bucket_output, objects=(), dry_run=False):
     """ Scale the values in a dataset to fit a unit normal distribution. """
     s3_resource = boto3.resource("s3")
     if len(objects) == 0:
@@ -43,7 +47,7 @@ def NormalScaler(s3_bucket_input, s3_bucket_output, objects=[], dry_run=False):
 
     # Calculate bounds for each chunk.
     start_bounds = time.time()
-    launch_lambdas(LocalRange, objects, max_lambdas=MAX_LAMBDAS, s3_bucket_input)
+    launch_lambdas(LocalRange, objects, MAX_LAMBDAS, s3_bucket_input)
 
     start_global = time.time()
     print("LocalRange took {0} seconds...".format(start_global - start_bounds))
@@ -61,8 +65,8 @@ def NormalScaler(s3_bucket_input, s3_bucket_output, objects=[], dry_run=False):
         start_scale - end_global))
     if not dry_run:
         # Scale the chunks and put them in the output bucket.
-        launch_lambdas(LocalScale, objects, max_lambdas=MAX_LAMBDAS, 
-            s3_bucket_input, s3_bucket_output)
+        launch_lambdas(LocalScale, objects, MAX_LAMBDAS,
+                       s3_bucket_input, s3_bucket_output)
     end_scale = time.time()
     print("Local scaling took {0} seconds...".format(end_scale - start_scale))
 
@@ -75,15 +79,15 @@ def NormalScaler(s3_bucket_input, s3_bucket_output, objects=[], dry_run=False):
 
 
 def get_global_map(s3_bucket_input, objects):
-    # Aggregate the sample means, std. devs., etc. to get the global map.
+    """ Aggregate the sample means, std. devs., etc. to get the global map. """
     client = boto3.client("s3")
     f_ranges = {}
     for i in objects:
         obj = client.get_object(Bucket=s3_bucket_input,
                                 Key=str(i) + "_bounds")["Body"].read()
-        d = json.loads(obj.decode("utf-8"))
-        for idx in d:
-            sample_mean_x_squared, sample_mean_x, n = d[idx]
+        local_map = json.loads(obj.decode("utf-8"))
+        for idx in local_map:
+            sample_mean_x_squared, sample_mean_x, n = local_map[idx]
             if idx not in f_ranges:
                 f_ranges[idx] = [
                     sample_mean_x_squared * n, sample_mean_x * n, n]
@@ -91,19 +95,20 @@ def get_global_map(s3_bucket_input, objects):
                 f_ranges[idx][0] += sample_mean_x_squared * n
                 f_ranges[idx][1] += sample_mean_x * n
                 f_ranges[idx][2] += n
+    return f_ranges
 
 
 def update_local_maps(s3_bucket_input, objects, f_ranges):
-    # Update the local maps of means, std. devs., etc.
+    """ Update the local maps of means, std. devs., etc. """
     for i in objects:
         s3_obj = s3_resource.Object(s3_bucket_input, str(i) + "_bounds")
         obj = s3_obj.get()["Body"].read()
-        d = json.loads(obj.decode("utf-8"))
-        for idx in d:
+        local_map = json.loads(obj.decode("utf-8"))
+        for idx in local_map:
             mean_x_sq = f_ranges[idx][0] / f_ranges[idx][2]
             mean = f_ranges[idx][1] / f_ranges[idx][2]
-            d[idx] = [(mean_x_sq - mean**2)**(.5), mean]
-        s = json.dumps(d)
+            local_map[idx] = [(mean_x_sq - mean**2)**(.5), mean]
+        serialized = json.dumps(local_map)
         client.put_object(Bucket=s3_bucket_input,
-                          Key=str(i) + "_final_bounds", Body=s)
+                          Key=str(i) + "_final_bounds", Body=serialized)
         s3_obj.delete()

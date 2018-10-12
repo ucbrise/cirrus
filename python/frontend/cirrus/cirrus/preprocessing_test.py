@@ -2,19 +2,22 @@
 
 # TODO: Pytest
 
-from preprocessing import *
-from utils import *
-import boto3
-from threading import Thread
-import sklearn.datasets
+import hashlib
 import time
 from collections import deque
-import hashlib
+from threading import Thread
+
+import sklearn.datasets
+
+import boto3
+from preprocessing import *
+from utils import *
 
 MAX_THREADS = 400
 
 
 class SimpleTest(Thread):
+    """ Test that the data is within the correct bounds. """
     def __init__(self, s3_bucket_input, s3_bucket_output, min_v, max_v, obj_key):
         Thread.__init__(self)
         self.s3_bucket_input = s3_bucket_input
@@ -48,6 +51,7 @@ class SimpleTest(Thread):
 
 
 class HashTest(Thread):
+    """ Test that the columns were hashed correctly. """
     def __init__(self, s3_bucket_input, s3_bucket_output, columns, N, obj_key):
         Thread.__init__(self)
         self.s3_bucket_input = s3_bucket_input
@@ -82,11 +86,13 @@ class HashTest(Thread):
 
 
 def load_data(path):
+    """ Load a libsvm file. """
     X, y = sklearn.datasets.load_svmlight_file(path)
     return X, y
 
 
 def test_load_libsvm(src_file, s3_bucket_output, wipe_keys=False, no_load=False):
+    """ Test the load libsvm to S3 function. """
     if wipe_keys:
         t0 = time.time()
         print("[TEST_LOAD] Wiping keys in bucket")
@@ -151,7 +157,8 @@ def test_load_libsvm(src_file, s3_bucket_output, wipe_keys=False, no_load=False)
 
 
 def test_simple(s3_bucket_input, s3_bucket_output, min_v, max_v, objects=[], preprocess=False, wipe_keys=False, skip_bounds=False):
-    # Make sure all data is in bounds in output, and all data is present from input
+    """ Make sure all data is in bounds in output, and all data 
+    is present from input """
     if wipe_keys:
         t0 = time.time()
         print("[TEST_SIMPLE] Wiping keys in bucket")
@@ -190,6 +197,7 @@ def test_simple(s3_bucket_input, s3_bucket_output, min_v, max_v, objects=[], pre
 
 
 def test_hash(s3_bucket_input, s3_bucket_output, columns, N, objects=[], feature_hashing=True):
+    """ Test that feature hashing was correct """
     t0 = time.time()
     print("[TEST_HASH] Getting all keys")
     if len(objects) == 0:

@@ -6,10 +6,10 @@ import sklearn.datasets
 from enum import Enum
 
 import boto3
-import feature_hashing
-import min_max_scaler
-import normal_scaler
-from utils import serialize_data
+import cirrus.feature_hashing
+import cirrus.min_max_scaler
+import cirrus.normal_scaler
+from cirrus.utils import serialize_data
 
 ROWS_PER_CHUNK = 50000
 
@@ -41,11 +41,12 @@ class Preprocessing:
             normal_scaler.normal_scaler(s3_bucket_input, s3_bucket_output, *args)
 
     @staticmethod
-    def feature_hashing(s3_bucket_input, s3_bucket_output, columns, N, objects=()):
-        """ Perform feature hashing on the specifiec columns.
+    def feature_hashing(s3_bucket_input, s3_bucket_output, columns,
+                        n_buckets, objects=()):
+        """ Perform feature hashing on the specified columns.
         All other columns are untouched. """
         feature_hashing.feature_hashing(
-            s3_bucket_input, s3_bucket_output, columns, N, objects)
+            s3_bucket_input, s3_bucket_output, columns, n_buckets, objects)
 
     @staticmethod
     def load_libsvm(path, s3_bucket):
@@ -53,19 +54,19 @@ class Preprocessing:
         client = boto3.client("s3")
         start = time.time()
         print("[{0} s] Reading file...".format(time.time() - start))
-        X, labels = sklearn.datasets.load_svmlight_file(path)
+        data, labels = sklearn.datasets.load_svmlight_file(path)
         print("[{0} s] Finished reading file...".format(time.time() - start))
         batch = []
         batch_num = 1
         batch_size = 0
-        for row in range(X.shape[0]):
+        for row in range(data.shape[0]):
             # Iterate through the rows
             if row % 10000 == 0:
                 print("[{0} s] On row {1}...".format(time.time() - start, row))
-            rows, cols = X[row, :].nonzero()
+            rows, cols = data[row, :].nonzero()
             curr_row = []
             for col_idx in cols:
-                curr_row.append((c, X[row, col_idx]))
+                curr_row.append((c, data[row, col_idx]))
             batch.append(curr_row)
             batch_size += 1
             if batch_size == ROWS_PER_CHUNK:

@@ -12,7 +12,7 @@ import normal_helper
 import toml
 from rediscluster import StrictRedisCluster
 from rediscluster.nodemanager import NodeManager
-from utils import *
+from utils import get_data_from_s3, serialize_data
 
 CLUSTER = False
 
@@ -93,7 +93,7 @@ def feature_hashing_handler(s3_client, data, labels, event):
     """ Handle a call for feature hashing """
     start = time.time()
     print("[CHUNK{0}] Hashing data".format(event["s3_key"]))
-    hashed = feature_hashing_helper.hash_data(data, event["columns"], event["N"])
+    hashed = feature_hashing_helper.hash_data(data, event["columns"], event["n_buckets"])
     print("[CHUNK{0}] Serializing data".format(event["s3_key"]))
     serialized = serialize_data(hashed, labels)
     print("[CHUNK{0}] Putting object in S3".format(event["s3_key"]))

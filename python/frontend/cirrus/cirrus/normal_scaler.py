@@ -3,11 +3,10 @@
 import json
 import time
 from collections import deque
-from threading import Thread
 
 import boto3
-from lambda_thread import LambdaThread
-from utils import get_all_keys, launch_lambdas
+from cirrus.lambda_thread import LambdaThread
+from cirrus.utils import get_all_keys, launch_lambdas
 
 MAX_LAMBDAS = 400
 
@@ -15,7 +14,7 @@ MAX_LAMBDAS = 400
 class LocalRange(LambdaThread):
     """ Get the mean and standard deviation for this chunk """
     def __init__(self, s3_key, s3_bucket_input):
-        Thread.__init__(self)
+        LambdaThread.__init__(self)
         self.lamdba_dict = {
             "s3_bucket_input": s3_bucket_input,
             "s3_key": s3_key,
@@ -28,7 +27,7 @@ class LocalScale(LambdaThread):
     """ Subtract the global mean and divide by the standard
     deviation """
     def __init__(self, s3_key, s3_bucket_input, s3_bucket_output):
-        Thread.__init__(self)
+        LambdaThread.__init__(self)
         self.lamdba_dict = {
             "s3_bucket_input": s3_bucket_input,
             "s3_key": s3_key,
@@ -87,14 +86,16 @@ def get_global_map(s3_bucket_input, objects):
                                 Key=str(i) + "_bounds")["Body"].read()
         local_map = json.loads(obj.decode("utf-8"))
         for idx in local_map:
-            sample_mean_x_squared, sample_mean_x, n = local_map[idx]
+            sample_mean_x_squared, sample_mean_x, n_samples = local_map[idx]
             if idx not in f_ranges:
                 f_ranges[idx] = [
-                    sample_mean_x_squared * n, sample_mean_x * n, n]
+                    sample_mean_x_squared * n_samples,
+                    sample_mean_x * n_samples,
+                    n_samples]
             else:
-                f_ranges[idx][0] += sample_mean_x_squared * n
-                f_ranges[idx][1] += sample_mean_x * n
-                f_ranges[idx][2] += n
+                f_ranges[idx][0] += sample_mean_x_squared * n_samples
+                f_ranges[idx][1] += sample_mean_x * n_samples
+                f_ranges[idx][2] += n_samples
     return f_ranges
 
 

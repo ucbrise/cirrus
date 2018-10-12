@@ -3,11 +3,10 @@
 import json
 import time
 from collections import deque
-from threading import Thread
 
 import boto3
-from lambda_thread import LambdaThread
-from utils import get_all_keys, launch_lambdas
+from cirrus.lambda_thread import LambdaThread
+from cirrus.utils import get_all_keys, launch_lambdas
 
 MAX_LAMBDAS = 400
 
@@ -15,7 +14,7 @@ MAX_LAMBDAS = 400
 class LocalBounds(LambdaThread):
     """ Calculate the max and min values for a given chunk """
     def __init__(self, s3_key, s3_bucket_input, use_redis):
-        Thread.__init__(self)
+        LambdaThread.__init__(self)
         redis_signal = str(int(use_redis))
         self.lamdba_dict = {
             "s3_bucket_input": s3_bucket_input,
@@ -29,7 +28,7 @@ class LocalBounds(LambdaThread):
 class LocalScale(LambdaThread):
     """ Scale a chunk using the global max and min values """
     def __init__(self, s3_key, s3_bucket_input, s3_bucket_output, lower, upper, use_redis):
-        Thread.__init__(self)
+        LambdaThread.__init__(self)
         redis_signal = str(int(use_redis))
         self.lamdba_dict = {
             "s3_bucket_input": s3_bucket_input,

@@ -1,13 +1,15 @@
 """ Helper functions for feature hashing """
 
-import hashlib
 import json
 import struct
 
 import boto3
+import mmh3
+
+HASH_SEED = 42
 
 
-def hash_data(data, columns, N):
+def hash_data(data, columns, n_buckets):
     """ Replace the appropriate columns for this row. """
     col_set = set([int(i) for i in columns])
     for idx, row in enumerate(data):
@@ -15,12 +17,11 @@ def hash_data(data, columns, N):
         for col, val in row:
             s_c = int(col)
             if s_c in col_set:
-                hasher = hashlib.sha256()
-                hasher.update(str(val))
-                hash_val = int(hasher.digest(), 16) % N
-                if hash_val not in row_map:
-                    row_map[hash_val] = 0
-                row_map[h] += 1
+                hash_val = mmh3.hash(str(val), HASH_SEED, signed=False)
+                bucket = hash_val % n_buckets
+                if bucket not in row_map:
+                    row_map[bucket] = 0
+                row_map[bucket] += 1
             else:
                 row_map[col] = val
 

@@ -7,7 +7,7 @@ from threading import Thread
 
 import boto3
 from botocore.exceptions import ClientError
-from utils import retry_loop
+from cirrus.utils import retry_loop
 
 
 def handle_lambda_exception(exception):
@@ -20,6 +20,10 @@ def handle_lambda_exception(exception):
 
 class LambdaThread(Thread):
     """ Run a lambda function on AWS """
+
+    def __init__(self):
+        Thread.__init__(self)
+
     def run(self):
         l_client = boto3.client("lambda")
         # Prevent lambdas from launching multiple times

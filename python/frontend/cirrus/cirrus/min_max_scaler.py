@@ -2,7 +2,6 @@
 
 import json
 import time
-from collections import deque
 
 import boto3
 from cirrus.lambda_thread import LambdaThread
@@ -27,7 +26,8 @@ class LocalBounds(LambdaThread):
 
 class LocalScale(LambdaThread):
     """ Scale a chunk using the global max and min values """
-    def __init__(self, s3_key, s3_bucket_input, s3_bucket_output, lower, upper, use_redis):
+    def __init__(self, s3_key, s3_bucket_input, s3_bucket_output,
+                 lower, upper, use_redis):
         LambdaThread.__init__(self)
         redis_signal = str(int(use_redis))
         self.lamdba_dict = {
@@ -43,7 +43,8 @@ class LocalScale(LambdaThread):
 
 
 def min_max_scaler(s3_bucket_input, s3_bucket_output, lower, upper,
-                   objects=(), use_redis=True, dry_run=False, skip_bounds=False):
+                   objects=(), use_redis=True, dry_run=False,
+                   skip_bounds=False):
     """ Scale the values in a dataset to the range [lower, upper]. """
     s3_resource = boto3.resource("s3")
     if len(objects) == 0:
@@ -66,7 +67,8 @@ def min_max_scaler(s3_bucket_input, s3_bucket_output, lower, upper,
     if not dry_run:
         # Scale the chunks
         launch_lambdas(LocalScale, objects, MAX_LAMBDAS,
-                       s3_bucket_input, s3_bucket_output, lower, upper, use_redis)
+                       s3_bucket_input, s3_bucket_output,
+                       lower, upper, use_redis)
 
     end_scale = time.time()
     print("Local scaling took {0} seconds...".format(end_scale - start_scale))
@@ -87,6 +89,7 @@ def no_redis_alternative(s3_bucket_input, objects):
     only S3. """
     start_global = time.time()
     client = boto3.client("s3")
+    s3_resource = boto3.resource("s3")
     f_ranges = {}
     # Get global min/max map.
     for i in objects:

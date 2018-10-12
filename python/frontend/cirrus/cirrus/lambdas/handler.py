@@ -20,7 +20,8 @@ CLUSTER = False
 def handler(event, context):
     """ First entry point for lambda function. """
     total = time.time()
-    assert "s3_bucket_input" in event and "s3_key" in event, "Must specify input bucket, and key."
+    assert "s3_bucket_input" in event and "s3_key" in event, \
+        "Must specify input bucket, and key."
     # Handle duplicate lambda launches
     unique_id = event["s3_key"] + "_nonce_" + str(event["dupe_nonce"])
     redis_flag = bool(int(event["use_redis"]))
@@ -49,7 +50,8 @@ def handler(event, context):
     if event["action"] == "FEATURE_HASHING":
         feature_hashing_handler(s3_client, data, labels, event)
     elif event["normalization"] == "MIN_MAX":
-        min_max_handler(s3_client, redis_client, data, labels, node_manager, redis_flag, event)
+        min_max_handler(s3_client, redis_client, data, labels,
+                        node_manager, redis_flag, event)
     elif event["normalization"] == "NORMAL":
         normal_scaling_handler(s3_client, data, labels, event)
     print("[CHUNK{0}] Total time was {1}".format(
@@ -71,10 +73,12 @@ def kill_duplicates(chunk, unique_id):
                       "port": redis_port, "password": redis_password}]
     if not CLUSTER:
         redis_client = StrictRedis(
-            host=redis_host, port=redis_port, password=redis_password, db=redis_db)
+            host=redis_host, port=redis_port, password=redis_password,
+            db=redis_db)
     else:
         redis_client = StrictRedisCluster(
-            startup_nodes=startup_nodes, decode_responses=True, skip_full_coverage_check=True)
+            startup_nodes=startup_nodes, decode_responses=True,
+            skip_full_coverage_check=True)
     print("[CHUNK{0}] Initialized Redis client".format(chunk))
     node_manager = NodeManager(startup_nodes)
     print("[CHUNK{0}] Created NodeManager".format(chunk))
@@ -93,7 +97,9 @@ def feature_hashing_handler(s3_client, data, labels, event):
     """ Handle a call for feature hashing """
     start = time.time()
     print("[CHUNK{0}] Hashing data".format(event["s3_key"]))
-    hashed = feature_hashing_helper.hash_data(data, event["columns"], event["n_buckets"])
+    hashed = feature_hashing_helper.hash_data(data,
+                                              event["columns"],
+                                              event["n_buckets"])
     print("[CHUNK{0}] Serializing data".format(event["s3_key"]))
     serialized = serialize_data(hashed, labels)
     print("[CHUNK{0}] Putting object in S3".format(event["s3_key"]))
@@ -105,8 +111,8 @@ def feature_hashing_handler(s3_client, data, labels, event):
 
 def min_max_handler(s3_client, redis_client, data, labels,
                     node_manager, redis_flag, event):
-    """ Either calculates the local bounds, or scales data and puts the new data in
-    {src_object}_scaled. """
+    """ Either calculates the local bounds, or scales data and puts
+    the new data in{src_object}_scaled. """
     start = time.time()
     if event["action"] == "LOCAL_BOUNDS":
         print("Getting local data bounds...")
@@ -137,14 +143,16 @@ def min_max_handler(s3_client, redis_client, data, labels,
             event["s3_key"], time.time() - start))
         scale_time = time.time()
         print("Scaling data...")
-        scaled = min_max_helper.scale_data(data, bounds, event["min_v"], event["max_v"])
+        scaled = min_max_helper.scale_data(data, bounds,
+                                           event["min_v"], event["max_v"])
         print("[CHUNK{0}] Scaling took {1}".format(
             event["s3_key"], time.time() - scale_time))
         print("Serializing...")
         serialized = serialize_data(scaled, labels)
         print("[CHUNK{0}] Putting in S3...".format(event["s3_key"]))
         s3_client.put_object(
-            Bucket=event["s3_bucket_output"], Key=event["s3_key"], Body=serialized)
+            Bucket=event["s3_bucket_output"],
+            Key=event["s3_key"], Body=serialized)
 
 
 def normal_scaling_handler(s3_client, data, labels, event):
@@ -154,7 +162,8 @@ def normal_scaling_handler(s3_client, data, labels, event):
         bounds = normal_helper.get_data_ranges(data)
         print("Putting ranges in S3...")
         min_max_helper.put_bounds_in_db(
-            client, None, bounds, event["s3_bucket_input"], event["s3_key"] + "_bounds",
+            client, None, bounds, event["s3_bucket_input"],
+            event["s3_key"] + "_bounds",
             False, None, event["s3_key"])
     elif event["action"] == "LOCAL_SCALE":
         assert "s3_bucket_output" in event, "Must specify output bucket."
@@ -168,4 +177,5 @@ def normal_scaling_handler(s3_client, data, labels, event):
         serialized = serialize_data(scaled, labels)
         print("Putting in S3...")
         s3_client.put_object(
-            Bucket=event["s3_bucket_output"], Key=event["s3_key"], Body=serialized)
+            Bucket=event["s3_bucket_output"],
+            Key=event["s3_key"], Body=serialized)

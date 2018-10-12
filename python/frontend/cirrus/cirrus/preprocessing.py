@@ -29,16 +29,21 @@ class Preprocessing:
     @staticmethod
     def normalize(s3_bucket_input, s3_bucket_output, normalization_type, *args):
         """ Usage:
-        Preprocessing.normalize(s3_bucket_input, s3_bucket_output, Normalization.MIN_MAX, 0.0, 1.0)
-        Preprocessing.normalize(s3_bucket_input, s3_bucket_output, Normalization.NORMAL)
+        Preprocessing.normalize(s3_bucket_input, s3_bucket_output,
+                                Normalization.MIN_MAX, 0.0, 1.0)
+        Preprocessing.normalize(s3_bucket_input, s3_bucket_output,
+                                Normalization.NORMAL)
         """
         if normalization_type == Normalization.MIN_MAX:
             assert len(args) >= 2, "Must specify min and max."
             print(
-                "[Preprocessing] Calling MinMaxScaler with args {0}".format(args))
-            min_max_scaler.min_max_scaler(s3_bucket_input, s3_bucket_output, *args)
+                "[Preprocessing] Calling MinMaxScaler with args {0}"
+                .format(args))
+            min_max_scaler.min_max_scaler(s3_bucket_input, s3_bucket_output,
+                                          *args)
         elif normalization_type == Normalization.NORMAL:
-            normal_scaler.normal_scaler(s3_bucket_input, s3_bucket_output, *args)
+            normal_scaler.normal_scaler(s3_bucket_input, s3_bucket_output,
+                                        *args)
 
     @staticmethod
     def feature_hashing(s3_bucket_input, s3_bucket_output, columns,

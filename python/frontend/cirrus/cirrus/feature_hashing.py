@@ -12,7 +12,8 @@ MAX_LAMBDAS = 400
 
 class HashingThread(LambdaThread):
     """ Thread to hash the columns for a given chunk. """
-    def __init__(self, s3_key, s3_bucket_input, s3_bucket_output, columns, n_buckets):
+    def __init__(self, s3_key, s3_bucket_input, s3_bucket_output,
+                 columns, n_buckets):
         LambdaThread.__init__(self)
         self.lamdba_dict = {
             "s3_bucket_input": s3_bucket_input,
@@ -25,9 +26,10 @@ class HashingThread(LambdaThread):
         }
 
 
-def feature_hashing(s3_bucket_input, s3_bucket_output, columns, n_buckets, objects=()):
-    """ Take a list of integer values (column indices) to perform the feature hashing
-    for n_buckets buckets. """
+def feature_hashing(s3_bucket_input, s3_bucket_output, columns,
+                    n_buckets, objects=()):
+    """ Take a list of integer values (column indices) to perform
+    the feature hashing for n_buckets buckets. """
     if len(objects) == 0:
         # Allow user to specify objects, or otherwise get all objects.
         objects = get_all_keys(s3_bucket_input)

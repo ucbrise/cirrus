@@ -12,7 +12,8 @@ from cirrus.utils import retry_loop
 
 def handle_lambda_exception(exception):
     """ Handle the TooManyRequestsException in the retry loop """
-    if exception.response.get("Error", {}).get("Code") == "TooManyRequestsException":
+    if exception.response.get("Error", {}).get("Code") \
+        == "TooManyRequestsException":
         # Stop if you get a TooManyRequestsException
         print("{0} did not launch".format(name))
         raise exception
@@ -40,4 +41,5 @@ class LambdaThread(Thread):
             )
 
         retry_loop(lambda_invocation, ClientError, handle_lambda_exception,
-                   name="Lambda for chunk {0}".format(self.lamdba_dict["s3_key"]))
+                   name="Lambda for chunk {0}"
+                   .format(self.lamdba_dict["s3_key"]))

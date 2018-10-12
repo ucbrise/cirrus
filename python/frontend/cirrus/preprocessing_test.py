@@ -1,7 +1,6 @@
 """ Preprocessing module for Cirrus """
 
 import time
-from collections import deque
 from threading import Thread
 
 import sklearn.datasets
@@ -9,16 +8,19 @@ import sklearn.datasets
 import boto3
 from botocore.exceptions import ClientError
 from cirrus.preprocessing import Preprocessing, Normalization
-from cirrus.utils import get_all_keys, delete_all_keys, get_data_from_s3, launch_lambdas
+from cirrus.utils import get_all_keys, delete_all_keys, get_data_from_s3, \
+    launch_lambdas
 import mmh3
 
 MAX_THREADS = 400
-HASH_SEED = 42 # Must be equal to the seed in feature_hashing_helper.py
+HASH_SEED = 42  # Must be equal to the seed in feature_hashing_helper.py
 
 
 class SimpleTest(Thread):
     """ Test that the data is within the correct bounds. """
-    def __init__(self, obj_key, s3_bucket_input, s3_bucket_output, min_v, max_v):
+
+    def __init__(self, obj_key, s3_bucket_input, s3_bucket_output, min_v,
+                 max_v):
         Thread.__init__(self)
         self.s3_bucket_input = s3_bucket_input
         self.s3_bucket_output = s3_bucket_output
@@ -35,13 +37,15 @@ class SimpleTest(Thread):
             for idx2, val in enumerate(row):
                 try:
                     if dest_obj[idx][idx2][0] != val[0]:
-                        print("[TEST_SIMPLE] Missing column {0} on row {1} of object {2}".format(
-                            val[0], idx, self.obj_key))
+                        print("[TEST_SIMPLE] Missing column {0} " +
+                              "on row {1} of object {2}".format(
+                                  val[0], idx, self.obj_key))
                         return
-                    if dest_obj[idx][idx2][1] < self.min_v or dest_obj[idx][idx2][1] > self.max_v:
-                        print("[TEST_SIMPLE] Value {0} at column {1} on row {2} of " +
-                              "object {3} falls out of bounds".format(
-                                  val[1], val[0], idx, self.obj_key))
+                    if dest_obj[idx][idx2][1] < self.min_v or \
+                          dest_obj[idx][idx2][1] > self.max_v:
+                        print("[TEST_SIMPLE] Value {0} at column {1} on " +
+                              "row {2} of object {3} falls out of bounds"
+                              .format(val[1], val[0], idx, self.obj_key))
                         return
                 except (IndexError, KeyError) as exc:
                     print("[TEST_SIMPLE] Caught error on row {0}, column {1} " +
@@ -52,7 +56,9 @@ class SimpleTest(Thread):
 
 class HashTest(Thread):
     """ Test that the columns were hashed correctly. """
-    def __init__(self, obj_key, s3_bucket_input, s3_bucket_output, columns, n_buckets):
+
+    def __init__(self, obj_key, s3_bucket_input, s3_bucket_output,
+                 columns, n_buckets):
         Thread.__init__(self)
         self.s3_bucket_input = s3_bucket_input
         self.s3_bucket_output = s3_bucket_output
@@ -90,7 +96,8 @@ def load_data(path):
     return data, labels
 
 
-def test_load_libsvm(src_file, s3_bucket_output, wipe_keys=False, no_load=False):
+def test_load_libsvm(src_file, s3_bucket_output, wipe_keys=False,
+                     no_load=False):
     """ Test the load libsvm to S3 function. """
     if wipe_keys:
         start_time = time.time()
@@ -111,7 +118,7 @@ def test_load_libsvm(src_file, s3_bucket_output, wipe_keys=False, no_load=False)
         time.time() - start_time))
     start_time = time.time()
     print("[TEST_LOAD] Loading libsvm file into memory")
-    data, labels = load_data(src_file)
+    data = load_data(src_file)[0]
     print("[TEST_LOAD] Took {0} s to load libsvm into memory".format(
         time.time() - start_time))
     start_time = time.time()
@@ -121,7 +128,7 @@ def test_load_libsvm(src_file, s3_bucket_output, wipe_keys=False, no_load=False)
     client = boto3.client("s3")
     obj = get_data_from_s3(client, s3_bucket_output, objects[obj_num])
     for row in range(data.shape[0]):
-        rows, cols = data[row, :].nonzero()
+        cols = data[row, :].nonzero()[1]
         obj_idx += 1
         if obj_idx >= 50000:
             obj_idx = 0
@@ -132,9 +139,10 @@ def test_load_libsvm(src_file, s3_bucket_output, wipe_keys=False, no_load=False)
                 obj = get_data_from_s3(
                     client, s3_bucket_output, objects[obj_num])
             except ClientError as exc:
-                print("[TEST_LOAD] Error: Not enough chunks given the number of rows " +
-                      "in original data. Finished on chunk index {0}, key {1}.".format(
-                          obj_num, objects[obj_num]))
+                print("[TEST_LOAD] Error: Not enough chunks given" +
+                      " the number of rows in original data. Finished " +
+                      "on chunk index {0}, key {1}. Exception: {0}"
+                      .format(obj_num, objects[obj_num], exc))
                 return False
         for idx, col in enumerate(cols):
             v_orig = data[row, col]
@@ -146,14 +154,16 @@ def test_load_libsvm(src_file, s3_bucket_output, wipe_keys=False, no_load=False)
                           row, col, obj_idx, idx, obj_num))
                 return False
             if v_obj[0] != col:
-                print("[TEST_LOAD] Value on row {0} of S3 object {1} has column " +
-                      "{2}, expected column {3}".format(
+                print("[TEST_LOAD] Value on row {0} of S3 object {1} has" +
+                      " column {2}, expected column {3}".format(
                           obj_idx, obj_num, v_obj[0], col))
                 continue
             if abs(v_obj[1] - v_orig) > .01:
-                print("[TEST_LOAD] Value on row {0}, column {1} of S3 object {2} " +
-                      "is {3}, expected {4} from row {5}, column {6} of original data".format(
-                          obj_idx, col, obj_num, v_obj[1], v_orig, r, col))
+                print("[TEST_LOAD] Value on row {0}, column {1} of S3" +
+                      " object {2} is {3}, expected {4} from row {5}," +
+                      " column {6} of original data"
+                      .format(obj_idx, col, obj_num, v_obj[1], v_orig,
+                              row, col))
     print("[TEST_LOAD] Testing all chunks of data took {0} s".format(
         time.time() - start_time))
 
@@ -167,13 +177,15 @@ def test_simple(s3_bucket_input, s3_bucket_output, min_v, max_v,
         start_time = time.time()
         print("[TEST_SIMPLE] Wiping keys in bucket")
         delete_all_keys(s3_bucket_output)
-        print("[TEST_SIMPLE] Took {0} to wipe keys".format(time.time() - start_time))
+        print("[TEST_SIMPLE] Took {0} to wipe keys".format(
+            time.time() - start_time))
     start_time = time.time()
     print("[TEST_SIMPLE] Getting all keys")
     if len(objects) == 0:
         # Allow user to specify objects, or otherwise get all objects.
         objects = get_all_keys(s3_bucket_input)
-    print("[TEST_SIMPLE] Took {0} s to get all keys".format(time.time() - start_time))
+    print("[TEST_SIMPLE] Took {0} s to get all keys".format(
+        time.time() - start_time))
     if preprocess:
         last_time = time.time()
         print("[TEST_SIMPLE] Running preprocessing")
@@ -198,7 +210,8 @@ def test_hash(s3_bucket_input, s3_bucket_output, columns, n_buckets,
     if len(objects) == 0:
         # Allow user to specify objects, or otherwise get all objects.
         objects = get_all_keys(s3_bucket_input)
-    print("[TEST_HASH] Took {0} s to get all keys".format(time.time() - start_time))
+    print("[TEST_HASH] Took {0} s to get all keys".format(
+        time.time() - start_time))
     if feature_hashing:
         last_time = time.time()
         print("[TEST_HASH] Running feature hashing")
@@ -222,7 +235,8 @@ def test_exact(src_file, s3_bucket_output, min_v, max_v, objects=(),
     start_time = time.time()
     if len(objects) == 0:
         objects = get_all_keys(s3_bucket_output)
-    print("[TEST_EXACT] Took {0} s to get all keys".format(time.time() - start_time))
+    print("[TEST_EXACT] Took {0} s to get all keys".format(
+        time.time() - start_time))
     if preprocess:
         last_time = time.time()
         print("[TEST_EXACT] Running load_libsvm")
@@ -238,23 +252,25 @@ def test_exact(src_file, s3_bucket_output, min_v, max_v, objects=(),
         last_time = time.time()
         print("[TEST_EXACT] Running preprocessing")
         Preprocessing.normalize(
-            s3_bucket_output, s3_bucket_output, Normalization.MIN_MAX, min_v, max_v, objects)
+            s3_bucket_output, s3_bucket_output, Normalization.MIN_MAX,
+            min_v, max_v, objects)
         print("[TEST_EXACT] Took {0} s to run preprocessing".format(
             time.time() - last_time))
     start_time = time.time()
     print("[TEST_EXACT] Loading all data")
-    data, labels = load_data(src_file)
-    print("[TEST_EXACT] Took {0} s to load all data".format(time.time() - start_time))
+    data = load_data(src_file)[0]
+    print("[TEST_EXACT] Took {0} s to load all data".format(
+        time.time() - start_time))
     start_time = time.time()
     print("[TEST_EXACT] Constructing global map")
     g_map = {}  # Map of min / max by column
     for row in range(data.shape[0]):
-        rows, cols = data[row, :].nonzero()
+        cols = data[row, :].nonzero()[1]
         for col in cols:
-            val = X[row, col]
+            val = data[row, col]
             if col not in g_map:
                 g_map[col] = [val, val]
-            if val < g_map[c][0]:
+            if val < g_map[col][0]:
                 g_map[col][0] = val
             if val > g_map[col][1]:
                 g_map[col][1] = val
@@ -265,8 +281,8 @@ def test_exact(src_file, s3_bucket_output, min_v, max_v, objects=(),
     obj_num = 0
     obj_idx = -1
     obj = get_data_from_s3(client, s3_bucket_output, objects[obj_num])
-    for row in range(X.shape[0]):
-        rows, cols = X[row, :].nonzero()
+    for row in range(data.shape[0]):
+        cols = data[row, :].nonzero()[1]
         obj_idx += 1
         if obj_idx >= 50000:
             obj_idx = 0
@@ -275,25 +291,27 @@ def test_exact(src_file, s3_bucket_output, min_v, max_v, objects=(),
                 obj = get_data_from_s3(
                     client, s3_bucket_output, objects[obj_num])
             except ClientError as exc:
-                print("[TEST_LOAD] Error: Not enough chunks given the number of " +
-                      "rows in original data. Finished on chunk index {0}, key {1}.".format(
-                          obj_num, objects[obj_num]))
+                print("[TEST_LOAD] Error: Not enough chunks given the " +
+                      "number of rows in original data. Finished on " +
+                      "chunk index {0}, key {1}. Exception: {1}".format(
+                          obj_num, objects[obj_num], exc))
                 return
         for idx, col in enumerate(cols):
-            v_orig = X[row, col]
+            v_orig = data[row, col]
             v_obj = obj[obj_idx][idx]
             if v_obj[0] != col:
-                print("[TEST_EXACT] Value on row {0} of S3 object {1} has column " +
-                      "{2}, expected column {3}".format(
+                print("[TEST_EXACT] Value on row {0} of S3 object {1}" +
+                      " has column {2}, expected column {3}".format(
                           obj_idx, obj_num, v_obj[0], col))
                 continue
             obj_min_v, obj_max_v = g_map[v_obj[0]]
-            scaled = (v_orig - obj_min_v) / (obj_max_v -
-                                             obj_min_v) * (max_v - min_v) + min_v
+            scaled = (v_orig - obj_min_v) / (obj_max_v - obj_min_v)
+            scaled *= (max_v - min_v)
+            scaled += min_v
             if abs(scaled - v_obj[1]) / v_orig > .01:
-                print("[TEST_EXACT] Value on row {0}, column {1} of S3 object " +
-                      "{2} is {3}, expected {4} from row {5}, column {6} of " +
-                      "original data".format(
+                print("[TEST_EXACT] Value on row {0}, column {1} of" +
+                      " S3 object {2} is {3}, expected {4} from row " +
+                      "{5}, column {6} of original data".format(
                           obj_idx, col, obj_num, v_obj[1], scaled, row, col))
     print("[TEST_EXACT] Testing all chunks of data took {0} s".format(
         time.time() - start_time))

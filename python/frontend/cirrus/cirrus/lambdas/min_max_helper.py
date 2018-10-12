@@ -12,14 +12,16 @@ import boto3
 UPPER_BOUND_SCRIPT = "for i, v in ipairs(KEYS)" \
     " do local current = tonumber(redis.call('get', KEYS[i])); " \
     "if current then " \
-    "if tonumber(ARGV[i]) > current then redis.call('set', KEYS[i], ARGV[i]) end " \
+    "if tonumber(ARGV[i]) > current then " \
+    "redis.call('set', KEYS[i], ARGV[i]) end " \
     "else redis.call('set', KEYS[i], ARGV[i]) end " \
     "end"
 
 LOWER_BOUND_SCRIPT = "for i, v in ipairs(KEYS)" \
     " do local current = tonumber(redis.call('get', KEYS[i])); " \
     "if current then " \
-    "if tonumber(ARGV[i]) < current then redis.call('set', KEYS[i], ARGV[i]) end " \
+    "if tonumber(ARGV[i]) < current then " \
+    "redis.call('set', KEYS[i], ARGV[i]) end " \
     "else redis.call('set', KEYS[i], ARGV[i]) end " \
     "end"
 
@@ -40,17 +42,20 @@ def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket,
 
     start = time.time()
     max_k, max_v, min_k, min_v = get_keys_values(bounds)
-    print("[CHUNK{0}] Took {1} to make lists".format(chunk, time.time() - start))
+    print("[CHUNK{0}] Took {1} to make lists".format(chunk,
+                                                     time.time() - start))
 
     start = time.time()
     push_keys_values_to_redis(
-        node_manager, chunk, batch_push_to_redis, max_k, max_v, upper_bound_func)
+        node_manager, chunk, batch_push_to_redis, max_k, max_v,
+        upper_bound_func)
     print("[CHUNK{0}] upper_bound_func took {1}".format(
         chunk, time.time() - start))
 
     start = time.time()
     push_keys_values_to_redis(
-        node_manager, chunk, batch_push_to_redis, min_k, min_v, lower_bound_func)
+        node_manager, chunk, batch_push_to_redis, min_k, min_v,
+        lower_bound_func)
     print("[CHUNK{0}] lower_bound_func took {1}".format(
         chunk, time.time() - start))
 
@@ -115,7 +120,8 @@ def get_keys_values(bounds):
     return max_k, max_v, min_k, min_v
 
 
-def push_keys_values_to_redis(node_manager, chunk, batch_push_to_redis, keys, values, redis_script):
+def push_keys_values_to_redis(node_manager, chunk, batch_push_to_redis,
+                              keys, values, redis_script):
     """ Apply a Redis script to a list of Redis keys and values """
     slot_k = {}
     slot_vals = {}
@@ -155,11 +161,14 @@ def push_keys_values_to_redis(node_manager, chunk, batch_push_to_redis, keys, va
         chunk, time.time() - start, len(slot_k)))
 
 
-def get_global_bounds(s3_client, redis_client, bucket, src_object, use_redis, chunk):
-    """ Get the bounds across all objects, where each key is mapped to [min, max]. """
+def get_global_bounds(s3_client, redis_client, bucket, src_object,
+                      use_redis, chunk):
+    """ Get the bounds across all objects, where each key is mapped
+    to [min, max]. """
     start = time.time()
-    # Determine whether to get the aggregated global bounds from the master thread,
-    # or the bounds from before and update (if using Redis)
+    # Determine whether to get the aggregated global bounds from the
+    # master thread, or the bounds from before and update (if using
+    # Redis)
     suffix = "_final_bounds"
     if use_redis:
         suffix = "_bounds"
@@ -170,9 +179,11 @@ def get_global_bounds(s3_client, redis_client, bucket, src_object, use_redis, ch
     if not use_redis:
         return bounds
     construct_time = time.time()
-    print("[CHUNK{0}] S3 took {1} seconds...".format(chunk, construct_time - start))
+    print("[CHUNK{0}] S3 took {1} seconds...".format(chunk,
+                                                     construct_time - start))
     print(
-        "[CHUNK{0}] Going to make {1} * 2 requests to Redis".format(chunk, len(bounds["max"])))
+        "[CHUNK{0}] Going to make {1} * 2 " + \
+        "requests to Redis".format(chunk, len(bounds["max"])))
     # Get lists of the keys to get from Redis
     original = []
     max_k = []
@@ -181,7 +192,8 @@ def get_global_bounds(s3_client, redis_client, bucket, src_object, use_redis, ch
         original.append(idx)
         min_k.append(str(idx) + "_min")
         max_k.append(str(idx) + "_max")
-    print("Constructing lists took {0} seconds".format(time.time() - construct_time))
+    print("Constructing lists took {0} seconds".format(
+        time.time() - construct_time))
     get_keys_time = time.time()
     res = {}
     # Get the keys in parallel
@@ -201,8 +213,8 @@ def get_global_bounds(s3_client, redis_client, bucket, src_object, use_redis, ch
     for idx, k in enumerate(original):
         final_bounds["max"][k] = max_v[idx]
         final_bounds["min"][k] = min_v[idx]
-    print("[CHUNK{0}] Constructing the final dictionary took {1} seconds".format(
-        chunk, time.time() - final_dict_time))
+    print("[CHUNK{0}] Constructing the final dictionary took" + \
+          " {1} seconds".format(chunk, time.time() - final_dict_time))
     return final_bounds
 
 

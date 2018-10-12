@@ -112,7 +112,7 @@ def feature_hashing_handler(s3_client, data, labels, event):
 def min_max_handler(s3_client, redis_client, data, labels,
                     node_manager, redis_flag, event):
     """ Either calculates the local bounds, or scales data and puts
-    the new data in{src_object}_scaled. """
+    the new data in {src_object}_scaled. """
     start = time.time()
     if event["action"] == "LOCAL_BOUNDS":
         print("Getting local data bounds...")

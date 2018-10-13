@@ -129,7 +129,7 @@ class BaseTask(object):
             self.time_ups_lst.append((t, ups))
 
             cost_per_second = self.cost_model.get_cost(t)
-            if ups is not None and not (ups == 0):
+            if ups is not None and ups != 0:
                 self.time_cps_lst.append((t, cost_per_second / ups))
 
             return self.time_ups_lst
@@ -234,7 +234,9 @@ class BaseTask(object):
     def define_config(self, fetch=False):
         pass
 
-
+    # This function is responsible for relaunching the lambdas as they die off. 
+    # It will poll the parameter server to determine how many lambdas are currently running
+    # and relaunch self.n_workers - num_lambdas number of lambdas
     def relaunch_lambdas(self):
         if self.is_dead():
             return
@@ -298,10 +300,11 @@ class BaseTask(object):
         else:
             return self.fetch_metric(self.LOSS_VS_TIME)
 
-
+    # Fetches a metric. See BaseTask.metrics for a list of metrics
     def fetch_metric(self, key):
         return self.metrics[key]
 
+    # This will grab the Loss v. Time by communicating with the parameter server
     def maintain_error(self):
         if self.is_dead():
             return

@@ -1,14 +1,14 @@
 #include <Tasks.h>
 #include <thread>
 
+#include "Serializers.h"
+#include "config.h"
+#include "S3SparseIterator.h"
+#include "Utils.h"
+#include "SparseLRModel.h"
+#include "PSSparseServerInterface.h"
 #include "Configuration.h"
 #include "Constants.h"
-#include "PSSparseServerInterface.h"
-#include "S3SparseIterator.h"
-#include "Serializers.h"
-#include "SparseLRModel.h"
-#include "Utils.h"
-#include "config.h"
 
 #include <atomic>
 
@@ -35,12 +35,10 @@ ErrorSparseTask::ErrorSparseTask(uint64_t model_size,
              ps_port) {
   ps_port = ps_port;
   std::atomic_init(&curr_error, 0.0);
-  std::atomic_init(&total_loss, 0.0);
 }
 
 std::unique_ptr<CirrusModel> get_model(const Configuration& config,
-                                       const std::string& ps_ip,
-                                       uint64_t ps_port) {
+        const std::string& ps_ip, uint64_t ps_port) {
   static PSSparseServerInterface* psi;
   static bool first_time = true;
   if (first_time) {
@@ -58,7 +56,7 @@ std::unique_ptr<CirrusModel> get_model(const Configuration& config,
   }
 
   bool use_col_filtering =
-      config.get_model_type() == Configuration::COLLABORATIVE_FILTERING;
+    config.get_model_type() == Configuration::COLLABORATIVE_FILTERING;
   return psi->get_full_model(use_col_filtering);
 }
 
@@ -98,10 +96,10 @@ void ErrorSparseTask::error_response() {
     std::cout << "Received: " << operation << std::endl;
 
     if (operation == GET_LAST_TIME_ERROR) {
-      double time_error[4] = {last_time, last_error, curr_error, total_loss};
-      ret = sendto(fd, time_error, 4 * sizeof(double), 0,
+      double time_error[3] = {last_time, last_error, curr_error};
+
+      ret = sendto(fd, time_error, 3 * sizeof(double), 0,
                    (struct sockaddr*) &remaddr, addrlen);
-      std::cout << "Current error: " << curr_error << std::endl;
       if (ret < 0) {
         throw std::runtime_error("Error in sending response");
       }
@@ -121,8 +119,7 @@ void ErrorSparseTask::run(const Configuration& config) {
   if (config.get_model_type() == Configuration::LOGISTICREGRESSION) {
     left = config.get_test_range().first;
     right = config.get_test_range().second;
-  } else if (config.get_model_type() ==
-             Configuration::COLLABORATIVE_FILTERING) {
+  } else if (config.get_model_type() == Configuration::COLLABORATIVE_FILTERING) {
     left = config.get_train_range().first;
     right = config.get_train_range().second;
   } else {
@@ -132,48 +129,55 @@ void ErrorSparseTask::run(const Configuration& config) {
   S3SparseIterator s3_iter(
       left, right, config, config.get_s3_size(), config.get_minibatch_size(),
       // use_label true for LR
-      config.get_model_type() == Configuration::LOGISTICREGRESSION, 0, false);
+      config.get_model_type() == Configuration::LOGISTICREGRESSION, 0, false,
+      config.get_model_type() == Configuration::LOGISTICREGRESSION);
 
   // get data first
   // what we are going to use as a test set
   std::vector<std::shared_ptr<SparseDataset>> minibatches_vec;
-  std::cout << "[ERROR_TASK] getting minibatches from " << left << " to "
-            << right << std::endl;
+  std::cout << "[ERROR_TASK] getting minibatches from "
+    << config.get_train_range().first << " to "
+    << config.get_train_range().second
+    << std::endl;
 
   uint32_t minibatches_per_s3_obj =
-      config.get_s3_size() / config.get_minibatch_size();
+    config.get_s3_size() / config.get_minibatch_size();
   for (uint64_t i = 0; i < (right - left) * minibatches_per_s3_obj; ++i) {
     std::shared_ptr<SparseDataset> ds = s3_iter.getNext();
     minibatches_vec.push_back(ds);
   }
 
-  std::cout << "[ERROR_TASK] Got " << minibatches_vec.size() << " minibatches"
-            << "\n";
+  std::cout << "[ERROR_TASK] Got "
+    << minibatches_vec.size() << " minibatches"
+    << "\n";
   std::cout << "[ERROR_TASK] Building dataset"
-            << "\n";
+    << "\n";
 
   wait_for_start(ERROR_SPARSE_TASK_RANK, nworkers);
   uint64_t start_time = get_time_us();
 
   std::cout << "[ERROR_TASK] Computing accuracies"
-            << "\n";
+    << "\n";
 
   while (1) {
     usleep(ERROR_INTERVAL_USEC);
 
     try {
-// first we get the model
+      // first we get the model
 #ifdef DEBUG
       std::cout << "[ERROR_TASK] getting the full model"
-                << "\n";
+        << "\n";
 #endif
       std::unique_ptr<CirrusModel> model = get_model(config, ps_ip, ps_port);
+
 #ifdef DEBUG
       std::cout << "[ERROR_TASK] received the model" << std::endl;
 #endif
 
-      std::cout << "[ERROR_TASK] computing loss." << std::endl;
-      total_loss = 0;
+      std::cout
+        << "[ERROR_TASK] computing loss."
+        << std::endl;
+      FEATURE_TYPE total_loss = 0;
       FEATURE_TYPE total_accuracy = 0;
       uint64_t total_num_samples = 0;
       uint64_t total_num_features = 0;
@@ -182,8 +186,7 @@ void ErrorSparseTask::run(const Configuration& config) {
       for (auto& ds : minibatches_vec) {
         std::pair<FEATURE_TYPE, FEATURE_TYPE> ret =
             model->calc_loss(*ds, start_index);
-        total_loss = total_loss + ret.first;
-
+        total_loss += ret.first;
         total_accuracy += ret.second;
         total_num_samples += ds->num_samples();
         total_num_features += ds->num_features();
@@ -192,7 +195,7 @@ void ErrorSparseTask::run(const Configuration& config) {
           curr_error = (total_loss / total_num_samples);
         } else if (config.get_model_type() ==
                    Configuration::COLLABORATIVE_FILTERING) {
-          curr_error = std::sqrt(total_loss / total_num_samples);
+          curr_error = std::sqrt(total_loss / total_num_features);
         }
       }
 
@@ -205,15 +208,16 @@ void ErrorSparseTask::run(const Configuration& config) {
                   << " time(us): " << get_time_us()
                   << " time from start (sec): " << last_time << std::endl;
       } else if (config.get_model_type() == Configuration::COLLABORATIVE_FILTERING) {
-        last_error = std::sqrt(total_loss / total_num_samples);
+        last_error = std::sqrt(total_loss / total_num_features);
         std::cout << "[ERROR_TASK] RMSE (Total): " << last_error
                   << " time(us): " << get_time_us()
                   << " time from start (sec): " << last_time << std::endl;
       }
-    } catch (...) {
+    } catch(...) {
       std::cout << "run_compute_error_task unknown id" << std::endl;
     }
   }
 }
 
-}  // namespace cirrus
+} // namespace cirrus
+

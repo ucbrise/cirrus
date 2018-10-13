@@ -27,8 +27,8 @@ def get_last_time_error(ip="127.0.0.1", port=1338):
         clientsocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         clientsocket.sendto(GET_LAST_TIME_ERROR, (ip, port))
         clientsocket.settimeout(10)
-        s = clientsocket.recv(256)
-        return struct.unpack("dddd", s)
+        s = clientsocket.recv(256)      # Receives a packet of 4 floats or 256 bytes
+        return struct.unpack("dddd", s) # Unpack 4 floats
     except Exception, e:
         return None
 

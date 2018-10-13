@@ -76,11 +76,7 @@ class GridSearch:
         index = 0
         num_machines = len(machines)
 
-        lc = boto3.client('lambda')
-
-        
         lambdas = get_all_lambdas()
-        
 
         for p in possibilities:
             configuration = zip(hyper_vars, p)

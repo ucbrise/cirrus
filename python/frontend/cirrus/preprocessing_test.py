@@ -7,10 +7,10 @@ import sklearn.datasets
 
 import boto3
 from botocore.exceptions import ClientError
+import mmh3
 from cirrus.preprocessing import Preprocessing, Normalization
 from cirrus.utils import get_all_keys, delete_all_keys, get_data_from_s3, \
     launch_lambdas
-import mmh3
 
 MAX_THREADS = 400
 HASH_SEED = 42  # Must be equal to the seed in feature_hashing_helper.py
@@ -166,6 +166,7 @@ def test_load_libsvm(src_file, s3_bucket_output, wipe_keys=False,
                               row, col))
     print("[TEST_LOAD] Testing all chunks of data took {0} s".format(
         time.time() - start_time))
+    return True
 
 
 def test_simple(s3_bucket_input, s3_bucket_output, min_v, max_v,
@@ -181,7 +182,7 @@ def test_simple(s3_bucket_input, s3_bucket_output, min_v, max_v,
             time.time() - start_time))
     start_time = time.time()
     print("[TEST_SIMPLE] Getting all keys")
-    if len(objects) == 0:
+    if not objects:
         # Allow user to specify objects, or otherwise get all objects.
         objects = get_all_keys(s3_bucket_input)
     print("[TEST_SIMPLE] Took {0} s to get all keys".format(
@@ -207,7 +208,7 @@ def test_hash(s3_bucket_input, s3_bucket_output, columns, n_buckets,
     """ Test that feature hashing was correct """
     start_time = time.time()
     print("[TEST_HASH] Getting all keys")
-    if len(objects) == 0:
+    if not objects:
         # Allow user to specify objects, or otherwise get all objects.
         objects = get_all_keys(s3_bucket_input)
     print("[TEST_HASH] Took {0} s to get all keys".format(
@@ -233,7 +234,7 @@ def test_exact(src_file, s3_bucket_output, min_v, max_v, objects=(),
     sequentially into the keys specified in "objects". """
     original_obj = objects
     start_time = time.time()
-    if len(objects) == 0:
+    if not objects:
         objects = get_all_keys(s3_bucket_output)
     print("[TEST_EXACT] Took {0} s to get all keys".format(
         time.time() - start_time))
@@ -244,7 +245,7 @@ def test_exact(src_file, s3_bucket_output, min_v, max_v, objects=(),
         print("[TEST_EXACT] Took {0} s to run load_libsvm".format(
             time.time() - last_time))
         last_time = time.time()
-        if len(original_obj) == 0:
+        if not original_obj:
             print("[TEST_EXACT] Fetching new objects list")
             objects = get_all_keys(s3_bucket_output)
             print("[TEST_EXACT] Fetched {0} objects in {1} s".format(

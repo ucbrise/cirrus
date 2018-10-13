@@ -62,8 +62,8 @@ def handler(event, context):
 def kill_duplicates(chunk, unique_id):
     """ Identify duplicates with Redis """
     print("[CHUNK{0}] Opening redis.toml".format(chunk))
-    with open("redis.toml", "r") as file:
-        creds = toml.load(file)
+    with open("redis.toml", "r") as f_handle:
+        creds = toml.load(f_handle)
     print("[CHUNK{0}] Opened redis.toml".format(chunk))
     redis_host = creds["host"]
     redis_port = int(creds["port"])
@@ -162,14 +162,14 @@ def normal_scaling_handler(s3_client, data, labels, event):
         bounds = normal_helper.get_data_ranges(data)
         print("Putting ranges in S3...")
         min_max_helper.put_bounds_in_db(
-            client, None, bounds, event["s3_bucket_input"],
+            s3_client, None, bounds, event["s3_bucket_input"],
             event["s3_key"] + "_bounds",
             False, None, event["s3_key"])
     elif event["action"] == "LOCAL_SCALE":
         assert "s3_bucket_output" in event, "Must specify output bucket."
         print("Getting global bounds...")
         bounds = min_max_helper.get_global_bounds(
-            client, None, event["s3_bucket_input"], event["s3_key"],
+            s3_client, None, event["s3_bucket_input"], event["s3_key"],
             False, event["s3_key"])
         print("Scaling data...")
         scaled = normal_helper.scale_data(data, bounds)

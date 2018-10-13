@@ -2,12 +2,9 @@
 Redis functions, getting and putting bounds in S3. """
 
 import json
-import struct
 import time
 from collections import deque
 from threading import Thread
-
-import boto3
 
 UPPER_BOUND_SCRIPT = "for i, v in ipairs(KEYS)" \
     " do local current = tonumber(redis.call('get', KEYS[i])); " \
@@ -222,8 +219,8 @@ def scale_data(data, global_bounds, new_min, new_max):
     """ Scale the values in data based on the minima / maxima specified in g,
     the global map of mins / maxes. """
     for row in data:
-        for j in range(len(row)):
-            idx_t, val = row[j]
+        for j, tup_val in enumerate(row):
+            idx_t, val = tup_val
             idx = str(idx_t)
             scaled = (new_min + new_max) / 2.0
             min_v = float(global_bounds["min"][idx])

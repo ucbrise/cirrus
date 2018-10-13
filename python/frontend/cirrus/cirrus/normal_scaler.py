@@ -2,7 +2,6 @@
 
 import json
 import time
-from collections import deque
 
 import boto3
 from cirrus.lambda_thread import LambdaThread
@@ -39,8 +38,7 @@ class LocalScale(LambdaThread):
 
 def normal_scaler(s3_bucket_input, s3_bucket_output, objects=(), dry_run=False):
     """ Scale the values in a dataset to fit a unit normal distribution. """
-    s3_resource = boto3.resource("s3")
-    if len(objects) == 0:
+    if not objects:
         # Allow user to specify objects, or otherwise get all objects.
         objects = get_all_keys(s3_bucket_input)
 
@@ -51,13 +49,16 @@ def normal_scaler(s3_bucket_input, s3_bucket_output, objects=(), dry_run=False):
     start_global = time.time()
     print("LocalRange took {0} seconds...".format(start_global - start_bounds))
 
-    f_ranges = get_global_map(s3_bucket_input, objects)
+    client = boto3.client("s3")
+    f_ranges = get_global_map(s3_bucket_input, objects, client)
 
     end_global = time.time()
     print("Creating the global map took {0} seconds...".format(
         end_global - start_global))
 
-    update_local_maps(s3_bucket_input, objects, f_ranges)
+    s3_resource = boto3.resource("s3")
+    update_local_maps(s3_bucket_input, objects, f_ranges, client,
+                      s3_resource)
 
     start_scale = time.time()
     print("Putting local maps took {0} seconds...".format(
@@ -77,9 +78,8 @@ def normal_scaler(s3_bucket_input, s3_bucket_output, objects=(), dry_run=False):
         time.time() - end_scale))
 
 
-def get_global_map(s3_bucket_input, objects):
+def get_global_map(s3_bucket_input, objects, client):
     """ Aggregate the sample means, std. devs., etc. to get the global map. """
-    client = boto3.client("s3")
     f_ranges = {}
     for i in objects:
         obj = client.get_object(Bucket=s3_bucket_input,
@@ -99,7 +99,8 @@ def get_global_map(s3_bucket_input, objects):
     return f_ranges
 
 
-def update_local_maps(s3_bucket_input, objects, f_ranges):
+def update_local_maps(s3_bucket_input, objects, f_ranges,
+                      s3_client, s3_resource):
     """ Update the local maps of means, std. devs., etc. """
     for i in objects:
         s3_obj = s3_resource.Object(s3_bucket_input, str(i) + "_bounds")
@@ -110,6 +111,6 @@ def update_local_maps(s3_bucket_input, objects, f_ranges):
             mean = f_ranges[idx][1] / f_ranges[idx][2]
             local_map[idx] = [(mean_x_sq - mean**2)**(.5), mean]
         serialized = json.dumps(local_map)
-        client.put_object(Bucket=s3_bucket_input,
-                          Key=str(i) + "_final_bounds", Body=serialized)
+        s3_client.put_object(Bucket=s3_bucket_input,
+                             Key=str(i) + "_final_bounds", Body=serialized)
         s3_obj.delete()

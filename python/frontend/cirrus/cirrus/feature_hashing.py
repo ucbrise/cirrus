@@ -1,9 +1,7 @@
 """ Apply feature hashing to specified columns. """
 
-import json
 import time
 
-import boto3
 from cirrus.lambda_thread import LambdaThread
 from cirrus.utils import get_all_keys, launch_lambdas
 
@@ -30,7 +28,7 @@ def feature_hashing(s3_bucket_input, s3_bucket_output, columns,
                     n_buckets, objects=()):
     """ Take a list of integer values (column indices) to perform
     the feature hashing for n_buckets buckets. """
-    if len(objects) == 0:
+    if not objects:
         # Allow user to specify objects, or otherwise get all objects.
         objects = get_all_keys(s3_bucket_input)
 

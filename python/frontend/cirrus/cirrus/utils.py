@@ -23,7 +23,8 @@ def launch_lambdas(lambda_cls, objects, max_lambdas=400, *params):
     for thread in threads:
         thread.join()
 
-def retry_loop(func, exceptions=(), handle_exception=None, max_attempts=3, name="Function"):
+def retry_loop(func, exceptions=(), handle_exception=None, max_attempts=3,
+               name="Function"):
     """ Retry a function however many times, but stop if
     one of the specified exceptions occurs. """
     curr_attempt = 1
@@ -32,8 +33,10 @@ def retry_loop(func, exceptions=(), handle_exception=None, max_attempts=3, name=
         try:
             current = time.time()
             func()
-            print("{0} completed this attempt in {1}, all attempts in {2}".format(
-                name, time.time() - current, time.time() - overall))
+            print("{0} completed this attempt in {1}, " +
+                  "all attempts in {2}".format(
+                      name, time.time() - current,
+                      time.time() - overall))
             break
         except exceptions as exc:
             if handle_exception is not None:
@@ -150,7 +153,8 @@ def serialize_data(data, labels=None):
             current_line.append(struct.pack("f", float(val)))
         lines.append(b"".join(current_line))
         num_bytes += len(lines[-1])
-    return struct.pack("i", num_bytes + 8) + struct.pack("i", len(lines)) + b"".join(lines)
+    return struct.pack("i", num_bytes + 8) + \
+        struct.pack("i", len(lines)) + b"".join(lines)
 
 
 def get_random_color():
@@ -162,11 +166,13 @@ def get_random_color():
 
 
 def command_dict_to_file(command_dict):
-    """ Takes a dictionary in the form of { 'machine-public-ip': ['list of commands'] }
-    and creates a bash file for each machine that will run the command list """
+    """ Takes a dictionary in the form of
+    { 'machine-public-ip': ['list of commands'] }
+    and creates a bash file for each machine that will
+    run the command list """
     for key, num in zip(command_dict.keys(), range(len(command_dict.keys()))):
         lst = command_dict[key]
 
-        with open("machine_%d.sh" % num, "w") as file:
+        with open("machine_%d.sh" % num, "w") as f_handle:
             for cmd in lst:
-                file.write(cmd + "\n\n")
+                f_handle.write(cmd + "\n\n")

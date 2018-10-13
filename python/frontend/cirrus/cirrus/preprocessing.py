@@ -21,7 +21,7 @@ class Normalization(Enum):
     NORMAL = 2
 
 
-class Preprocessing:
+class Preprocessing(object):
     """ Static preprocessing module for Min Max scaling, normal scaling. """
     def __init__(self):
         raise Exception, "Static class"
@@ -59,7 +59,7 @@ class Preprocessing:
         client = boto3.client("s3")
         start = time.time()
         print("[{0} s] Reading file...".format(time.time() - start))
-        data, labels = sklearn.datasets.load_svmlight_file(path)
+        data = sklearn.datasets.load_svmlight_file(path)[0]
         print("[{0} s] Finished reading file...".format(time.time() - start))
         batch = []
         batch_num = 1
@@ -68,10 +68,10 @@ class Preprocessing:
             # Iterate through the rows
             if row % 10000 == 0:
                 print("[{0} s] On row {1}...".format(time.time() - start, row))
-            rows, cols = data[row, :].nonzero()
+            cols = data[row, :].nonzero()[1]
             curr_row = []
             for col_idx in cols:
-                curr_row.append((c, data[row, col_idx]))
+                curr_row.append((col_idx, data[row, col_idx]))
             batch.append(curr_row)
             batch_size += 1
             if batch_size == ROWS_PER_CHUNK:

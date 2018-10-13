@@ -5,3 +5,4 @@ boto3==1.9.10
 mmh3==2.5.1
 ipython==5.8.0
 paramiko==2.4.2
+pylint==1.9.3

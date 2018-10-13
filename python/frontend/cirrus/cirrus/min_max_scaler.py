@@ -47,7 +47,7 @@ def min_max_scaler(s3_bucket_input, s3_bucket_output, lower, upper,
                    skip_bounds=False):
     """ Scale the values in a dataset to the range [lower, upper]. """
     s3_resource = boto3.resource("s3")
-    if len(objects) == 0:
+    if not objects:
         # Allow user to specify objects, or otherwise get all objects.
         objects = get_all_keys(s3_bucket_input)
 

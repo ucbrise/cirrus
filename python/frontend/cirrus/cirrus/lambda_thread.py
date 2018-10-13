@@ -2,7 +2,6 @@
 
 import json
 import random
-import time
 from threading import Thread
 
 import boto3
@@ -15,7 +14,7 @@ def handle_lambda_exception(exception):
     if exception.response.get("Error", {}).get("Code") \
         == "TooManyRequestsException":
         # Stop if you get a TooManyRequestsException
-        print("{0} did not launch".format(name))
+        print("Lambda did not launch, TooManyRequestsException")
         raise exception
 
 

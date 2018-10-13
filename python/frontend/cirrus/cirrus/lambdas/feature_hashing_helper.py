@@ -1,9 +1,5 @@
 """ Helper functions for feature hashing """
 
-import json
-import struct
-
-import boto3
 import mmh3
 
 HASH_SEED = 42

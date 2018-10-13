@@ -1,10 +1,5 @@
 """ Helper functions for normal scaling. """
 
-import json
-import struct
-
-import boto3
-
 
 def get_data_ranges(data):
     """ Return a dict where each index is a list of [E[X^2], mean, n].
@@ -19,7 +14,7 @@ def get_data_ranges(data):
                 x_col[idx] = 0
                 n_col[idx] = 0
             x_squared_col[idx] += float(val)**2
-            x_col[idx] += v
+            x_col[idx] += val
             n_col[idx] += 1
 
     final = {}
@@ -31,8 +26,8 @@ def get_data_ranges(data):
 def scale_data(data, global_map):
     """ Takes g, a map to [std_dev, mean] """
     for row in data:
-        for j in range(len(row)):
-            idx_t, val = row[j]
+        for j, tup_val in enumerate(row):
+            idx_t, val = tup_val
             idx = str(idx_t)
             scaled = 0
             if global_map[idx][0] != 0:

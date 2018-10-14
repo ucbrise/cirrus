@@ -1,7 +1,5 @@
 """ Preprocessing module for Cirrus """
 
-import time
-
 import sklearn.datasets
 from enum import Enum
 
@@ -9,7 +7,7 @@ import boto3
 import cirrus.feature_hashing as feature_hashing
 import cirrus.min_max_scaler as min_max_scaler
 import cirrus.normal_scaler as normal_scaler
-from cirrus.utils import serialize_data
+from cirrus.utils import serialize_data, Timer
 
 ROWS_PER_CHUNK = 50000
 
@@ -37,7 +35,7 @@ class Preprocessing(object):
         if normalization_type == Normalization.MIN_MAX:
             assert len(args) >= 2, "Must specify min and max."
             print(
-                "[Preprocessing] Calling MinMaxScaler with args {0}"
+                "[PREPROCESSING] Calling MinMaxScaler with args {0}"
                 .format(args))
             min_max_scaler.min_max_scaler(s3_bucket_input, s3_bucket_output,
                                           *args)
@@ -57,17 +55,16 @@ class Preprocessing(object):
     def load_libsvm(path, s3_bucket):
         """ Load a libsvm file into S3 in the specified bucket. """
         client = boto3.client("s3")
-        start = time.time()
-        print("[{0} s] Reading file...".format(time.time() - start))
+        timer = Timer("LOAD_LIBSVM").set_step("Reading file")
         data = sklearn.datasets.load_svmlight_file(path)[0]
-        print("[{0} s] Finished reading file...".format(time.time() - start))
+        timer.timestamp().set_step("Starting loop")
         batch = []
         batch_num = 1
         batch_size = 0
         for row in range(data.shape[0]):
             # Iterate through the rows
             if row % 10000 == 0:
-                print("[{0} s] On row {1}...".format(time.time() - start, row))
+                timer.timestamp().set_step("Reading 10000 rows")
             cols = data[row, :].nonzero()[1]
             curr_row = []
             for col_idx in cols:
@@ -76,21 +73,22 @@ class Preprocessing(object):
             batch_size += 1
             if batch_size == ROWS_PER_CHUNK:
                 # Put the lines in S3, 50000 lines at a time
-                print("[{0} s] Writing batch {1}...".format(
-                    time.time() - start, batch_num))
+                timer.set_step("Writing batch of {0} to S3"
+                               .format(ROWS_PER_CHUNK))
                 serialized = serialize_data(batch)
                 client.put_object(Bucket=s3_bucket, Key=str(batch_num),
                                   Body=serialized)
                 batch = []
                 batch_num += 1
                 batch_size = 0
+                timer.timestamp().set_step("Reading 10000 rows")
 
         if batch_size > 0:
             # Put any remaining lines in S3
-            print("[{0} s] Writing final batch {1}...".format(
-                time.time() - start, batch_num))
+            timer.set_step("Writing final batch to S3")
             serialized = serialize_data(batch)
             client.put_object(Bucket=s3_bucket, Key=str(batch_num),
                               Body=serialized)
+            timer.timestamp()
 
-        print("[{0} s] Finished writing to S3.".format(time.time() - start))
+        timer.global_timestamp()

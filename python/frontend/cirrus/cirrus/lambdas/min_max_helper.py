@@ -2,9 +2,9 @@
 Redis functions, getting and putting bounds in S3. """
 
 import json
-import time
 from collections import deque
 from threading import Thread
+from utils import Timer
 
 UPPER_BOUND_SCRIPT = "for i, v in ipairs(KEYS)" \
     " do local current = tonumber(redis.call('get', KEYS[i])); " \
@@ -37,24 +37,20 @@ def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket,
     upper_bound_func = redis_client.register_script(UPPER_BOUND_SCRIPT)
     lower_bound_func = redis_client.register_script(LOWER_BOUND_SCRIPT)
 
-    start = time.time()
+    timer = Timer("CHUNK{0}"
+                  .format(chunk)).set_step("Getting key value lists")
     max_k, max_v, min_k, min_v = get_keys_values(bounds)
-    print("[CHUNK{0}] Took {1} to make lists".format(chunk,
-                                                     time.time() - start))
+    timer.timestamp().set_step("upper_bound_func")
 
-    start = time.time()
     push_keys_values_to_redis(
         node_manager, chunk, batch_push_to_redis, max_k, max_v,
         upper_bound_func)
-    print("[CHUNK{0}] upper_bound_func took {1}".format(
-        chunk, time.time() - start))
+    timer.timestamp().set_step("lower_bound_func")
 
-    start = time.time()
     push_keys_values_to_redis(
         node_manager, chunk, batch_push_to_redis, min_k, min_v,
         lower_bound_func)
-    print("[CHUNK{0}] lower_bound_func took {1}".format(
-        chunk, time.time() - start))
+    timer.timestamp()
 
 
 class ParallelFn(Thread):
@@ -132,7 +128,7 @@ def push_keys_values_to_redis(node_manager, chunk, batch_push_to_redis,
         redis_script(keys, values)
         return
     # Separate the keys and values into slots determined by Redis
-    start = time.time()
+    timer = Timer("CHUNK{0}".format(chunk)).set_step("Making slot maps")
     for idx, k in enumerate(keys):
         slot = node_manager.keyslot(k)
         if slot not in slot_k:
@@ -140,9 +136,8 @@ def push_keys_values_to_redis(node_manager, chunk, batch_push_to_redis,
             slot_vals[slot] = []
         slot_k[slot].append(k)
         slot_vals[slot].append(values[idx])
-    print("[CHUNK{0}] Took {1} to make slot maps".format(
-        chunk, time.time() - start))
-    start = time.time()
+    timer.timestamp().set_step("Making {0} key / value requests".format(
+        len(slot_k)))
     push_threads = deque()
     # Push the key / value batches in parallel
     for idx, k in enumerate(slot_k):
@@ -154,15 +149,14 @@ def push_keys_values_to_redis(node_manager, chunk, batch_push_to_redis,
         push_threads.append(thread)
     for thread in push_threads:
         thread.join()
-    print("[CHUNK{0}] Took {1} to make {2} key / value requests".format(
-        chunk, time.time() - start, len(slot_k)))
+    timer.timestamp()
 
 
 def get_global_bounds(s3_client, redis_client, bucket, src_object,
                       use_redis, chunk):
     """ Get the bounds across all objects, where each key is mapped
     to [min, max]. """
-    start = time.time()
+    timer = Timer("CHUNK{0}".format(chunk)).set_step("S3")
     # Determine whether to get the aggregated global bounds from the
     # master thread, or the bounds from before and update (if using
     # Redis)
@@ -175,9 +169,7 @@ def get_global_bounds(s3_client, redis_client, bucket, src_object,
     bounds = json.loads(b_data)
     if not use_redis:
         return bounds
-    construct_time = time.time()
-    print("[CHUNK{0}] S3 took {1} seconds...".format(chunk,
-                                                     construct_time - start))
+    timer.timestamp().set_step("Constructing lists")
     print(
         "[CHUNK{0}] Going to make {1} * 2 " + \
         "requests to Redis".format(chunk, len(bounds["max"])))
@@ -189,9 +181,8 @@ def get_global_bounds(s3_client, redis_client, bucket, src_object,
         original.append(idx)
         min_k.append(str(idx) + "_min")
         max_k.append(str(idx) + "_max")
-    print("Constructing lists took {0} seconds".format(
-        time.time() - construct_time))
-    get_keys_time = time.time()
+    timer.timestamp().set_step("Getting 2 * {0} elements from Redis"
+                               .format(len(bounds["max"])))
     res = {}
     # Get the keys in parallel
     thread1 = ParallelFn(redis_client.mget, max_k, None, res, "max")
@@ -200,18 +191,15 @@ def get_global_bounds(s3_client, redis_client, bucket, src_object,
     thread2.start()
     thread1.join()
     thread2.join()
-    print("[CHUNK{0}] Getting 2 * {1} elements from Redis took {2}...".format(
-        chunk, len(bounds["max"]), time.time() - get_keys_time))
+    timer.timestamp().set_step("Constructing the final dictionary")
     # Format the map the way we want it
     max_v = res["max"]
     min_v = res["min"]
-    final_dict_time = time.time()
     final_bounds = {"max": {}, "min": {}}
     for idx, k in enumerate(original):
         final_bounds["max"][k] = max_v[idx]
         final_bounds["min"][k] = min_v[idx]
-    print("[CHUNK{0}] Constructing the final dictionary took" + \
-          " {1} seconds".format(chunk, time.time() - final_dict_time))
+    timer.timestamp()
     return final_bounds
 
 

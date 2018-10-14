@@ -1,11 +1,10 @@
 """ MinMaxScaler normalization """
 
 import json
-import time
 
 import boto3
 from cirrus.lambda_thread import LambdaThread
-from cirrus.utils import get_all_keys, launch_lambdas
+from cirrus.utils import get_all_keys, launch_lambdas, Timer
 
 MAX_LAMBDAS = 400
 
@@ -52,26 +51,25 @@ def min_max_scaler(s3_bucket_input, s3_bucket_output, lower, upper,
         objects = get_all_keys(s3_bucket_input)
 
     # Calculate bounds for each chunk.
-    start_bounds = time.time()
+    timer = Timer("MIN_MAX").set_step("LocalBounds")
     if not skip_bounds:
         # Get the bounds
         launch_lambdas(LocalBounds, objects, MAX_LAMBDAS,
                        s3_bucket_input, use_redis)
 
-    print("LocalBounds took {0} seconds...".format(time.time() - start_bounds))
+    timer.timestamp()
     # Aggregate the local maps if no Redis
     if not use_redis:
         no_redis_alternative(s3_bucket_input, objects)
 
-    start_scale = time.time()
+    timer.set_step("LocalScale")
     if not dry_run:
         # Scale the chunks
         launch_lambdas(LocalScale, objects, MAX_LAMBDAS,
                        s3_bucket_input, s3_bucket_output,
                        lower, upper, use_redis)
 
-    end_scale = time.time()
-    print("Local scaling took {0} seconds...".format(end_scale - start_scale))
+    timer.timestamp().set_step("Deleting local maps")
 
     # Delete any intermediary values in S3
     for i in objects:
@@ -80,14 +78,13 @@ def min_max_scaler(s3_bucket_input, s3_bucket_output, lower, upper,
             s3_resource.Object(s3_bucket_input, str(i) +
                                "_final_bounds").delete()
 
-    print("Deleting local maps took {0} seconds...".format(
-        time.time() - end_scale))
+    timer.timestamp()
 
 
 def no_redis_alternative(s3_bucket_input, objects):
     """ Update the local maps with global maxes / mins using
     only S3. """
-    start_global = time.time()
+    timer = Timer("MIN_MAX").set_step("Creating the global map")
     client = boto3.client("s3")
     s3_resource = boto3.resource("s3")
     f_ranges = {}
@@ -109,9 +106,7 @@ def no_redis_alternative(s3_bucket_input, objects):
             if val > f_ranges[idx][1]:
                 f_ranges[idx][1] = val
 
-    end_global = time.time()
-    print("Creating the global map took {0} seconds...".format(
-        end_global - start_global))
+    timer.timestamp().set_step("Putting local maps")
     # Update local min/max maps.
     for i in objects:
         s3_obj = s3_resource.Object(s3_bucket_input, str(i) + "_bounds")
@@ -125,5 +120,4 @@ def no_redis_alternative(s3_bucket_input, objects):
         client.put_object(Bucket=s3_bucket_input,
                           Key=str(i) + "_final_bounds", Body=serialized)
 
-    print("Putting local maps took {0} seconds...".format(
-        time.time() - end_global))
+    timer.timestamp()

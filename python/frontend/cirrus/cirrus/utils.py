@@ -9,6 +9,50 @@ import boto3
 
 DEFAULT_LABEL = struct.pack("i", 0)
 
+class Timer(object):
+    """ A class to time functions. """
+
+    DEFAULT_STEP = "Function"
+
+    def __init__(self, tag=""):
+        """ Set an optional tag at the front of this timer's
+        print statements. """
+        self.global_time = time.time()
+        self.last_time = time.time()
+        self.step = Timer.DEFAULT_STEP
+        self.tag = tag
+        self.__print__ = prefix_print(tag)
+        if tag:
+            self.__print__("Started timing {0}".format(self.tag))
+
+    def set_step(self, name):
+        """ Time the current step """
+        self.step = name
+        self.last_time = time.time()
+        return self
+
+    def global_timestamp(self):
+        """ Get the time elapsed since the timer was created. """
+        self.__print__("Global time: {0} seconds"
+                       .format(time.time() - self.global_time))
+        return self
+
+    def timestamp(self):
+        """ Get the time for the current step """
+        self.__print__("{0} took {1} seconds"
+                       .format(self.step, time.time() - self.last_time))
+        return self
+
+def prefix_print(prefix):
+    """ Get a function that prints with a prefix. """
+    def printer(statement):
+        """ Print with a prefix """
+        tag = ""
+        if prefix:
+            tag = "[{0}] ".format(prefix)
+        print("{0}{1}".format(tag, statement))
+    return printer
+
 def launch_lambdas(lambda_cls, objects, max_lambdas=400, *params):
     """ Launch one lambda for each of the objects passed in. """
     threads = deque()

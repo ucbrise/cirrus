@@ -1,12 +1,17 @@
-""" Preprocessing module for Cirrus """
+""" Tests for the preprocessing module for Cirrus """
 
+import os
+import sys
 from threading import Thread
-
-import sklearn.datasets
 
 import boto3
 from botocore.exceptions import ClientError
 import mmh3
+import sklearn.datasets
+
+sys.path.insert(0,
+                os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                             '..')))
 from cirrus.preprocessing import Preprocessing, Normalization
 from cirrus.utils import get_all_keys, delete_all_keys, get_data_from_s3, \
     launch_lambdas, prefix_print, Timer

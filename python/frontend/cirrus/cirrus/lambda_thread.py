@@ -40,5 +40,5 @@ class LambdaThread(Thread):
             )
 
         retry_loop(lambda_invocation, ClientError, handle_lambda_exception,
-                   name="Lambda for chunk {0}"
+                   name="CHUNK_{0}_LAMBDA"
                    .format(self.lamdba_dict["s3_key"]))

@@ -1,12 +1,11 @@
 """ AWS Lambda handler to be deployed by the deploy.sh script. """
 
-from redis import StrictRedis
-
 import boto3
 import feature_hashing_helper
 import min_max_helper
 import normal_helper
 import toml
+from redis import StrictRedis
 from rediscluster import StrictRedisCluster
 from rediscluster.nodemanager import NodeManager
 from utils import get_data_from_s3, serialize_data, Timer, prefix_print
@@ -15,7 +14,7 @@ CLUSTER = False
 
 def handler(event, context):
     """ First entry point for lambda function. """
-    timer = Timer("[CHUNK{0}]".format(event["s3_key"])).set_step(
+    timer = Timer("CHUNK{0}".format(event["s3_key"])).set_step(
         "Determining if duplicate")
     assert "s3_bucket_input" in event, "Must specify input bucket."
     # Handle duplicate lambda launches
@@ -52,7 +51,7 @@ def handler(event, context):
 
 def kill_duplicates(chunk, unique_id):
     """ Identify duplicates with Redis """
-    printer = prefix_print(chunk)
+    printer = prefix_print("CHUNK{0}".format(chunk))
     printer("Opening redis.toml")
     with open("redis.toml", "r") as f_handle:
         creds = toml.load(f_handle)
@@ -87,7 +86,7 @@ def feature_hashing_handler(s3_client, data, labels, event):
     """ Handle a call for feature hashing """
     timer = Timer("CHUNK{0}".format(event["s3_key"])).set_step(
         "Feature hashing")
-    printer = prefix_print(event["s3_key"])
+    printer = prefix_print("CHUNK{0}".format(event["s3_key"]))
     printer("Hashing data")
     hashed = feature_hashing_helper.hash_data(data,
                                               event["columns"],

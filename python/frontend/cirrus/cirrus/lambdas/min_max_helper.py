@@ -171,8 +171,9 @@ def get_global_bounds(s3_client, redis_client, bucket, src_object,
         return bounds
     timer.timestamp().set_step("Constructing lists")
     print(
-        "[CHUNK{0}] Going to make {1} * 2 " + \
-        "requests to Redis".format(chunk, len(bounds["max"])))
+        "[CHUNK{0}] Going to make {1} * 2 ".format(chunk,
+                                                   len(bounds["max"])) + \
+        "requests to Redis")
     # Get lists of the keys to get from Redis
     original = []
     max_k = []

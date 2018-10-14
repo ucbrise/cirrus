@@ -14,13 +14,14 @@ class Timer(object):
 
     DEFAULT_STEP = "Function"
 
-    def __init__(self, tag=""):
+    def __init__(self, tag="", verbose=False):
         """ Set an optional tag at the front of this timer's
         print statements. """
         self.global_time = time.time()
         self.last_time = time.time()
         self.step = Timer.DEFAULT_STEP
         self.tag = tag
+        self.verbose = verbose
         self.__print__ = prefix_print(tag)
         if tag:
             self.__print__("Started timing {0}".format(self.tag))
@@ -29,6 +30,8 @@ class Timer(object):
         """ Time the current step """
         self.step = name
         self.last_time = time.time()
+        if self.verbose:
+            self.__print__(name)
         return self
 
     def global_timestamp(self):
@@ -72,15 +75,11 @@ def retry_loop(func, exceptions=(), handle_exception=None, max_attempts=3,
     """ Retry a function however many times, but stop if
     one of the specified exceptions occurs. """
     curr_attempt = 1
-    overall = time.time()
+    timer = Timer(name).set_step("Attempt #1")
     while curr_attempt <= max_attempts:
         try:
-            current = time.time()
             func()
-            print("{0} completed this attempt in {1}, " +
-                  "all attempts in {2}".format(
-                      name, time.time() - current,
-                      time.time() - overall))
+            timer.timestamp().global_timestamp()
             break
         except exceptions as exc:
             if handle_exception is not None:
@@ -91,6 +90,7 @@ def retry_loop(func, exceptions=(), handle_exception=None, max_attempts=3,
             if curr_attempt > max_attempts:
                 raise exc
         print("{0}: Launching attempt #{1}".format(name, curr_attempt))
+        timer.set_step("Attempt #{0}".format(curr_attempt))
 
 def delete_all_keys(bucket):
     """ Delete all keys from an S3 bucket """

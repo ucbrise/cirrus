@@ -216,7 +216,7 @@ class BaseTask(object):
 
     def launch_ps(self, command_dict=None):
         cmd = 'nohup ./parameter_server --config config_%d.txt --nworkers %d --rank 1 --ps_port %d &> ps_out_%d & ' % (
-            self.ps_ip_port, self.n_workers * 100, self.ps_ip_port, self.ps_ip_port)
+            self.ps_ip_port, self.n_workers * 2, self.ps_ip_port, self.ps_ip_port)
         if command_dict is not None:
             command_dict[self.ps_ip_public].append(cmd)
         else:

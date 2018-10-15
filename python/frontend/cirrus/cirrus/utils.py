@@ -1,6 +1,5 @@
 """ Utility functions for Cirrus """
 
-import hashlib
 import random
 import struct
 import time
@@ -230,22 +229,25 @@ def public_dns_to_private_ip(public_dns):
 
     instances = response['Reservations'][0]['Instances']
 
-    if len(instances) == 0:
+    if instances:
         raise Exception('No EC2 with this: %s DNS name exists!' % public_dns)
     elif len(instances) > 1:
-        raise Exception('More than one EC2 with this: %s DNS name exists!' % public_dns)
+        raise Exception(
+            'More than one EC2 with this: %s DNS name exists!' % public_dns)
 
     return instances[0]['PrivateIpAddress']
 
 
-def lambda_exists(existing, name, size, zip_location):
-    """ TODO: Check to see if uploaded SHA256 matches current bundle's SHA256
-    Code below doesn't work, not sure if I need to hash zip or undlerlying code... 
+def lambda_exists(existing, name):
+    """ lambda_exists(existing, name, size, zip_location)
+    TODO: Check to see if uploaded SHA256 matches current bundle's SHA256
+    Code below doesn't work, not sure if I need to hash zip or
+    underlying code.
     with open(zip_location, 'rb') as f:
         zipped_code = f.read()
     bundle_sha = hashlib.sha256(zipped_code).hexdigest()
     """
-       
+
     return any([lambda_['FunctionName'] == name for lambda_ in existing])
 
 
@@ -253,24 +255,25 @@ def create_lambda(fname, size=128):
     """ Create a lambda function """
     with open(fname, 'rb') as f:
         zipped_code = f.read()
-    
+
     role = iam_client.get_role(RoleName="fix_lambda_role")
 
     fn = "testfunc1_%d" % size
 
     lc.create_function(
-            FunctionName=fn,
-            Runtime="python2.7",
-            Handler='handler.handler',
-            Code=dict(ZipFile=zipped_code),
-            Timeout=300,
-            Role=role['Role']['Arn'],
-            Environment=dict(Variables=dict()),
-            VpcConfig = {
-                'SubnetIds': ['subnet-bdb37ef4', 'subnet-db812abc', 'subnet-10082048'], 
-                'SecurityGroupIds': ['sg-63cfa618', 'sg-8bfd6af1', 'sg-36138a4e']},
-            MemorySize=size
-            )
+        FunctionName=fn,
+        Runtime="python2.7",
+        Handler='handler.handler',
+        Code=dict(ZipFile=zipped_code),
+        Timeout=300,
+        Role=role['Role']['Arn'],
+        Environment=dict(Variables=dict()),
+        VpcConfig={
+            'SubnetIds': ['subnet-bdb37ef4',
+                          'subnet-db812abc',
+                          'subnet-10082048'],
+            'SecurityGroupIds': ['sg-63cfa618', 'sg-8bfd6af1', 'sg-36138a4e']},
+        MemorySize=size)
 
 
 def command_dict_to_file(command_dict):

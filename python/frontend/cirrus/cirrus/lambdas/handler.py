@@ -1,13 +1,14 @@
 """ AWS Lambda handler to be deployed by the deploy.sh script. """
 
 import boto3
+from redis import StrictRedis
+from rediscluster import StrictRedisCluster
+from rediscluster.nodemanager import NodeManager
+
 import feature_hashing_helper
 import min_max_helper
 import normal_helper
 import toml
-from redis import StrictRedis
-from rediscluster import StrictRedisCluster
-from rediscluster.nodemanager import NodeManager
 from utils import get_data_from_s3, serialize_data, Timer, prefix_print
 
 CLUSTER = False

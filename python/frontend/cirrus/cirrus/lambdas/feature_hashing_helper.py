@@ -19,7 +19,7 @@ def hash_data(data, columns, n_buckets):
                     row_map[bucket] = 0
                 row_map[bucket] += 1
             else:
-                row_map[col] = val
+                row_map[n_buckets + col] = val
 
         row_values = []
         for k in row_map:

@@ -82,7 +82,7 @@ class HashTest(Thread):
                         row_old[bucket] = 0
                     row_old[bucket] += 1
                 else:
-                    row_old[idx2] = val
+                    row_old[self.n_buckets + idx2] = val
             row_new = {}
             for idx2, val in dest_obj[idx]:
                 row_new[idx2] = val

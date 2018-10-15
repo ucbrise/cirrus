@@ -214,6 +214,7 @@ bool PSSparseServerTask::process_get_lr_sparse_model(
   assert(to_send_size < 1024 * 1024);
   char data_to_send[1024 * 1024]; // 1MB
   char* data_to_send_ptr = data_to_send;
+
 #ifdef DEBUG
   std::cout << "Sending back: " << num_entries
     << " weights from model. Size: " << to_send_size
@@ -266,6 +267,10 @@ bool PSSparseServerTask::process_get_lr_full_model(
   model_lock.lock();
   auto lr_model_copy = *lr_model;
   model_lock.unlock();
+
+  // TODO: This should be largest non-zero weight in model. That way
+  // we can reduce the model size, espeically for a large model split across
+  // multiple PS
   uint32_t model_size = lr_model_copy.getSerializedSize();
 
   if (thread_buffer.size() < model_size) {
@@ -576,7 +581,7 @@ void PSSparseServerTask::loop(int poll_id) {
   struct sockaddr_in cli_addr;
   socklen_t clilen = sizeof(cli_addr);
 
-  buffer.resize(10 * 1024 * 1024); // reserve 10MB upfront
+  // buffer.resize(10 * 1024 * 1024); // reserve 10MB upfront
 
   std::cout << "Starting loop for id: " << poll_id << std::endl;
   while (!kill_signal) {

@@ -163,6 +163,7 @@ class ErrorSparseTask : public MLTask {
    double last_time = 0.0;
    double last_error = 0.0;
    std::atomic<double> curr_error;
+   std::atomic<double> total_loss;
 };
 
 class PerformanceLambdaTask : public MLTask {

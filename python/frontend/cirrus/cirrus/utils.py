@@ -1,5 +1,6 @@
 """ Utility functions for Cirrus """
 
+import hashlib
 import random
 import struct
 import time
@@ -8,6 +9,9 @@ from collections import deque
 import boto3
 
 DEFAULT_LABEL = struct.pack("i", 0)
+ec2c = boto3.client('ec2')
+lc = boto3.client('lambda')
+iam_client = boto3.client('iam')
 
 class Timer(object):
     """ A class to time functions. """
@@ -46,6 +50,7 @@ class Timer(object):
                        .format(self.step, time.time() - self.last_time))
         return self
 
+
 def prefix_print(prefix):
     """ Get a function that prints with a prefix. """
     def printer(statement):
@@ -55,6 +60,7 @@ def prefix_print(prefix):
             tag = "[{0}] ".format(prefix)
         print("{0}{1}".format(tag, statement))
     return printer
+
 
 def launch_lambdas(lambda_cls, objects, max_lambdas=400, *params):
     """ Launch one lambda for each of the objects passed in. """
@@ -69,6 +75,7 @@ def launch_lambdas(lambda_cls, objects, max_lambdas=400, *params):
 
     for thread in threads:
         thread.join()
+
 
 def retry_loop(func, exceptions=(), handle_exception=None, max_attempts=3,
                name="Function"):
@@ -91,6 +98,7 @@ def retry_loop(func, exceptions=(), handle_exception=None, max_attempts=3,
                 raise exc
         print("{0}: Launching attempt #{1}".format(name, curr_attempt))
         timer.set_step("Attempt #{0}".format(curr_attempt))
+
 
 def delete_all_keys(bucket):
     """ Delete all keys from an S3 bucket """
@@ -207,6 +215,62 @@ def get_random_color():
         """ Get a random integer from 0 to 255 """
         return random.randint(0, 255)
     return 'rgb(%d, %d, %d)' % (rand_256(), rand_256(), rand_256())
+
+
+def get_all_lambdas():
+    """ Get all lambda functions """
+    return lc.list_functions()['Functions']
+
+
+def public_dns_to_private_ip(public_dns):
+    """ Convert an EC2 public DNS to private IP """
+    filters = [{'Name': 'dns-name', 'Values': [public_dns]}]
+
+    response = ec2c.describe_instances(Filters=filters)
+
+    instances = response['Reservations'][0]['Instances']
+
+    if len(instances) == 0:
+        raise Exception('No EC2 with this: %s DNS name exists!' % public_dns)
+    elif len(instances) > 1:
+        raise Exception('More than one EC2 with this: %s DNS name exists!' % public_dns)
+
+    return instances[0]['PrivateIpAddress']
+
+
+def lambda_exists(existing, name, size, zip_location):
+    """ TODO: Check to see if uploaded SHA256 matches current bundle's SHA256
+    Code below doesn't work, not sure if I need to hash zip or undlerlying code... 
+    with open(zip_location, 'rb') as f:
+        zipped_code = f.read()
+    bundle_sha = hashlib.sha256(zipped_code).hexdigest()
+    """
+       
+    return any([lambda_['FunctionName'] == name for lambda_ in existing])
+
+
+def create_lambda(fname, size=128):
+    """ Create a lambda function """
+    with open(fname, 'rb') as f:
+        zipped_code = f.read()
+    
+    role = iam_client.get_role(RoleName="fix_lambda_role")
+
+    fn = "testfunc1_%d" % size
+
+    lc.create_function(
+            FunctionName=fn,
+            Runtime="python2.7",
+            Handler='handler.handler',
+            Code=dict(ZipFile=zipped_code),
+            Timeout=300,
+            Role=role['Role']['Arn'],
+            Environment=dict(Variables=dict()),
+            VpcConfig = {
+                'SubnetIds': ['subnet-bdb37ef4', 'subnet-db812abc', 'subnet-10082048'], 
+                'SecurityGroupIds': ['sg-63cfa618', 'sg-8bfd6af1', 'sg-36138a4e']},
+            MemorySize=size
+            )
 
 
 def command_dict_to_file(command_dict):

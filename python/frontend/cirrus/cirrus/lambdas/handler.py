@@ -19,7 +19,9 @@ def handler(event, context):
         "Determining if duplicate")
     assert "s3_bucket_input" in event, "Must specify input bucket."
     # Handle duplicate lambda launches
-    redis_flag = bool(int(event["use_redis"]))
+    redis_flag = True
+    if "use_redis" in event:
+        redis_flag = bool(int(event["use_redis"]))
     redis_client = None
     node_manager = None
     # Kill the function if this is a duplicate

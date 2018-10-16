@@ -271,6 +271,8 @@ class PSSparseServerTask : public MLTask {
   void loop(int id);                         //< listen for requests
   bool process(struct pollfd&, int id);      //< process a request
 
+  void set_operation_maps();  //< set maps related to requests
+
   /**
     * Model/ML related methods
     */
@@ -307,6 +309,8 @@ class PSSparseServerTask : public MLTask {
                                    std::vector<char>&,
                                    int);
   bool process_register_task(int, const Request&, std::vector<char>&, int);
+  bool process_get_value(int, const Request&, std::vector<char>&, int);
+  bool process_set_value(int, const Request&, std::vector<char>&, int);
 
   void kill_server();
 
@@ -374,6 +378,9 @@ class PSSparseServerTask : public MLTask {
       uint32_t,
       std::function<bool(int, const Request&, std::vector<char>&, int)>>
       operation_to_f;
+
+  std::unordered_map<std::string, std::pair<uint32_t, std::shared_ptr<char>>>
+    key_value_map;
 };
 
 class MFNetflixTask : public MLTask {

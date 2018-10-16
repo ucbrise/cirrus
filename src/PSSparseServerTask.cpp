@@ -42,6 +42,14 @@ PSSparseServerTask::PSSparseServerTask(uint64_t model_size,
   std::atomic_init(&gradientUpdatesCount, 0UL);
   std::atomic_init(&thread_count, 0);
 
+  set_operation_maps();
+
+  for (int i = 0; i < NUM_PS_WORK_THREADS; i++) {
+    thread_msg_buffer[i].reset(new char[THREAD_MSG_BUFFER_SIZE]);
+  }
+}
+
+void PSSparseServerTask::set_operation_maps() {
   operation_to_name[0] = "SEND_LR_GRADIENT";
   operation_to_name[1] = "SEND_MF_GRADIENT";
   operation_to_name[2] = "GET_LR_FULL_MODEL";
@@ -53,6 +61,8 @@ PSSparseServerTask::PSSparseServerTask(uint64_t model_size,
   operation_to_name[8] = "REGISTER_TASK";
   operation_to_name[9] = "GET_NUM_CONNS";
   operation_to_name[10] = "GET_NUM_UPDATES";
+  operation_to_name[11] = "SET_VALUE";
+  operation_to_name[12] = "GET_VALUE";
 
   using namespace std::placeholders;
   operation_to_f[SEND_LR_GRADIENT] = std::bind(
@@ -77,10 +87,10 @@ PSSparseServerTask::PSSparseServerTask(uint64_t model_size,
       &PSSparseServerTask::process_get_num_updates, this, _1, _2, _3, _4);
   operation_to_f[REGISTER_TASK] = std::bind(
       &PSSparseServerTask::process_register_task, this, _1, _2, _3, _4);
-
-  for (int i = 0; i < NUM_PS_WORK_THREADS; i++) {
-    thread_msg_buffer[i].reset(new char[THREAD_MSG_BUFFER_SIZE]);
-  }
+  operation_to_f[SET_VALUE] = std::bind(
+      &PSSparseServerTask::process_set_value, this, _1, _2, _3, _4);
+  operation_to_f[GET_VALUE] = std::bind(
+      &PSSparseServerTask::process_get_value, this, _1, _2, _3, _4);
 }
 
 std::shared_ptr<char> PSSparseServerTask::serialize_lr_model(
@@ -444,6 +454,67 @@ bool PSSparseServerTask::process_get_num_conns(int sock,
     throw std::runtime_error("Error sending number of connections");
   }
 
+  return true;
+}
+
+bool PSSparseServerTask::process_get_value(int sock,
+                                           const Request& req,
+                                           std::vector<char>& thread_buffer,
+                                           int) {
+  char key[KEY_SIZE + 1] = {0};
+
+  // read the key (KEY_SIZE bytes)
+  if (read_all(sock, &key, KEY_SIZE) == 0) {
+    handle_failed_read(&req.poll_fd);
+    return false;
+  }
+
+  // XXX can use string_view here?
+  auto map_iterator = key_value_map.find(std::string(key));
+  if (map_iterator == key_value_map.end()) {
+    uint32_t not_found = 0;
+    if (send_all(sock, &not_found, sizeof(char)) != sizeof(char)) {
+      return false;
+    }
+  } else {
+    uint32_t value_size = map_iterator->second.first;
+    if (send_all(sock, &value_size, sizeof(uint32_t)) != sizeof(uint32_t)) {
+      return false;
+    }
+    if (send_all(sock, map_iterator->second.second.get(), value_size) != value_size) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool PSSparseServerTask::process_set_value(int sock,
+                                           const Request& req,
+                                           std::vector<char>& thread_buffer,
+                                           int) {
+  struct {
+    char key[KEY_SIZE + 1];
+    uint32_t value_size;
+  } msg;
+
+  // read the key (KEY_SIZE bytes)
+  if (read_all(sock, &msg, sizeof(msg)) == 0) {
+    handle_failed_read(&req.poll_fd);
+    return false;
+  }
+  
+  std::shared_ptr<char> value_data = std::shared_ptr<char>(
+      new char[msg.value_size], std::default_delete<char[]>());
+
+  // read the key value
+  if (read_all(sock, value_data.get(), sizeof(msg.value_size)) == 0) {
+    handle_failed_read(&req.poll_fd);
+    return false;
+  }
+
+  // XXX here we do 1 deallocation and one allocation
+  // XXX can use string view?
+  key_value_map[std::string(msg.key)] = std::make_pair(msg.value_size, value_data);
   return true;
 }
 

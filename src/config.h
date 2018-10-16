@@ -9,8 +9,8 @@
 // #define PRELOAD_DATA
 
 #ifdef USE_REDIS
-#define PS_IP "172.31.0.197"
-#define PS_PORT 1337
+# define PS_IP "172.31.0.197"
+# define PS_PORT 1337
 #endif
 
 #define LOADING_TASK_RANK -100000
@@ -30,8 +30,6 @@ using FEATURE_TYPE = float;
 
 #define LIMIT_NUMBER_PASSES 3
 
-#define SYNC_N_STEPS (100)
-
 // number of factors for neflix workload
 #define NUM_FACTORS 10
 
@@ -39,4 +37,7 @@ using FEATURE_TYPE = float;
 #define NUM_POLL_THREADS 3
 
 // define number of parameter server working threads
-# define NUM_PS_WORK_THREADS 4
+#define NUM_PS_WORK_THREADS 4
+
+// fixed size number of characters for key name
+#define KEY_SIZE (10)

@@ -19,7 +19,7 @@ MAX_THREADS = 400
 HASH_SEED = 42  # Must be equal to the seed in feature_hashing_helper.py
 LIBSVM_FILE = "criteo.small.svm"
 INPUT_BUCKET = "criteo-bucket-16b"
-OUTPUT_BUCKET = "neel-bucket"
+OUTPUT_BUCKET = "bucket-neel"
 
 class SimpleTest(Thread):
     """ Test that the data is within the correct bounds. """

@@ -282,5 +282,53 @@ uint32_t PSSparseServerInterface::get_status(uint32_t id) {
   return status;
 }
 
+void PSSparseServerInterface::set_value(const std::string& key,
+                                        char* data,
+                                        uint32_t size) {
+  assert(key.size() <= KEY_SIZE);
+
+  char key_char[KEY_SIZE] = {0};
+  std::copy(key.data(), key.data() + key.size(), key_char);
+
+  if (send_all(sock, key_char, KEY_SIZE) != KEY_SIZE) {
+    throw std::runtime_error("Error sending key name");
+  }
+  if (send_all(sock, &size, sizeof(uint32_t)) != sizeof(uint32_t)) {
+    throw std::runtime_error("Error sending value size");
+  }
+  if (send_all(sock, data, size) != size) {
+    throw std::runtime_error("Error sending value data");
+  }
+}
+
+std::shared_ptr<char> PSSparseServerInterface::get_value(
+    const std::string& key) {
+  char key_char[KEY_SIZE] = {0};
+  std::copy(key.data(), key.data() + key.size(), key_char);
+
+  if (send_all(sock, key_char, KEY_SIZE) != KEY_SIZE) {
+    throw std::runtime_error("Error sending key name");
+  }
+
+  uint32_t size = 0;
+  if (read_all(sock, &size, sizeof(uint32_t)) != sizeof(uint32_t)) {
+    throw std::runtime_error("Error reading key value");
+  }
+
+  if (size == 0) {
+    // object not found
+    return std::shared_ptr<char>(nullptr);
+  }
+
+  std::shared_ptr<char> value_data =
+      std::shared_ptr<char>(new char[size], std::default_delete<char[]>());
+
+  if (read_all(sock, value_data.get(), size) != size) {
+    throw std::runtime_error("Error receiving value data");
+  }
+
+  return value_data;
+}
+
 } // namespace cirrus
 

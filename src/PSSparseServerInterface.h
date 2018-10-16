@@ -38,6 +38,9 @@ class PSSparseServerInterface {
   void set_status(uint32_t id, uint32_t status);
   uint32_t get_status(uint32_t id);
 
+  void set_value(const std::string& key, char* data, uint32_t size);
+  std::shared_ptr<char> get_value(const std::string& key);
+
  private:
   std::string ip;
   int port;

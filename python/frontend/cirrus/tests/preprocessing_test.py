@@ -1,4 +1,7 @@
-""" Tests for the preprocessing module for Cirrus """
+""" Tests for the preprocessing module for Cirrus.
+
+You can get the test data from
+{CIRRUS_ROOT}/tests/test_data/small_test_criteo.sh """
 
 from threading import Thread
 
@@ -14,7 +17,9 @@ from cirrus.utils import get_all_keys, delete_all_keys, get_data_from_s3, \
 
 MAX_THREADS = 400
 HASH_SEED = 42  # Must be equal to the seed in feature_hashing_helper.py
-
+LIBSVM_FILE = "criteo.small.svm"
+INPUT_BUCKET = "criteo-bucket-16b"
+OUTPUT_BUCKET = "neel-bucket"
 
 class SimpleTest(Thread):
     """ Test that the data is within the correct bounds. """
@@ -160,7 +165,7 @@ def test_load_libsvm(src_file, s3_bucket_output, wipe_keys=False,
 
 
 def test_simple(s3_bucket_input, s3_bucket_output, min_v, max_v,
-                objects=(), preprocess=False, wipe_keys=False,
+                objects=(), preprocess=True, wipe_keys=False,
                 skip_bounds=False):
     """ Make sure all data is in bounds in output, and all data
     is present from input """
@@ -280,3 +285,24 @@ def test_exact(src_file, s3_bucket_output, min_v, max_v, objects=(),
                         "{5}, column {6} of original data".format(
                             obj_idx, col, obj_num, v_obj[1], scaled, row, col))
     timer.timestamp()
+
+def main():
+    """ Run all of the tests. """
+    timer = Timer("MAIN", verbose=True).set_step("Running load_libsvm")
+    test_load_libsvm(LIBSVM_FILE, OUTPUT_BUCKET, wipe_keys=True)
+
+    timer.timestamp().set_step("Running test_simple")
+    test_simple(INPUT_BUCKET, OUTPUT_BUCKET, 0.0, 1.0, objects=["1", "2", "3"],
+                preprocess=True, wipe_keys=True)
+
+    timer.timestamp().set_step("Running test_exact")
+    test_exact(LIBSVM_FILE, OUTPUT_BUCKET, 0.0, 1.0,
+               objects=["1", "2", "3"], preprocess=True)
+
+    timer.timestamp().set_step("Running test_hash")
+    test_hash(INPUT_BUCKET, OUTPUT_BUCKET, ["40189"], 1000,
+              objects=["1", "2", "3"])
+    timer.timestamp().global_timestamp()
+
+if __name__ == "__main__":
+    main()

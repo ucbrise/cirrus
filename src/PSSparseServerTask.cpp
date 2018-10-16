@@ -87,10 +87,10 @@ void PSSparseServerTask::set_operation_maps() {
       &PSSparseServerTask::process_get_num_updates, this, _1, _2, _3, _4);
   operation_to_f[REGISTER_TASK] = std::bind(
       &PSSparseServerTask::process_register_task, this, _1, _2, _3, _4);
-  operation_to_f[SET_VALUE] = std::bind(
-      &PSSparseServerTask::process_set_value, this, _1, _2, _3, _4);
-  operation_to_f[GET_VALUE] = std::bind(
-      &PSSparseServerTask::process_get_value, this, _1, _2, _3, _4);
+  operation_to_f[SET_VALUE] =
+      std::bind(&PSSparseServerTask::process_set_value, this, _1, _2, _3, _4);
+  operation_to_f[GET_VALUE] =
+      std::bind(&PSSparseServerTask::process_get_value, this, _1, _2, _3, _4);
 }
 
 std::shared_ptr<char> PSSparseServerTask::serialize_lr_model(
@@ -481,7 +481,8 @@ bool PSSparseServerTask::process_get_value(int sock,
     if (send_all(sock, &value_size, sizeof(uint32_t)) != sizeof(uint32_t)) {
       return false;
     }
-    if (send_all(sock, map_iterator->second.second.get(), value_size) != value_size) {
+    if (send_all(sock, map_iterator->second.second.get(), value_size) !=
+        value_size) {
       return false;
     }
   }
@@ -502,7 +503,7 @@ bool PSSparseServerTask::process_set_value(int sock,
     handle_failed_read(&req.poll_fd);
     return false;
   }
-  
+
   std::shared_ptr<char> value_data = std::shared_ptr<char>(
       new char[msg.value_size], std::default_delete<char[]>());
 
@@ -514,7 +515,8 @@ bool PSSparseServerTask::process_set_value(int sock,
 
   // XXX here we do 1 deallocation and one allocation
   // XXX can use string view?
-  key_value_map[std::string(msg.key)] = std::make_pair(msg.value_size, value_data);
+  key_value_map[std::string(msg.key)] =
+      std::make_pair(msg.value_size, value_data);
   return true;
 }
 

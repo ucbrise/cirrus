@@ -380,7 +380,7 @@ class PSSparseServerTask : public MLTask {
       operation_to_f;
 
   std::unordered_map<std::string, std::pair<uint32_t, std::shared_ptr<char>>>
-    key_value_map;
+      key_value_map;
 };
 
 class MFNetflixTask : public MLTask {

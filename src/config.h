@@ -9,8 +9,8 @@
 // #define PRELOAD_DATA
 
 #ifdef USE_REDIS
-# define PS_IP "172.31.0.197"
-# define PS_PORT 1337
+#define PS_IP "172.31.0.197"
+#define PS_PORT 1337
 #endif
 
 #define LOADING_TASK_RANK -100000

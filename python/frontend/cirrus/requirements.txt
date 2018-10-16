@@ -6,7 +6,7 @@ dash-core-components==0.26.0
 dash-html-components==0.11.0
 dash-renderer==0.13.0
 fabric==2.2.0
-Flask==0.12.2
+Flask==0.12.3
 Flask-Compress==1.4.0
 Markdown==2.6.11
 plotly==2.7.0

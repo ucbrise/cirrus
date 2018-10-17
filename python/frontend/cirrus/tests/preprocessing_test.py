@@ -170,7 +170,7 @@ def test_load_libsvm(src_file, s3_bucket_output, wipe_keys=False,
                 return False
             if v_obj[0] != col:
                 printer("Value on row {0} of S3 object {1} has".format(
-                    obj_idx, obj_num) +
+                    obj_idx, objects[obj_num]) +
                         " column {2}, expected column {3}".format(
                             v_obj[0], col))
                 continue
@@ -178,7 +178,7 @@ def test_load_libsvm(src_file, s3_bucket_output, wipe_keys=False,
                 printer("Value on row {0}, column {1} of S3".format(
                     obj_idx, col) +
                         " object {2} is {3}, expected {4} from row {5},".format(
-                            obj_num, v_obj[1], v_orig, row) +
+                            objects[obj_num], v_obj[1], v_orig, row) +
                         " column {6} of original data"
                         .format(col))
     return True
@@ -282,6 +282,7 @@ def test_exact(src_file, s3_bucket_output, min_v, max_v, objects=(),
     client = boto3.client("s3")
     obj_num = 0
     obj_idx = -1
+    n_errors = 0
     obj = get_data_from_s3(client, s3_bucket_output, objects[obj_num])
     printer = prefix_print("TEST_EXACT")
     for row in range(data.shape[0]):
@@ -311,7 +312,9 @@ def test_exact(src_file, s3_bucket_output, min_v, max_v, objects=(),
                         obj_idx, obj_num) +
                             " has column {2}, expected column {3}".format(
                                 v_obj[0], col))
-                    return
+                    n_errors += 1
+                    if n_errors == 10:
+                        return
                 obj_min_v, obj_max_v = g_map[col]
                 scaled = (min_v + max_v) / 2.0
                 if abs(obj_max_v - obj_min_v) > EPSILON:
@@ -327,7 +330,9 @@ def test_exact(src_file, s3_bucket_output, min_v, max_v, objects=(),
                                 row, col))
                     printer("Min value {0}, max value {1}"
                             .format(obj_min_v, obj_max_v))
-                    return
+                    n_errors += 1
+                    if n_errors == 10:
+                        return
             except IndexError as exc:
                 print("Exception on row {0} of S3 object {1}".format(
                     obj_idx, obj_num) +
@@ -354,7 +359,7 @@ def main():
     if RUN_TEST == Test.ALL or RUN_TEST == Test.EXACT_TEST:
         test_exact(LIBSVM_FILE, OUTPUT_BUCKET, 0.0, 1.0,
                    objects=["1", "2", "3"], preprocess=True, wipe_keys=True,
-                   check_global_map_cache=True)
+                   check_global_map_cache=False)
 
     timer.timestamp().set_step("Running test_hash")
     if RUN_TEST == Test.ALL or RUN_TEST == Test.HASH_TEST:

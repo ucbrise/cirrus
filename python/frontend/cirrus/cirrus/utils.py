@@ -6,8 +6,11 @@ import time
 from collections import deque
 
 import boto3
+from redis import StrictRedis
+import toml
 
 DEFAULT_LABEL = struct.pack("i", 0)
+REDIS_TOML = "redis.toml"
 ec2c = boto3.client('ec2')
 lc = boto3.client('lambda')
 iam_client = boto3.client('iam')
@@ -59,6 +62,20 @@ def prefix_print(prefix):
             tag = "[{0}] ".format(prefix)
         print("{0}{1}".format(tag, statement))
     return printer
+
+
+def wipe_redis():
+    """ Wipe all keys from Redis """
+    with open(REDIS_TOML, "r") as f_handle:
+        creds = toml.load(f_handle)
+    redis_host = creds["host"]
+    redis_port = int(creds["port"])
+    redis_db = int(creds["db"])
+    redis_password = creds["password"]
+    redis_client = StrictRedis(
+        host=redis_host, port=redis_port, password=redis_password,
+        db=redis_db)
+    redis_client.flushdb()
 
 
 def launch_lambdas(lambda_cls, objects, max_lambdas=400, *params):

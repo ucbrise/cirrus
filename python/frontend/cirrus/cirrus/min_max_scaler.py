@@ -4,7 +4,8 @@ import json
 
 import boto3
 from cirrus.lambda_thread import LambdaThread
-from cirrus.utils import get_all_keys, launch_lambdas, Timer
+from cirrus.utils import get_all_keys, launch_lambdas, wipe_redis,\
+    Timer
 
 MAX_LAMBDAS = 400
 
@@ -43,12 +44,16 @@ class LocalScale(LambdaThread):
 
 def min_max_scaler(s3_bucket_input, s3_bucket_output, lower, upper,
                    objects=(), use_redis=True, dry_run=False,
-                   skip_bounds=False):
+                   skip_bounds=False, delete_redis_keys=True):
     """ Scale the values in a dataset to the range [lower, upper]. """
     s3_resource = boto3.resource("s3")
     if not objects:
         # Allow user to specify objects, or otherwise get all objects.
         objects = get_all_keys(s3_bucket_input)
+
+    # Wipe Redis from any previous runs
+    if delete_redis_keys:
+        wipe_redis()
 
     # Calculate bounds for each chunk.
     timer = Timer("MIN_MAX").set_step("LocalBounds")

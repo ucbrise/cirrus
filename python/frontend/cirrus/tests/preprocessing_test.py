@@ -3,6 +3,9 @@
 You can get the test data from
 {CIRRUS_ROOT}/tests/test_data/small_test_criteo.sh """
 
+from enum import Enum
+import os
+import pickle
 from threading import Thread
 
 import boto3
@@ -17,9 +20,21 @@ from cirrus.utils import get_all_keys, delete_all_keys, get_data_from_s3, \
 
 MAX_THREADS = 400
 HASH_SEED = 42  # Must be equal to the seed in feature_hashing_helper.py
+EPSILON = .0001 # Epsilon to determine if floating points are equal
 LIBSVM_FILE = "criteo.small.svm"
-INPUT_BUCKET = "criteo-bucket-16b"
+INPUT_BUCKET = "criteo-kaggle-19b"
 OUTPUT_BUCKET = "bucket-neel"
+
+class Test(Enum):
+    """ Indicate which test to run. """
+    LOAD_LIBSVM = 1
+    SIMPLE_TEST = 2
+    EXACT_TEST = 3
+    HASH_TEST = 4
+    ALL = 5
+    NONE = 6
+
+RUN_TEST = Test.EXACT_TEST
 
 class SimpleTest(Thread):
     """ Test that the data is within the correct bounds. """
@@ -43,20 +58,22 @@ class SimpleTest(Thread):
             for idx2, val in enumerate(row):
                 try:
                     if dest_obj[idx][idx2][0] != val[0]:
-                        printer("Missing column {0} " +
+                        printer("Missing column {0} ".format(val[0]) +
                                 "on row {1} of object {2}".format(
-                                    val[0], idx, self.obj_key))
+                                    idx, self.obj_key))
                         return
                     if dest_obj[idx][idx2][1] < self.min_v or \
                           dest_obj[idx][idx2][1] > self.max_v:
-                        printer("Value {0} at column {1} on " +
+                        printer("Value {0} at column {1} on ".format(
+                            val[1], val[0]) +
                                 "row {2} of object {3} falls out of bounds"
-                                .format(val[1], val[0], idx, self.obj_key))
+                                .format(idx, self.obj_key))
                         return
                 except (IndexError, KeyError) as exc:
-                    printer("Caught error on row {0}, column {1} " +
+                    printer("Caught error on row {0}, column {1} ".format(
+                        idx, idx2) +
                             "of object {2}: {3}".format(
-                                idx, idx2, self.obj_key, exc))
+                                self.obj_key, exc))
                     return
 
 
@@ -146,21 +163,24 @@ def test_load_libsvm(src_file, s3_bucket_output, wipe_keys=False,
             try:
                 v_obj = obj[obj_idx][idx]
             except IndexError as exc:
-                printer("Found error on row {0}, column {1} of the " +
+                printer("Found error on row {0}, column {1} of the ".format(
+                    row, col) +
                         "source data, row {2}, column {3} of chunk {4}".format(
-                            row, col, obj_idx, idx, obj_num))
+                            obj_idx, idx, obj_num))
                 return False
             if v_obj[0] != col:
-                printer("Value on row {0} of S3 object {1} has" +
+                printer("Value on row {0} of S3 object {1} has".format(
+                    obj_idx, obj_num) +
                         " column {2}, expected column {3}".format(
-                            obj_idx, obj_num, v_obj[0], col))
+                            v_obj[0], col))
                 continue
             if abs(v_obj[1] - v_orig) > .01:
-                printer("Value on row {0}, column {1} of S3" +
-                        " object {2} is {3}, expected {4} from row {5}," +
+                printer("Value on row {0}, column {1} of S3".format(
+                    obj_idx, col) +
+                        " object {2} is {3}, expected {4} from row {5},".format(
+                            obj_num, v_obj[1], v_orig, row) +
                         " column {6} of original data"
-                        .format(obj_idx, col, obj_num, v_obj[1], v_orig,
-                                row, col))
+                        .format(col))
     return True
 
 
@@ -211,10 +231,16 @@ def test_hash(s3_bucket_input, s3_bucket_output, columns, n_buckets,
 
 
 def test_exact(src_file, s3_bucket_output, min_v, max_v, objects=(),
-               preprocess=False):
+               preprocess=False, wipe_keys=False,
+               check_global_map_cache=True):
     """ Check that data was scaled correctly, assuming src_file was serialized
     sequentially into the keys specified in "objects". """
-    timer = Timer("TEST_EXACT", verbose=True).set_step("Getting all keys")
+    timer = Timer("TEST_EXACT", verbose=True)
+    if wipe_keys:
+        timer.set_step("Wiping keys in bucket")
+        delete_all_keys(s3_bucket_output)
+        timer.timestamp()
+    timer.set_step("Getting all keys")
     original_obj = objects
     if not objects:
         objects = get_all_keys(s3_bucket_output)
@@ -235,17 +261,23 @@ def test_exact(src_file, s3_bucket_output, min_v, max_v, objects=(),
     timer.set_step("Loading all data")
     data = load_data(src_file)[0]
     timer.timestamp().set_step("Constructing global map")
-    g_map = {}  # Map of min / max by column
-    for row in range(data.shape[0]):
-        cols = data[row, :].nonzero()[1]
-        for col in cols:
-            val = data[row, col]
-            if col not in g_map:
-                g_map[col] = [val, val]
-            if val < g_map[col][0]:
-                g_map[col][0] = val
-            if val > g_map[col][1]:
-                g_map[col][1] = val
+    if check_global_map_cache and os.path.isfile("global_map"):
+        with open("global_map", "rb") as f:
+            g_map = pickle.load(f)
+    else:
+        g_map = {}  # Map of min / max by column
+        for row in range(data.shape[0]):
+            cols = data[row, :].nonzero()[1]
+            for col in cols:
+                val = data[row, col]
+                if col not in g_map:
+                    g_map[col] = [val, val]
+                if val < g_map[col][0]:
+                    g_map[col][0] = val
+                if val > g_map[col][1]:
+                    g_map[col][1] = val
+        with open("global_map", "wb") as f:
+            pickle.dump(g_map, f)
     timer.timestamp().set_step("Testing all chunks")
     client = boto3.client("s3")
     obj_num = 0
@@ -253,6 +285,8 @@ def test_exact(src_file, s3_bucket_output, min_v, max_v, objects=(),
     obj = get_data_from_s3(client, s3_bucket_output, objects[obj_num])
     printer = prefix_print("TEST_EXACT")
     for row in range(data.shape[0]):
+        # row is the row in the libsvm file object
+        # obj_idx is the row in the S3 object
         cols = data[row, :].nonzero()[1]
         obj_idx += 1
         if obj_idx >= 50000:
@@ -268,40 +302,64 @@ def test_exact(src_file, s3_bucket_output, min_v, max_v, objects=(),
                             obj_num, objects[obj_num], exc))
                 return
         for idx, col in enumerate(cols):
-            v_orig = data[row, col]
-            v_obj = obj[obj_idx][idx]
-            if v_obj[0] != col:
-                printer("Value on row {0} of S3 object {1}" +
-                        " has column {2}, expected column {3}".format(
-                            obj_idx, obj_num, v_obj[0], col))
-                continue
-            obj_min_v, obj_max_v = g_map[v_obj[0]]
-            scaled = (v_orig - obj_min_v) / (obj_max_v - obj_min_v)
-            scaled *= (max_v - min_v)
-            scaled += min_v
-            if abs(scaled - v_obj[1]) / v_orig > .01:
-                printer("Value on row {0}, column {1} of" +
-                        " S3 object {2} is {3}, expected {4} from row " +
-                        "{5}, column {6} of original data".format(
-                            obj_idx, col, obj_num, v_obj[1], scaled, row, col))
+            try:
+                v_orig = data[row, col]
+                v_obj = obj[obj_idx][idx]
+                if v_obj[0] != col:
+                    # Ensure the column is correct
+                    printer("Value on row {0} of S3 object {1}".format(
+                        obj_idx, obj_num) +
+                            " has column {2}, expected column {3}".format(
+                                v_obj[0], col))
+                    return
+                obj_min_v, obj_max_v = g_map[col]
+                scaled = (min_v + max_v) / 2.0
+                if abs(obj_max_v - obj_min_v) > EPSILON:
+                    scaled = (v_orig - obj_min_v) / (obj_max_v - obj_min_v)
+                    scaled *= (max_v - min_v)
+                    scaled += min_v
+                if abs(scaled - v_obj[1]) > EPSILON:
+                    printer("Value on row {0}, column {1} of".format(
+                        obj_idx, col) +
+                            " S3 object {0} is value {1}, expected {2} from row"
+                            .format(obj_num, v_obj[1], scaled) +
+                            " {0}, column {1} of libsvm file".format(
+                                row, col))
+                    printer("Min value {0}, max value {1}"
+                            .format(obj_min_v, obj_max_v))
+                    return
+            except IndexError as exc:
+                print("Exception on row {0} of S3 object {1}".format(
+                    obj_idx, obj_num) +
+                      ", row {0} col {1} of libsvm file".format(
+                          row, col))
+                print("Original data cols: {0}".format(cols))
+                print("S3 data cols: {0}".format(obj[obj_idx]))
+                raise exc
     timer.timestamp()
 
 def main():
     """ Run all of the tests. """
     timer = Timer("MAIN", verbose=True).set_step("Running load_libsvm")
-    test_load_libsvm(LIBSVM_FILE, OUTPUT_BUCKET, wipe_keys=True)
+    if RUN_TEST == Test.ALL or RUN_TEST == Test.LOAD_LIBSVM:
+        test_load_libsvm(LIBSVM_FILE, OUTPUT_BUCKET, wipe_keys=True)
 
     timer.timestamp().set_step("Running test_simple")
-    test_simple(INPUT_BUCKET, OUTPUT_BUCKET, 0.0, 1.0, objects=["1", "2", "3"],
-                preprocess=True, wipe_keys=True)
+    if RUN_TEST == Test.ALL or RUN_TEST == Test.SIMPLE_TEST:
+        test_simple(INPUT_BUCKET, OUTPUT_BUCKET, 0.0, 1.0,
+                    objects=["1", "2", "3"],
+                    preprocess=True, wipe_keys=True)
 
     timer.timestamp().set_step("Running test_exact")
-    test_exact(LIBSVM_FILE, OUTPUT_BUCKET, 0.0, 1.0,
-               objects=["1", "2", "3"], preprocess=True)
+    if RUN_TEST == Test.ALL or RUN_TEST == Test.EXACT_TEST:
+        test_exact(LIBSVM_FILE, OUTPUT_BUCKET, 0.0, 1.0,
+                   objects=["1", "2", "3"], preprocess=True, wipe_keys=True,
+                   check_global_map_cache=True)
 
     timer.timestamp().set_step("Running test_hash")
-    test_hash(INPUT_BUCKET, OUTPUT_BUCKET, ["40189"], 1000,
-              objects=["1", "2", "3"])
+    if RUN_TEST == Test.ALL or RUN_TEST == Test.HASH_TEST:
+        test_hash(INPUT_BUCKET, OUTPUT_BUCKET, ["40189"], 1000,
+                  objects=["1", "2", "3"])
     timer.timestamp().global_timestamp()
 
 if __name__ == "__main__":

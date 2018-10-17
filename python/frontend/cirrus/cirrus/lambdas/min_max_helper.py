@@ -6,6 +6,7 @@ from collections import deque
 from threading import Thread
 from utils import Timer
 
+EPSILON = .0001 # Epsilon to determine if two floats are equal
 UPPER_BOUND_SCRIPT = "for i, v in ipairs(KEYS)" \
     " do local current = tonumber(redis.call('get', KEYS[i])); " \
     "if current then " \
@@ -214,7 +215,7 @@ def scale_data(data, global_bounds, new_min, new_max):
             scaled = (new_min + new_max) / 2.0
             min_v = float(global_bounds["min"][idx])
             max_v = float(global_bounds["max"][idx])
-            if min_v != max_v:
+            if abs(max_v - min_v) > EPSILON:
                 scaled = (val - min_v) / (max_v - min_v) * \
                     (new_max - new_min) + new_min
             row[j] = (idx, scaled)

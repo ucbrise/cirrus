@@ -1,7 +1,7 @@
 """ Preprocessing module for Cirrus """
 
-import sklearn.datasets
 from enum import Enum
+import sklearn.datasets
 
 import boto3
 import cirrus.feature_hashing as feature_hashing
@@ -73,15 +73,15 @@ class Preprocessing(object):
             batch_size += 1
             if batch_size == ROWS_PER_CHUNK:
                 # Put the lines in S3, 50000 lines at a time
-                timer.set_step("Writing batch of {0} to S3"
-                               .format(ROWS_PER_CHUNK))
+                timer.timestamp().set_step("Writing batch of {0} to S3"
+                                           .format(ROWS_PER_CHUNK))
                 serialized = serialize_data(batch)
                 client.put_object(Bucket=s3_bucket, Key=str(batch_num),
                                   Body=serialized)
                 batch = []
                 batch_num += 1
                 batch_size = 0
-                timer.timestamp().set_step("Reading 10000 rows")
+                timer.timestamp().set_step("Starting next batch")
 
         if batch_size > 0:
             # Put any remaining lines in S3

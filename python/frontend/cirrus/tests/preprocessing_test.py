@@ -34,7 +34,7 @@ class Test(Enum):
     ALL = 5
     NONE = 6
 
-RUN_TEST = Test.EXACT_TEST
+RUN_TEST = Test.ALL
 
 class SimpleTest(Thread):
     """ Test that the data is within the correct bounds. """

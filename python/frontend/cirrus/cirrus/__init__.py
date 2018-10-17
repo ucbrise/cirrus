@@ -1,4 +1,4 @@
-from . import graph
+import graph
 from .CostModel import CostModel
 from .GridSearch import GridSearch
 from .cf import CollaborativeFiltering

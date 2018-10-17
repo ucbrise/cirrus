@@ -5,7 +5,7 @@ import sys
 import io
 import atexit
 import zipfile
-import shlex
+import pipes
 
 import paramiko
 import boto3
@@ -129,7 +129,7 @@ LAMBDA_HANDLER_FQID = "main.run"
 LAMBDA_TIMEOUT = 5 * 60
 
 # The amount of memory (and in proportion, CPU/network) to give to the worker Lambda, in megabytes.
-LAMBDA_SIZE = 3_008
+LAMBDA_SIZE = 3008
 
 # The number of reserved concurrent executions to allocate to the worker Lambda. Depletes some of the AWS account's
 #   reserved concurrent executions. 100 concurrent executions must be held unassigned to any lambda.
@@ -156,6 +156,8 @@ class Instance(object):
         Returns:
             bool: Whether any exists.
         """
+        log = logging.getLogger("cirrus.automate.Instance")
+
         ec2 = boto3.resource("ec2", BUILD_INSTANCE["region"])
 
         log.debug("images_exist: Describing images.")
@@ -175,6 +177,8 @@ class Instance(object):
         Args:
             name (str): The name.
         """
+        log = logging.getLogger("cirrus.automate.Instance")
+
         ec2 = boto3.resource("ec2", BUILD_INSTANCE["region"])
 
         log.debug("delete_images: Describing images.")
@@ -182,7 +186,8 @@ class Instance(object):
             Filters=[{"Name": "name", "Values": [name]}], Owners=["self"])
 
         for info in response["Images"]:
-            log.debug(f"delete_images: Deleting image {info['ImageId']}.")
+            image_id = info["ImageId"]
+            log.debug("delete_images: Deleting image %s." % image_id)
             ec2.Image(info["ImageId"]).deregister()
 
         log.debug("delete_images: Done.")
@@ -260,8 +265,16 @@ class Instance(object):
         self._log.debug("start: Done.")
 
 
+    def public_ip(self):
+        return self.instance.public_ip_address
+
+
     def private_ip(self):
-        pass
+        return self.instance.private_ip_address
+
+
+    def private_key(self):
+        return self._private_key
 
 
     def run_command(self, command):
@@ -282,18 +295,18 @@ class Instance(object):
             self._log.debug("run_command: Calling _connect_ssh.")
             self._connect_ssh()
 
-        self._log.debug(f"run_command: Running `{command}`.")
+        self._log.debug("run_command: Running `%s`." % command)
         _, stdout, stderr = self._ssh_client.exec_command(command)
 
         self._log.debug("run_command: Waiting for completion.")
         # exec_command is asynchronous. This waits for completion.
         status = stdout.channel.recv_exit_status()
-        self._log.debug(f"run_command: Exit code was {status}.")
+        self._log.debug("run_command: Exit code was %d." % status)
 
         self._log.debug("run_command: Fetching stdout and stderr.")
         stdout, stderr = stdout.read(), stderr.read()
-        self._log.debug(f"run_command: stdout had length {len(stdout)}.")
-        self._log.debug(f"run_command: stderr had length {len(stderr)}.")
+        self._log.debug("run_command: stdout had length %d." % len(stdout))
+        self._log.debug("run_command: stderr had length %d." % len(stderr))
 
         self._log.debug("run_command: Done.")
         return status, stdout, stderr
@@ -371,8 +384,8 @@ class Instance(object):
         log.debug("save_image: Waiting for image creation.")
         image.wait_until_exists()
         for i in range(self.IMAGE_POLL_MAX):
-            log.debug(f"make_build_image: Doing poll #{i+1} out of "
-                      f"{self.IMAGE_POLL_MAX}.")
+            log.debug("make_build_image: Doing poll #%d out of "
+                      "%d." % (i+1, self.IMAGE_POLL_MAX))
             image.reload()
             if image.state == "available":
                 break
@@ -546,14 +559,14 @@ class Instance(object):
 
     def _connect_ssh(self, timeout=10, attempts=10):
         self._log.debug("_connect_ssh: Configuring.")
-        key = paramiko.RSAKey.from_private_key(io.StringIO(self._private_key))
+        key = paramiko.RSAKey.from_private_key(io.StringIO(unicode(self._private_key, "utf-8")))
         self._ssh_client = paramiko.SSHClient()
         self._ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         for i in range(attempts):
             try:
-                self._log.debug(f"_connect_ssh: Making connection attempt " \
-                                f"#{i+1} out of {attempts}.")
+                self._log.debug("_connect_ssh: Making connection attempt " \
+                                "#%d out of %d." % (i+1, attempts))
                 self._ssh_client.connect(
                     hostname=self.instance.public_ip_address,
                     username=self._username,
@@ -563,11 +576,11 @@ class Instance(object):
                 self._ssh_client.get_transport().window_size = 2147483647
             except socket.timeout:
                 self._log.debug("_connect_ssh: Connection attempt timed out " \
-                                f"after {timeout}s.")
+                                "after %ds." % timeout)
                 pass
             except paramiko.ssh_exception.NoValidConnectionsError:
                 self._log.debug("_connect_ssh: Connection attempt failed. " \
-                                f"Sleeping for {timeout}s.")
+                                "Sleeping for %ds." % timeout)
                 time.sleep(timeout)
                 pass
             else:
@@ -589,7 +602,9 @@ class ParameterServer(object):
         self._error_port = error_port
         self._num_workers = num_workers
 
-        self._pid = None
+        self._log = logging.getLogger("cirrus.automate.ParameterServer")
+        self._ps_pid = None
+        self._error_pid = None
 
 
     def public_ip(self):
@@ -609,10 +624,12 @@ class ParameterServer(object):
 
 
     def start(self, config):
-        config_filename = f"config_{self._ps_port}.txt"
+        self._log.debug("start: Uploading configuration.")
+        config_filename = "config_%d.txt" % self._ps_port
         self._instance.run_command(
-            f"echo {shlex.quote(config)} > {config_filename}")
+            "echo %s > %s" % (pipes.quote(config), config_filename))
 
+        self._log.debug("start: Starting parameter server.")
         ps_start_command = " ".join((
             "nohup",
             "./parameter_server",
@@ -620,31 +637,59 @@ class ParameterServer(object):
             "--nworkers", str(self._num_workers),
             "--rank", "1",
             "--ps_port", str(self._ps_port),
-            "&>", f"ps_out_{self._ps_port}"
+            "&>", "ps_out_%d" % self._ps_port,
             "&"
         ))
-        status, _, _ = self._instance.run_command(ps_start_command)
+        status, _, stderr = self._instance.run_command(ps_start_command)
         if status != 0:
-            pass
+            print("An error occurred while starting the parameter server."
+                  " The exit code was %d and the stderr was:" % status)
+            print(stderr)
+            raise RuntimeError("An error occurred while starting the parameter"
+                               " server.")
 
+
+        self._log.debug("start: Retreiving parameter server PID.")
+        status, _, stderr = self._instance.run_command(
+            "echo $! > ps_%d.pid" % self._ps_port)
+        if status != 0:
+            print("An error occurred while getting the PID of the parameter"
+                  " server. The exit code was %d and the stderr was:" % status)
+            print(stderr)
+            raise RuntimeError("An error occurred while getting the PID of the"
+                               " parameter server.")
+
+
+        self._log.debug("start: Starting error task.")
         error_start_command = " ".join((
             "nohup",
             "./parameter_server",
             "--config", config_filename,
             "--nworkers", str(self._num_workers),
             "--rank 2",
-            "--ps_ip", self._instance.private_ip,
+            "--ps_ip", self._instance.private_ip(),
             "--ps_port", str(self._ps_port),
-            f"&> error_out_{self._ps_port}"
+            "&> error_out_%d" % self._ps_port,
             "&"
         ))
-        status, _, _ = self._instance.run_command(error_start_command)
+        status, _, stderr = self._instance.run_command(error_start_command)
         if status != 0:
-            pass
+            print("An error occurred while starting the error task."
+                  " The exit code was %d and the stderr was:" % status)
+            print(stderr)
+            raise RuntimeError("An error occurred while starting the error"
+                               " task.")
 
-        status, self._pid, _ = self._instance.run_command("echo $!")
+
+        self._log.debug("start: Retreiving error task PID.")
+        status, _, stderr = self._instance.run_command(
+            "echo $! > error_%d.pid" % self._ps_port)
         if status != 0:
-            pass
+            print("An error occurred while getting the PID of the error task. "
+                  " The exit code was %d and the stderr was:" % status)
+            print(stderr)
+            raise RuntimeError("An error occurred while getting the PID of the"
+                               " error task.")
 
 
     def stop(self):
@@ -729,7 +774,7 @@ def make_executables(path, instance):
 
     log.debug("make_executables:  Publishing executables.")
     for executable in EXECUTABLES:
-        instance.upload_s3(f"~/cirrus/src/{executable}", f"{path}/{executable}")
+        instance.upload_s3("~/cirrus/src/%s" % executable, path + "/" + executable)
 
     log.debug("make_executables:  Done.")
 
@@ -750,7 +795,7 @@ def make_lambda_package(path, executables_path):
     log.debug("make_lambda_package: Initializing ZIP file.")
     file = io.BytesIO()
     with zipfile.ZipFile(file, "w", LAMBDA_COMPRESSION) as zip:
-        log.debug(f"make_lambda_package: Writing handler.")
+        log.debug("make_lambda_package: Writing handler.")
         info = zipfile.ZipInfo(LAMBDA_HANDLER_FILENAME)
         info.external_attr = 0o777 << 16  # Allow, in particular, execute permissions.
         zip.writestr(info, LAMBDA_HANDLER)
@@ -803,6 +848,9 @@ def make_server_image(name, executables_path, instance):
 
     log.debug("make_server_image: Putting parameter_server executable on instance.")
     instance.download_s3(executables_path + "/parameter_server", "~/parameter_server")
+
+    log.debug("make_server_image: Setting permissions of executable.")
+    instance.run_command("chmod +x ~/parameter_server")
 
     log.debug("make_server_image: Creating image from instance.")
     instance.save_image(name)
@@ -872,7 +920,7 @@ def make_lambda(name, lambda_package_path):
     #   heavy-tailed, so we actually need a retry mechanism.
     time.sleep(IAM_CONSISTENCY_DELAY)
 
-    print("make_lambda: Uploading ZIP package and creating Lambda.")
+    log.debug("make_lambda: Uploading ZIP package and creating Lambda.")
     bucket, key = _split_s3_url(lambda_package_path)
     lamb.create_function(
         FunctionName=name,

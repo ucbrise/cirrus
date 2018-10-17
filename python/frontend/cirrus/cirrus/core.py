@@ -122,6 +122,7 @@ class BaseTask(object):
         self.get_cost_per_second()
         num_task = 3
 
+
         if num_lambdas == None:
             return
 
@@ -129,7 +130,7 @@ class BaseTask(object):
             shortage = self.n_workers - num_lambdas
 
             payload = '{"num_task": %d, "num_workers": %d, "ps_ip": \"%s\", "ps_port": %d}' \
-                        % (num_task, self.n_workers, self.ps.private_ip(), self.ps.ps_port())
+                        % (num_task, self.n_workers, self.ps.public_ip(), self.ps.ps_port())
             for i in range(shortage):
                 try:
                     response = lambda_client.invoke(

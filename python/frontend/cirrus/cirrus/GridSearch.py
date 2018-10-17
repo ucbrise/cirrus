@@ -59,7 +59,7 @@ class GridSearch:
             for var_name, var_value in configuration:
                 modified_config[var_name] = var_value
             modified_config["ps"] = automate.ParameterServer(instances[index], base_port, base_port+1,
-                                                             param_base["num_workers"])
+                                                             modified_config["n_workers"])
             index = (index + 1) % num_machines
             base_port += 2
 
@@ -151,16 +151,27 @@ class GridSearch:
                     start_time = time.time()
 
 
+        def unbuffer_instance(instance):
+            status, stdout, stderr = instance.buffer_commands(False)
+            if status != 0:
+                print("An error occurred while unbuffering commands on an"
+                      " instance. The exit code was %d and the stderr was:"
+                      % status)
+                print(stderr)
+                raise RuntimeError("An error occured while unbuffering"
+                                   " commands on an instance.")
+
+
         for instance in self.instances:
             instance.buffer_commands(True)
 
         for cirrus_obj in self.cirrus_objs:
-            cirrus_obj.ps.start()
+            cirrus_obj.ps.start(cirrus_obj.define_config())
 
         threads = []
         for instance in self.instances:
             t = threading.Thread(
-                target=lambda instance: instance.buffer_commands(False),
+                target=unbuffer_instance,
                 args=(instance,))
             t.start()
             threads.append(t)

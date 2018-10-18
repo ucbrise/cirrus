@@ -378,13 +378,13 @@ class Instance(object):
         Args:
             name (str): The name to give the AMI.
         """
-        log.debug("save_image: Starting image creation.")
+        self._log.debug("save_image: Starting image creation.")
         image = self.instance.create_image(Name=name)
 
-        log.debug("save_image: Waiting for image creation.")
+        self._log.debug("save_image: Waiting for image creation.")
         image.wait_until_exists()
         for i in range(self.IMAGE_POLL_MAX):
-            log.debug("make_build_image: Doing poll #%d out of "
+            self._log.debug("make_build_image: Doing poll #%d out of "
                       "%d." % (i+1, self.IMAGE_POLL_MAX))
             image.reload()
             if image.state == "available":
@@ -394,7 +394,7 @@ class Instance(object):
             raise RuntimeError("AMI did not become available within time "
                                "constraints.")
 
-        log.debug("save_image: Done.")
+        self._log.debug("save_image: Done.")
 
 
     def cleanup(self):

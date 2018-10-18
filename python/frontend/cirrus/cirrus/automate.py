@@ -509,12 +509,10 @@ class Instance(object):
                 "Allows TCP traffic in on port 22.")
 
         self._log.debug("_make_security_group: Configuring security group.")
-        # Allow TCP port 22 access from anywhere so that we can control the
-        #   instance.
+        # Allow access from anywhere so that we can communicate with programs
+        #   running on the instance.
         self._security_group.authorize_ingress(
-            IpProtocol="tcp",
-            FromPort=22,
-            ToPort=22,
+            IpProtocol="-1",  # -1 means any protocols (and implies any port).
             CidrIp="0.0.0.0/0"
         )
 

@@ -9,11 +9,21 @@ import botocore.exceptions
 
 sys.path.insert(0, os.path.dirname(__file__))
 import configuration
+import automate
 
 
 # The path at which boto3 expects the user's AWS credentials. Must be passed
 #   through os.path.expanduser.
 AWS_CREDENTIALS_PATH = "~/.aws/credentials"
+
+
+# An S3 URL where a worker Lambda package has been published by the maintainers
+#   of Cirrus.
+LAMBDA_PACKAGE_URL = "s3://cirrus-public/0/lambda-package"
+
+
+# The name to give to the worker Lambda.
+LAMBDA_NAME = "cirrus_worker"
 
 
 def run_interactive_setup():
@@ -25,7 +35,13 @@ def run_interactive_setup():
 
     _setup_region()
 
+    _make_lambda()
+
     _save_config()
+
+    print("")
+    print("")
+    print("Done.")
 
 
 def _setup_aws_credentials():
@@ -45,8 +61,8 @@ def _setup_aws_credentials():
     PROMPTS = ("Access key ID", "Secret access key")
     id, secret = prompt(EXPLANATION, PROMPTS, _aws_authorized)
 
-    EXPLANATION = textwrap.dedent("May Cirrus write your AWS credentials to " \
-                                  f"{AWS_CREDENTIALS_PATH}?")
+    EXPLANATION = "May Cirrus write your AWS credentials to %s?" \
+                  % AWS_CREDENTIALS_PATH
     PROMPTS = ("y/n",)
     validator = lambda c: c  in ("y", "n")
     postprocessor = lambda c: c == "y"
@@ -57,10 +73,10 @@ def _setup_aws_credentials():
               "be read by boto3.")
         return
 
-    credentials = textwrap.dedent(f"""\
+    credentials = textwrap.dedent("""\
         [default]
-        aws_access_key_id = {id}
-        aws_secret_access_key = {secret}""")
+        aws_access_key_id = %s
+        aws_secret_access_key = %s""" % (id, secret))
     path = os.path.expanduser(AWS_CREDENTIALS_PATH)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w+") as f:
@@ -111,6 +127,22 @@ def _setup_region():
     configuration.config["aws"]["region"] = region
 
 
+def _make_lambda():
+    """Make the worker Lambda, prompting the user for permission.
+    """
+    explanation = ("Can we create a Lambda function named %s in your AWS" 
+                   " account?") % LAMBDA_NAME
+    PROMPTS = ("y/n",)
+    validator = lambda c: c in ("y", "n")
+    postprocess = lambda c: c == "y"
+    if not prompt(explanation, PROMPTS, validator, postprocess):
+        print("Cirrus will not be usable without this Lambda.")
+        return
+
+    print("Creating the Lambda function. This may take a minute.")
+    automate.make_lambda(LAMBDA_NAME, LAMBDA_PACKAGE_URL)
+
+
 def _save_config():
     """Save the configuration.
     """
@@ -152,16 +184,16 @@ def prompt(explanation, prompts, validator=None, postprocess=None):
                 return args[0]
             return args
 
-    print()
-    print()
+    print("")
+    print("")
     print(explanation)
 
     while True:
-        values = [input(prompt + ": ") for prompt in prompts]
+        values = [raw_input(prompt + ": ") for prompt in prompts]
         if validator(*values):
             break
         else:
-            print()
+            print("")
             print("Invalid.")
 
     return postprocess(*values)

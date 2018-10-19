@@ -7,9 +7,8 @@ import boto3
 
 import messenger
 from CostModel import CostModel
-
-lambda_client = boto3.client('lambda', 'us-west-2')
-lambda_name = "testfunc1"
+import automate
+import setup
 
 
 # Code shared by all Cirrus experiments
@@ -133,11 +132,12 @@ class BaseTask(object):
                         % (num_task, self.n_workers, self.ps.public_ip(), self.ps.ps_port())
             for i in range(shortage):
                 try:
-                    response = lambda_client.invoke(
-                        FunctionName=lambda_name,
-                        InvocationType='Event',
-                        LogType='Tail',
-                        Payload=payload)
+                    automate.launch_worker(
+                        setup.LAMBDA_NAME,
+                        self.define_config(),
+                        self.n_workers,
+                        self.ps
+                    )
                 except Exception as e:
                     print "client.invoke exception caught"
                     print str(e)

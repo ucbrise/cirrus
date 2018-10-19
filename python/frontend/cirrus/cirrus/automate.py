@@ -6,6 +6,7 @@ import io
 import atexit
 import zipfile
 import pipes
+import json
 
 import paramiko
 import boto3
@@ -942,13 +943,36 @@ def make_lambda(name, lambda_package_path):
     log.debug("make_lambda: Done.")
 
 
-def launch_worker(lambda_name):
+def launch_worker(lambda_name, config, num_workers, ps):
     """Launch a worker.
 
     Args:
         lambda_name (str): The name of a worker Lambda function.
+        config (str): A configuration for the worker.
+        num_workers (int): The total number of workers that are being launched.
+        ps (ParameterServer): The parameter server that the worker should use.
     """
-    pass
+    log = logging.getLogger("cirrus.automate.launch_worker")
+
+    log.debug("launch_worker: Initializing Lambda client.")
+    # TODO: Pull out region as a configuration value.
+    lamb = boto3.client("lambda", BUILD_INSTANCE["region"])
+
+    log.debug("launch_worker: Invoking Lambda.")
+    payload = {
+        "config": config,
+        "num_workers": num_workers,
+        "ps_ip": ps.public_ip(),
+        "ps_port": ps.ps_port()
+    }
+    lamb.invoke(
+        FunctionName=lambda_name,
+        InvocationType="Event",
+        LogType="Tail",
+        Payload=json.dumps(payload)
+    )
+
+    log.debug("launch_worker: Done.")
 
 
 def launch_server(instance):

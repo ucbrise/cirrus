@@ -667,8 +667,8 @@ class ParameterServer(object):
             "--nworkers", str(self._num_workers),
             "--rank 2",
             "--ps_ip", self._instance.private_ip(),
-            "--ps_port", str(self._ps_port),
-            "&> error_out_%d" % self._ps_port,
+            "--ps_port", str(self.ps_port()),
+            "&> error_out_%d" % self.ps_port(),
             "&"
         ))
         status, _, stderr = self._instance.run_command(error_start_command)
@@ -682,7 +682,7 @@ class ParameterServer(object):
 
         self._log.debug("start: Retreiving error task PID.")
         status, _, stderr = self._instance.run_command(
-            "echo $! > error_%d.pid" % self._ps_port)
+            "echo $! > error_%d.pid" % self.ps_port())
         if status != 0:
             print("An error occurred while getting the PID of the error task. "
                   " The exit code was %d and the stderr was:" % status)
@@ -692,10 +692,16 @@ class ParameterServer(object):
 
 
     def stop(self):
-        if self._pid is None:
-            pass
-        kill_command = " ".join(("kill", self._pid))
-        status, _, _ = self._instance.run_command(kill_command)
+        for task in ("error", "ps"):
+            kill_command = "kill -9 $(cat %s_%d.pid)" % (task, self.ps_port())
+            status, _, stderr = self._instance.run_command(kill_command)
+            if status != 0:
+                print("An error occurred while attempting to kill the %s task."
+                      " The exit code was %d and the stderr was:"
+                      % (task, status))
+                print(stderr)
+                raise RuntimeError("An error occurred while attempting to kill"
+                                   " the %s task." % task)
 
 
 def make_build_image(name, replace=False):

@@ -22,10 +22,10 @@ class LogisticRegressionTask(BaseTask):
                  "load_input_type: csv\n" + \
                  "dataset_format: binary\n" + \
                  "num_classes: 2 \n" + \
-                 "num_features: 14 \n" + \
-                 "limit_cols: 15 \n" + \
-                 "normalize: 1 \n" + \
-                 "limit_samples: 10 \n" + \
+                 "num_features: 13 \n" + \
+                 "limit_cols: 14 \n" + \
+                 "normalize: 0 \n" + \
+                 "limit_samples: 10000 \n" + \
                  "s3_size: 100 \n" + \
                  "use_bias: 1 \n" + \
                  "model_type: LogisticRegression \n" + \

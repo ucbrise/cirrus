@@ -404,7 +404,7 @@ void SparseLRModel::ensure_preallocated_vectors(const Configuration& config) con
   
   // value needs to be less than number of samples in minibatch
   if (part2.capacity() == 0) {
-    part2.resize(500);
+    part2.resize(config.get_minibatch_size());
   }
 }
 

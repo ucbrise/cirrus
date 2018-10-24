@@ -116,14 +116,12 @@ def run(event, context):
         print(e.output.decode("utf-8"))
         return {
             "statusCode": 500,
-            "body": json.dumps("The worker errored! The stdout/stderr was as "
-                               "follows.\n" + e.output.decode("utf-8"))
+            "body": json.dumps("The worker errored!")
         }
     print("6")
     return {
         "statusCode": 200,
-        "body": json.dumps("The worker ran successfully. The stdout/stderr was "
-                           "as follows.\n" + output.decode("utf-8"))
+        "body": json.dumps("The worker ran successfully.")
     }
 """
 

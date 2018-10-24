@@ -60,7 +60,7 @@ class GridSearch:
             for var_name, var_value in configuration:
                 modified_config[var_name] = var_value
             modified_config["ps"] = automate.ParameterServer(instances[index], base_port, base_port+1,
-                                                             modified_config["n_workers"])
+                                                             modified_config["n_workers"] * 2)
             index = (index + 1) % num_machines
             base_port += 2
 
@@ -147,8 +147,8 @@ class GridSearch:
                     index = thread_id
 
                     # Dampener to prevent too many calls at once
-                    if time.time() - start_time < 1:
-                        time.sleep(1 - time.time() + start_time)
+                    if time.time() - start_time < 3:
+                        time.sleep(3 - time.time() + start_time)
                     start_time = time.time()
 
 

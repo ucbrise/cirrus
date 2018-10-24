@@ -80,40 +80,50 @@ LAMBDA_COMPRESSION = zipfile.ZIP_DEFLATED
 LAMBDA_HANDLER_FILENAME = "main.py"
 
 # The Lambda's handler code.
-LAMBDA_HANDLER = """
+LAMBDA_HANDLER = r"""
 import json
 import os
 import subprocess
+import sys
 
 CONFIG_PATH = "/tmp/config.cfg"
 
 
 def run(event, context):
+    print("1")
     executable_path = os.path.join(os.environ["LAMBDA_TASK_ROOT"],
                                    "parameter_server")
 
+    print("2")
     with open(CONFIG_PATH, "w+") as f:
         f.write(event["config"])
 
+    print("3")
     try:
-        output = subprocess.check_output([
+        process = subprocess.Popen([
                 executable_path,
                 "--config", CONFIG_PATH,
                 "--nworkers", str(event["num_workers"]),
                 "--rank", str(3),
                 "--ps_ip", event["ps_ip"],
                 "--ps_port", str(event["ps_port"])
-            ], stderr=subprocess.STDOUT)
+            ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        for c in iter(lambda: process.stdout.read(1), b''):
+            sys.stdout.write(c)
+        print("4")
     except subprocess.CalledProcessError as e:
+        print("5")
+        print(e.output.decode("utf-8"))
         return {
             "statusCode": 500,
             "body": json.dumps("The worker errored! The stdout/stderr was as "
-                               "follows.\\n" + e.output.decode("utf-8"))
+                               "follows.\n" + e.output.decode("utf-8"))
         }
+    print("6")
     return {
         "statusCode": 200,
         "body": json.dumps("The worker ran successfully. The stdout/stderr was "
-                           "as follows.\\n" + output.decode("utf-8"))
+                           "as follows.\n" + output.decode("utf-8"))
     }
 """
 

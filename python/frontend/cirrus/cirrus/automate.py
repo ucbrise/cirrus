@@ -90,39 +90,45 @@ CONFIG_PATH = "/tmp/config.cfg"
 
 
 def run(event, context):
-    print("1")
-    executable_path = os.path.join(os.environ["LAMBDA_TASK_ROOT"],
-                                   "parameter_server")
-
-    print("2")
-    with open(CONFIG_PATH, "w+") as f:
-        f.write(event["config"])
-
-    print("3")
     try:
-        process = subprocess.Popen([
-                executable_path,
-                "--config", CONFIG_PATH,
-                "--nworkers", str(event["num_workers"]),
-                "--rank", str(3),
-                "--ps_ip", event["ps_ip"],
-                "--ps_port", str(event["ps_port"])
-            ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        for c in iter(lambda: process.stdout.read(1), b''):
-            sys.stdout.write(c)
-        print("4")
-    except subprocess.CalledProcessError as e:
-        print("5")
-        print(e.output.decode("utf-8"))
+        print("1")
+        executable_path = os.path.join(os.environ["LAMBDA_TASK_ROOT"],
+                                       "parameter_server")
+    
+        print("2")
+        with open(CONFIG_PATH, "w+") as f:
+            f.write(event["config"])
+    
+        print("3")
+        try:
+            process = subprocess.Popen([
+                    executable_path,
+                    "--config", CONFIG_PATH,
+                    "--nworkers", str(event["num_workers"]),
+                    "--rank", str(3),
+                    "--ps_ip", event["ps_ip"],
+                    "--ps_port", str(event["ps_port"])
+                ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            for c in iter(lambda: process.stdout.read(1), b''):
+                sys.stdout.write(c)
+            print("4")
+        except subprocess.CalledProcessError as e:
+            print("5")
+            print(e.output.decode("utf-8"))
+            return {
+                "statusCode": 200,
+                "body": json.dumps("The worker errored!")
+            }
+        print("6")
         return {
-            "statusCode": 500,
-            "body": json.dumps("The worker errored!")
+            "statusCode": 200,
+            "body": json.dumps("The worker ran successfully.")
         }
-    print("6")
-    return {
-        "statusCode": 200,
-        "body": json.dumps("The worker ran successfully.")
-    }
+    except:
+        return {
+            "statusCode": 200,
+            "body": json.dumps("The handler errored!")
+        }
 """
 
 # The estimated delay of S3's eventual consistency, in seconds.

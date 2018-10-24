@@ -133,7 +133,7 @@ class GridSearch:
             start_time = time.time()
 
             time.sleep(5)  # HACK: Sleep for 5 seconds to wait for PS to start
-            while True:
+            while self.custodians_should_continue:
                 cirrus_obj = cirrus_objs[index]
 
                 cirrus_obj.relaunch_lambdas()
@@ -179,6 +179,7 @@ class GridSearch:
         [t.join() for t in threads]
 
         # Start custodian threads
+        self.custodians_should_continue = True
         for i in range(self.num_jobs):
             p = threading.Thread(target=custodian, args=(self.cirrus_objs, i, self.num_jobs))
             p.start()
@@ -217,6 +218,8 @@ class GridSearch:
 
         for cirrus_ob in self.cirrus_objs:
             cirrus_ob.kill()
+
+        self.custodians_should_continue = False
 
     # Get data regarding experiment i.
     def get_info(self, i, param=None):

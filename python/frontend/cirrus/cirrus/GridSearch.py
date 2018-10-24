@@ -136,7 +136,6 @@ class GridSearch:
             while self.custodians_should_continue:
                 cirrus_obj = cirrus_objs[index]
 
-                cirrus_obj.relaunch_lambdas()
                 loss = cirrus_obj.get_time_loss()
                 self.loss_lst[index] = loss
 
@@ -167,7 +166,7 @@ class GridSearch:
             instance.buffer_commands(True)
 
         for cirrus_obj in self.cirrus_objs:
-            cirrus_obj.ps.start(cirrus_obj.define_config())
+            cirrus_obj.run()
 
         threads = []
         for instance in self.instances:

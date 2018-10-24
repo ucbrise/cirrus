@@ -7,6 +7,7 @@ import atexit
 import zipfile
 import pipes
 import json
+import threading
 
 import paramiko
 import boto3
@@ -116,7 +117,7 @@ def run(event, context):
             print("5")
             print(e.output.decode("utf-8"))
             return {
-                "statusCode": 200,
+                "statusCode": 500,
                 "body": json.dumps("The worker errored!")
             }
         print("6")
@@ -126,7 +127,7 @@ def run(event, context):
         }
     except:
         return {
-            "statusCode": 200,
+            "statusCode": 500,
             "body": json.dumps("The handler errored!")
         }
 """
@@ -1014,11 +1015,16 @@ def concurrency_limit(lambda_name):
 def launch_worker(lambda_name, config, num_workers, ps):
     """Launch a worker.
 
+    Blocks until the worker terminates.
+
     Args:
         lambda_name (str): The name of a worker Lambda function.
         config (str): A configuration for the worker.
         num_workers (int): The total number of workers that are being launched.
         ps (ParameterServer): The parameter server that the worker should use.
+
+    Raises:
+        RuntimeError: If the invocation of the Lambda function fails.
     """
     log = logging.getLogger("cirrus.automate.launch_worker")
 
@@ -1029,14 +1035,45 @@ def launch_worker(lambda_name, config, num_workers, ps):
         "ps_ip": ps.public_ip(),
         "ps_port": ps.ps_port()
     }
-    lamb.invoke(
+    response = lamb.invoke(
         FunctionName=lambda_name,
-        InvocationType="Event",
+        InvocationType="RequestResponse",
         LogType="Tail",
         Payload=json.dumps(payload)
     )
+    if response["StatusCode"] != 200:
+        # TODO: We should probably do something with the body of the response,
+        #   either print it or include it in the error.
+        raise RuntimeError("The invocation failed!")
 
     log.debug("launch_worker: Done.")
+
+
+def maintain_workers(n, lambda_name, config, ps, stop_event):
+    """Maintain a fixed-size fleet of workers.
+
+    Args:
+        n (int): The number of workers.
+        lambda_name (str): As for `launch_worker`.
+        config (str): As for `launch_worker`.
+        parameter_server (ParameterServer): As for `launch_worker`.
+        stop_event (threading.Event): An event indicating that the worker fleet
+            should no longer be refilled.
+    """
+    def maintain_one():
+        while not stop_event.is_set():
+            launch_worker(lambda_name, config, n, ps)
+
+
+    def thread_name(i):
+        return "maintain_workers.maintain_one " \
+               "[ps_public_ip=%s, ps_port=%d, worker_index=%d]" \
+               % (ps.public_ip(), ps.ps_port(), i)
+
+
+    threads = [threading.Thread(target=maintain_one, name=thread_name(i))
+               for i in range(n)]
+    [thread.start() for thread in threads]
 
 
 def launch_server(instance):

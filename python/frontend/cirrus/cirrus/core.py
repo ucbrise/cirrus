@@ -76,6 +76,9 @@ class BaseTask(object):
         self.real_time_loss_lst = []
         self.start_time = time.time()
 
+        # Signals that the experiment should be stopped. See `run` and `kill`.
+        self.stop_event = threading.Event()
+
         # Stored values
         self.last_num_lambdas = 0
 
@@ -112,35 +115,6 @@ class BaseTask(object):
         else:
             return self.time_ups_lst
 
-    def relaunch_lambdas(self):
-        if self.is_dead():
-            return
-
-        num_lambdas = self.get_num_lambdas()
-        self.get_updates_per_second()
-        self.get_cost_per_second()
-        num_task = 3
-
-
-        if num_lambdas == None:
-            return
-
-        if num_lambdas < self.n_workers:
-            shortage = self.n_workers - num_lambdas
-
-            payload = '{"num_task": %d, "num_workers": %d, "ps_ip": \"%s\", "ps_port": %d}' \
-                        % (num_task, self.n_workers, self.ps.public_ip(), self.ps.ps_port())
-            for i in range(shortage):
-                try:
-                    automate.launch_worker(
-                        setup.LAMBDA_NAME,
-                        self.define_config(),
-                        self.n_workers,
-                        self.ps
-                    )
-                except Exception as e:
-                    print "client.invoke exception caught"
-                    print str(e)
 
     def get_time_loss(self, rtl=False):
 
@@ -172,12 +146,27 @@ class BaseTask(object):
             return self.time_loss_lst
 
     def run(self):
+        """Run this task.
+
+        Starts a parameter server and launches a fleet of workers.
+        """
         self.ps.start(self.define_config())
-        self.relaunch_lambdas()
+        self.stop_event.clear()
+        automate.maintain_workers(self.n_workers, setup.LAMBDA_NAME,
+            self.define_config(), self.ps, self.stop_event)
+
 
     def kill(self):
+        """Kill this task.
+
+        Stops the parameter server and the fleet of workers.
+        """
+        # The order of these is significant. By stopping the parameter server
+        #   first, we ensure that the remaining workers will error when they try
+        #    to contact the parameter server, and so exit in a short amount of
+        #    time.
         self.ps.stop()
-        self.dead = True
+        self.stop_event.set()
 
     def is_dead(self):
         return self.dead

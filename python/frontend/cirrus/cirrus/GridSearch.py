@@ -7,6 +7,7 @@ import time
 import graph
 from utils import *
 import automate
+import setup
 
 logging.basicConfig(filename="cirrusbundle.log", level=logging.WARNING)
 
@@ -205,6 +206,15 @@ class GridSearch:
 
     # Stop all experiments
     def kill_all(self):
+        total_workers = sum(c.n_workers for c in self.cirrus_objs)
+        # I add one extra concurrent execution per experiment. I haven't
+        #   observed anything that leads me to believe this is necessary - it's
+        #   just in case.
+        min_concurrency = total_workers + len(self.cirrus_objs)
+        if automate.concurrency_limit(setup.LAMBDA_NAME) < min_concurrency:
+            raise RuntimeError("The concurrency limit is set too low to run "
+                               "these experiments in parallel.")
+
         for cirrus_ob in self.cirrus_objs:
             cirrus_ob.kill()
 

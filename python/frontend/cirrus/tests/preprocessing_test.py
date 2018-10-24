@@ -120,7 +120,7 @@ def load_data(path):
 
 
 def test_load_libsvm(src_file, s3_bucket_output, wipe_keys=False,
-                     no_load=False):
+                     no_load=False, check_output=False):
     """ Test the load libsvm to S3 function. """
     printer = prefix_print("TEST_LOAD")
     timer = Timer("TEST_LOAD", verbose=True)
@@ -132,6 +132,10 @@ def test_load_libsvm(src_file, s3_bucket_output, wipe_keys=False,
         timer.set_step("Loading libsvm file into S3")
         Preprocessing.load_libsvm(src_file, s3_bucket_output)
         timer.timestamp()
+
+    if not check_output:
+        return True
+
     timer.set_step("Getting keys from bucket")
     objects = get_all_keys(s3_bucket_output)
     timer.timestamp().set_step("Loading libsvm file into memory")
@@ -191,7 +195,7 @@ def test_simple(s3_bucket_input, s3_bucket_output, min_v, max_v,
     is present from input """
     timer = Timer("TEST_SIMPLE", verbose=True)
     if wipe_keys:
-        timer.set_step("Wiping keys in bucket")
+        timer.set_step("Wiping keys in bucket {}".format(s3_bucket_output))
         delete_all_keys(s3_bucket_output)
         timer.timestamp()
     timer.set_step("Getting all keys")

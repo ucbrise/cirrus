@@ -1,7 +1,9 @@
+#!/usr/bin/env bash
+
 pip2 install mmh3
-mmh3_loc=`pip2 show mmh3 | grep Location`
-trimmed_loc=${mmh3_loc:10}
-cp -r ${trimmed_loc}/mmh* .
+# get path to mmh3 library
+mmh3_loc=`pip2 show mmh3 | grep Location | awk '{print \$2}'`
+cp -r ${mmh3_loc}/mmh* .
 
 mkdir temp_files
 cd temp_files

@@ -143,6 +143,12 @@ LAMBDA_TIMEOUT = 5 * 60
 LAMBDA_SIZE = 3008
 
 
+log = logging.getLogger("cirrus.automate")
+log.debug("automate: Initializing Lambda client.")
+# TODO: Pull out region as a configuration value.
+lamb = boto3.client("lambda", BUILD_INSTANCE["region"])
+
+
 class Instance(object):
     """An EC2 instance."""
 
@@ -973,10 +979,6 @@ def launch_worker(lambda_name, config, num_workers, ps):
         ps (ParameterServer): The parameter server that the worker should use.
     """
     log = logging.getLogger("cirrus.automate.launch_worker")
-
-    log.debug("launch_worker: Initializing Lambda client.")
-    # TODO: Pull out region as a configuration value.
-    lamb = boto3.client("lambda", BUILD_INSTANCE["region"])
 
     log.debug("launch_worker: Invoking Lambda.")
     payload = {

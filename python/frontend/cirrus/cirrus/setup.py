@@ -140,7 +140,7 @@ def _make_lambda():
         return
 
     explanation = "How many concurrent executions, at maximum, should the " \
-                  "Lambda function be limited to? Your AWS account must have" \
+                  "Lambda function be limited to? Your AWS account must have " \
                   "at least this many unreserved concurrent executions " \
                   "available in the %s region." \
                   % configuration.config["aws"]["region"]

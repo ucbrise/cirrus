@@ -986,6 +986,25 @@ def make_lambda(name, lambda_package_path, concurrency=-1):
     log.debug("make_lambda: Done.")
 
 
+def concurrency_limit(lambda_name):
+    """Get the concurrency limit of a Lambda.
+
+    This is the number of reserved concurrent executions allocated to the
+        Lambda, or the number of unreserved concurrent executions available in
+        the region if none are allocated to it.
+
+    Returns:
+        int: The concurrency limit.
+    """
+    log = logging.getLogger("cirrus.automate.concurrency_limit")
+
+    log.debug("concurrency_limit: Querying the Lambda's concurrency limit.")
+    response = lamb.get_function(FunctionName=lambda_name)
+
+    # TODO: This does not properly handle the case where there is no limit.
+    return response["Concurrency"]["ReservedConcurrentExecutions"]
+
+
 def launch_worker(lambda_name, config, num_workers, ps):
     """Launch a worker.
 

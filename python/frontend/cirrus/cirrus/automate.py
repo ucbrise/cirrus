@@ -704,14 +704,9 @@ class ParameterServer(object):
     def stop(self):
         for task in ("error", "ps"):
             kill_command = "kill -9 $(cat %s_%d.pid)" % (task, self.ps_port())
-            status, _, stderr = self._instance.run_command(kill_command)
-            if status != 0:
-                print("An error occurred while attempting to kill the %s task."
-                      " The exit code was %d and the stderr was:"
-                      % (task, status))
-                print(stderr)
-                raise RuntimeError("An error occurred while attempting to kill"
-                                   " the %s task." % task)
+            _, _, _ = self._instance.run_command(kill_command)
+            # TODO: Here we should probably wait for the process to die and
+            #   raise an error if it doesn't in a certain amount of time.
 
 
     def ps_output(self):

@@ -64,6 +64,18 @@ def prefix_print(prefix):
     return printer
 
 
+def get_redis_creds():
+    """ Get Redis credentials from TOML file. """
+    with open("redis.toml", "r") as f_handle:
+        creds = toml.load(f_handle)
+    return {
+        "host": creds["host"],
+        "port": int(creds["port"]),
+        "db": int(creds["db"]),
+        "password": creds["password"]
+    }
+
+
 def wipe_redis():
     """ Wipe all keys from Redis """
     with open(REDIS_TOML, "r") as f_handle:

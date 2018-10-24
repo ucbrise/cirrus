@@ -5,14 +5,14 @@ import json
 import boto3
 from cirrus.lambda_thread import LambdaThread
 from cirrus.utils import get_all_keys, launch_lambdas, wipe_redis,\
-    Timer
+    Timer, get_redis_creds
 
 MAX_LAMBDAS = 400
 
 
 class LocalBounds(LambdaThread):
     """ Calculate the max and min values for a given chunk """
-    def __init__(self, s3_key, s3_bucket_input, use_redis):
+    def __init__(self, s3_key, s3_bucket_input, use_redis, creds):
         LambdaThread.__init__(self)
         redis_signal = str(int(use_redis))
         self.lamdba_dict = {
@@ -20,14 +20,18 @@ class LocalBounds(LambdaThread):
             "s3_key": s3_key,
             "action": "LOCAL_BOUNDS",
             "normalization": "MIN_MAX",
-            "use_redis": redis_signal
+            "use_redis": redis_signal,
+            "redis_host": creds["host"],
+            "redis_db": creds["db"],
+            "redis_password": creds["password"],
+            "redis_port": creds["port"]
         }
 
 
 class LocalScale(LambdaThread):
     """ Scale a chunk using the global max and min values """
     def __init__(self, s3_key, s3_bucket_input, s3_bucket_output,
-                 lower, upper, use_redis):
+                 lower, upper, use_redis, creds):
         LambdaThread.__init__(self)
         redis_signal = str(int(use_redis))
         self.lamdba_dict = {
@@ -38,7 +42,11 @@ class LocalScale(LambdaThread):
             "min_v": lower,
             "max_v": upper,
             "normalization": "MIN_MAX",
-            "use_redis": redis_signal
+            "use_redis": redis_signal,
+            "redis_host": creds["host"],
+            "redis_db": creds["db"],
+            "redis_password": creds["password"],
+            "redis_port": creds["port"]
         }
 
 
@@ -57,10 +65,11 @@ def min_max_scaler(s3_bucket_input, s3_bucket_output, lower, upper,
 
     # Calculate bounds for each chunk.
     timer = Timer("MIN_MAX").set_step("LocalBounds")
+    creds = get_redis_creds()
     if not skip_bounds:
         # Get the bounds
         launch_lambdas(LocalBounds, objects, MAX_LAMBDAS,
-                       s3_bucket_input, use_redis)
+                       s3_bucket_input, use_redis, creds)
 
     timer.timestamp()
     # Aggregate the local maps if no Redis
@@ -72,7 +81,7 @@ def min_max_scaler(s3_bucket_input, s3_bucket_output, lower, upper,
         # Scale the chunks
         launch_lambdas(LocalScale, objects, MAX_LAMBDAS,
                        s3_bucket_input, s3_bucket_output,
-                       lower, upper, use_redis)
+                       lower, upper, use_redis, creds)
 
     timer.timestamp().set_step("Deleting local maps")
 

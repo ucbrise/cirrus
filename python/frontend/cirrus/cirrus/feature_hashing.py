@@ -1,7 +1,8 @@
 """ Apply feature hashing to specified columns. """
 
 from cirrus.lambda_thread import LambdaThread
-from cirrus.utils import get_all_keys, launch_lambdas, Timer
+from cirrus.utils import get_all_keys, launch_lambdas, Timer,\
+    get_redis_creds
 
 MAX_LAMBDAS = 400
 
@@ -9,7 +10,7 @@ MAX_LAMBDAS = 400
 class HashingThread(LambdaThread):
     """ Thread to hash the columns for a given chunk. """
     def __init__(self, s3_key, s3_bucket_input, s3_bucket_output,
-                 columns, n_buckets):
+                 columns, n_buckets, creds):
         LambdaThread.__init__(self)
         self.lamdba_dict = {
             "s3_bucket_input": s3_bucket_input,
@@ -18,7 +19,11 @@ class HashingThread(LambdaThread):
             "action": "FEATURE_HASHING",
             "columns": columns,
             "n_buckets": n_buckets,
-            "use_redis": "1"
+            "use_redis": "1",
+            "redis_host": creds["host"],
+            "redis_db": creds["db"],
+            "redis_password": creds["password"],
+            "redis_port": creds["port"]
         }
 
 
@@ -33,7 +38,9 @@ def feature_hashing(s3_bucket_input, s3_bucket_output, columns,
     # Hash the appropriate columns for each chunk
     timer = Timer("FEATURE_HASHING")
     # Launch one HashingThread for each object.
+    creds = get_redis_creds()
     launch_lambdas(HashingThread, objects, MAX_LAMBDAS,
-                   s3_bucket_input, s3_bucket_output, columns, n_buckets)
+                   s3_bucket_input, s3_bucket_output, columns, n_buckets,
+                   creds)
 
     timer.global_timestamp()

@@ -8,7 +8,6 @@ from rediscluster.nodemanager import NodeManager
 import feature_hashing_helper
 import min_max_helper
 import normal_helper
-import toml
 from utils import get_data_from_s3, serialize_data, Timer, prefix_print
 
 CLUSTER = False
@@ -27,7 +26,9 @@ def handler(event, context):
     # Kill the function if this is a duplicate
     if redis_flag:
         unique_id = event["s3_key"] + "_nonce_" + str(event["dupe_nonce"])
-        signal = kill_duplicates(event["s3_key"], unique_id)
+        signal = kill_duplicates(event["s3_key"], unique_id,
+                                 event["redis_host"], event["redis_port"],
+                                 event["redis_db"], event["redis_password"])
         if signal is None:
             return ["DUPLICATE"]
         redis_client, node_manager = signal
@@ -52,17 +53,13 @@ def handler(event, context):
     return []
 
 
-def kill_duplicates(chunk, unique_id):
+def kill_duplicates(chunk, unique_id, host, port, db, password):
     """ Identify duplicates with Redis """
     printer = prefix_print("CHUNK{0}".format(chunk))
-    printer("Opening redis.toml")
-    with open("redis.toml", "r") as f_handle:
-        creds = toml.load(f_handle)
-    printer("Opened redis.toml")
-    redis_host = creds["host"]
-    redis_port = int(creds["port"])
-    redis_db = int(creds["db"])
-    redis_password = creds["password"]
+    redis_host = host
+    redis_port = int(port)
+    redis_db = int(db)
+    redis_password = password
     startup_nodes = [{"host": redis_host,
                       "port": redis_port, "password": redis_password}]
     if not CLUSTER:

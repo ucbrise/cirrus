@@ -4,34 +4,43 @@ import json
 
 import boto3
 from cirrus.lambda_thread import LambdaThread
-from cirrus.utils import get_all_keys, launch_lambdas, Timer
+from cirrus.utils import get_all_keys, launch_lambdas, Timer,\
+    get_redis_creds
 
 MAX_LAMBDAS = 400
 
 
 class LocalRange(LambdaThread):
     """ Get the mean and standard deviation for this chunk """
-    def __init__(self, s3_key, s3_bucket_input):
+    def __init__(self, s3_key, s3_bucket_input, creds):
         LambdaThread.__init__(self)
         self.lamdba_dict = {
             "s3_bucket_input": s3_bucket_input,
             "s3_key": s3_key,
             "action": "LOCAL_RANGE",
-            "normalization": "NORMAL"
+            "normalization": "NORMAL",
+            "redis_host": creds["host"],
+            "redis_db": creds["db"],
+            "redis_password": creds["password"],
+            "redis_port": creds["port"]
         }
 
 
 class LocalScale(LambdaThread):
     """ Subtract the global mean and divide by the standard
     deviation """
-    def __init__(self, s3_key, s3_bucket_input, s3_bucket_output):
+    def __init__(self, s3_key, s3_bucket_input, s3_bucket_output, creds):
         LambdaThread.__init__(self)
         self.lamdba_dict = {
             "s3_bucket_input": s3_bucket_input,
             "s3_key": s3_key,
             "s3_bucket_output": s3_bucket_output,
             "action": "LOCAL_SCALE",
-            "normalization": "NORMAL"
+            "normalization": "NORMAL",
+            "redis_host": creds["host"],
+            "redis_db": creds["db"],
+            "redis_password": creds["password"],
+            "redis_port": creds["port"]
         }
 
 
@@ -43,7 +52,8 @@ def normal_scaler(s3_bucket_input, s3_bucket_output, objects=(), dry_run=False):
 
     # Calculate bounds for each chunk.
     timer = Timer("NORMAL_SCALING").set_step("LocalRange")
-    launch_lambdas(LocalRange, objects, MAX_LAMBDAS, s3_bucket_input)
+    creds = get_redis_creds()
+    launch_lambdas(LocalRange, objects, MAX_LAMBDAS, s3_bucket_input, creds)
 
     timer.timestamp().set_step("Creating the global map")
 
@@ -60,7 +70,7 @@ def normal_scaler(s3_bucket_input, s3_bucket_output, objects=(), dry_run=False):
     if not dry_run:
         # Scale the chunks and put them in the output bucket.
         launch_lambdas(LocalScale, objects, MAX_LAMBDAS,
-                       s3_bucket_input, s3_bucket_output)
+                       s3_bucket_input, s3_bucket_output, creds)
 
     timer.timestamp().set_step("Deleting local maps")
 

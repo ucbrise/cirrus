@@ -139,8 +139,24 @@ def _make_lambda():
         print("Cirrus will not be usable without this Lambda.")
         return
 
+    explanation = "How many concurrent executions, at maximum, should the " \
+                  "Lambda function be limited to? Your AWS account must have" \
+                  "at least this many unreserved concurrent executions " \
+                  "available in the %s region." \
+                  % configuration.config["aws"]["region"]
+    PROMPTS = ("Executions",)
+    # TODO: Actually check that the chosen number is valid. It should be less
+    #   than the account's limit - 100.
+    def validator(s):
+        try:
+            return int(s) > 0
+        except ValueError:
+            return False
+    postprocess = lambda s: int(s)
+    concurrency = prompt(explanation, PROMPTS, validator, postprocess)
+
     print("Creating the Lambda function. This may take a minute.")
-    automate.make_lambda(LAMBDA_NAME, LAMBDA_PACKAGE_URL)
+    automate.make_lambda(LAMBDA_NAME, LAMBDA_PACKAGE_URL, concurrency)
 
 
 def _save_config():

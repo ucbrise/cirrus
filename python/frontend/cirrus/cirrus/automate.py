@@ -132,10 +132,6 @@ LAMBDA_TIMEOUT = 5 * 60
 # The amount of memory (and in proportion, CPU/network) to give to the worker Lambda, in megabytes.
 LAMBDA_SIZE = 3008
 
-# The number of reserved concurrent executions to allocate to the worker Lambda. Depletes some of the AWS account's
-#   reserved concurrent executions. 100 concurrent executions must be held unassigned to any lambda.
-LAMBDA_CONCURRENCY = 900
-
 
 class Instance(object):
     """An EC2 instance."""
@@ -863,7 +859,7 @@ def make_server_image(name, executables_path, instance):
     log.debug("make_server_image: Done.")
 
 
-def make_lambda(name, lambda_package_path):
+def make_lambda(name, lambda_package_path, concurrency=-1):
     """Make a worker Lambda function.
 
     Replaces any existing Lambda function with the same name.
@@ -872,7 +868,13 @@ def make_lambda(name, lambda_package_path):
         name (str): The name to give the Lambda.
         lambda_package_path (str): An S3 path to a Lambda ZIP package produced
             by `make_lambda_package`.
+        concurrency (int): The number of reserved concurrent executions to
+            allocate to the Lambda. If omitted or -1, the Lambda will use the
+            account's unreserved concurrent executions in the region.
     """
+    assert isinstance(concurrency, (int, long))
+    assert concurrency >= -1
+
     # TODO: Make region an argument.
     log = logging.getLogger("cirrus.automate.make_lambda")
 
@@ -940,11 +942,13 @@ def make_lambda(name, lambda_package_path):
         MemorySize=LAMBDA_SIZE
     )
 
-    log.debug("make_lambda: Allocating reserved concurrent executions to the Lambda.")
-    lamb.put_function_concurrency(
-        FunctionName=name,
-        ReservedConcurrentExecutions=LAMBDA_CONCURRENCY
-    )
+    if concurrency != -1:
+        log.debug("make_lambda: Allocating reserved concurrent executions to "
+                  "the Lambda.")
+        lamb.put_function_concurrency(
+            FunctionName=name,
+            ReservedConcurrentExecutions=concurrency
+        )
 
     log.debug("make_lambda: Done.")
 

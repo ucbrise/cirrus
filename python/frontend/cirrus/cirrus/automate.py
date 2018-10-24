@@ -714,6 +714,30 @@ class ParameterServer(object):
                                    " the %s task." % task)
 
 
+    def ps_output(self):
+        command = "cat ps_out_%d" % self.ps_port()
+        status, stdout, stderr = self._instance.run_command(command)
+        if status != 0:
+            print("An error occurred while getting the output of the parameter "
+                  "server. The exit code was %d and the stderr was:" % status)
+            print(stderr)
+            raise RuntimeError("An error occurred while getting the output of "
+                               " the parameter server.")
+        return stdout
+
+
+    def error_output(self):
+        command = "cat error_out_%d" % self.ps_port()
+        status, stdout, stderr = self._instance.run_command(command)
+        if status != 0:
+            print("An error occurred while getting the output of the error "
+                  "task. The exit code was %d and the stderr was:" % status)
+            print(stderr)
+            raise RuntimeError("An error occurred while getting the output of "
+                               " the error task.")
+        return stdout
+
+
 def make_build_image(name, replace=False):
     """Make an AMI sutiable for compiling Cirrus on.
 

@@ -26,7 +26,7 @@ class LogisticRegressionTask(BaseTask):
                  "limit_cols: 14 \n" + \
                  "normalize: 0 \n" + \
                  "limit_samples: 10000 \n" + \
-                 "s3_size: 10 \n" + \
+                 "s3_size: 50000 \n" + \
                  "use_bias: 1 \n" + \
                  "model_type: LogisticRegression \n" + \
                  "minibatch_size: %d \n" % self.minibatch_size + \

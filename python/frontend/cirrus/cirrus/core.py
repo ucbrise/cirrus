@@ -152,6 +152,9 @@ class BaseTask(object):
         """
         self.ps.start(self.define_config())
         self.stop_event.clear()
+
+        time.sleep(10) # give some time to parameter server
+
         automate.maintain_workers(self.n_workers, setup.LAMBDA_NAME,
             self.define_config(), self.ps, self.stop_event)
 

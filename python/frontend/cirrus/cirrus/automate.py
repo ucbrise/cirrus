@@ -97,7 +97,7 @@ CONFIG_PATH = "/tmp/config.cfg"
 EXIT_POLL_INTERVAL = 0.001
 CONN_TIMEOUT_SECS = 10
 
-def register_task_id(ps_ip, ps_port, task_id):
+def register_task_id(ps_ip, ps_port, task_id, context):
     print("Registering ps_ip: ", ps_ip, \
           " ps_port: ", ps_port,\
           " task_id: ", task_id)
@@ -106,10 +106,12 @@ def register_task_id(ps_ip, ps_port, task_id):
     clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     clientsocket.settimeout(CONN_TIMEOUT_SECS)
     clientsocket.connect((ps_ip, int(ps_port)))
+    
+    remain_sec = context.get_remaining_time_in_millis() / 1000.0
 
-    # tell the parameter server we want to regis
+    # tell the parameter server we want to register
     clientsocket.send(REGISTER_TASK)
-    clientsocket.send(pack("I", int(task_id)))
+    clientsocket.send(pack("II", int(task_id), int(remain_sec)))
     # check the success of this
     s = clientsocket.recv(32)
     clientsocket.close()
@@ -117,11 +119,19 @@ def register_task_id(ps_ip, ps_port, task_id):
     success = unpack("I", s)[0]
     return success == 0 # 0 when task_id was not registered before
 
+def print_context_info(context):
+    print("Log stream name:", context.log_stream_name)
+    print("Log group name:",  context.log_group_name)
+    print("Request ID:",context.aws_request_id)
+    print("Mem. limits(MB):", context.memory_limit_in_mb)
+    print("Time remaining (MS):", context.get_remaining_time_in_millis())
 
-def run(event, _):
+def run(event, context):
     log = logging.getLogger("main.run")
     
     print("Starting handler worker.")
+
+    print_context_info(context)
     
     try:
 
@@ -132,7 +142,7 @@ def run(event, _):
         print("worker_id: {}".format(worker_id))
 
         # checking task
-        if register_task_id(ps_ip, ps_port, worker_id) == False:
+        if register_task_id(ps_ip, ps_port, worker_id, context) == False:
            print("Terminating because id: {} is repeated".format(worker_id))
            return # terminate task because this is a repeated lambda
 

@@ -42,16 +42,20 @@ PSSparseServerTask::PSSparseServerTask(uint64_t model_size,
   std::atomic_init(&gradientUpdatesCount, 0UL);
   std::atomic_init(&thread_count, 0);
 
-  operation_to_name[0] = "SEND_LR_GRADIENT";
-  operation_to_name[1] = "SEND_MF_GRADIENT";
-  operation_to_name[2] = "GET_LR_FULL_MODEL";
-  operation_to_name[3] = "GET_MF_FULL_MODEL";
-  operation_to_name[4] = "GET_LR_SPARSE_MODEL";
-  operation_to_name[5] = "GET_MF_SPARSE_MODEL";
-  operation_to_name[6] = "SET_TASK_STATUS";
-  operation_to_name[7] = "GET_TASK_STATUS";
-  operation_to_name[8] = "REGISTER_TASK";
-  operation_to_name[9] = "GET_NUM_CONNS";
+  operation_to_name[SEND_LR_GRADIENT] = "SEND_LR_GRADIENT";
+  operation_to_name[SEND_MF_GRADIENT] = "SEND_MF_GRADIENT";
+  operation_to_name[GET_LR_FULL_MODEL] = "GET_LR_FULL_MODEL";
+  operation_to_name[GET_MF_FULL_MODEL] = "GET_MF_FULL_MODEL";
+  operation_to_name[GET_LR_SPARSE_MODEL] = "GET_LR_SPARSE_MODEL";
+  operation_to_name[GET_MF_SPARSE_MODEL] = "GET_MF_SPARSE_MODEL";
+  operation_to_name[SET_TASK_STATUS] = "SET_TASK_STATUS";
+  operation_to_name[GET_TASK_STATUS] = "GET_TASK_STATUS";
+  operation_to_name[REGISTER_TASK] = "REGISTER_TASK";
+  operation_to_name[DEREGISTER_TASK] = "DEREGISTER_TASK";
+  operation_to_name[GET_NUM_CONNS] = "GET_NUM_CONNS";
+  operation_to_name[GET_NUM_UPDATES] = "GET_NUM_UPDATES";
+  operation_to_name[GET_LAST_TIME_ERROR] = "GET_LAST_TIME_ERROR";
+  operation_to_name[KILL_SIGNAL] = "KILL_SIGNAL";
 
   for (int i = 0; i < NUM_PS_WORK_THREADS; i++) {
     thread_msg_buffer[i].reset(new char[THREAD_MSG_BUFFER_SIZE]);
@@ -297,6 +301,53 @@ void PSSparseServerTask::handle_failed_read(struct pollfd* pfd) {
   pfd->revents = 0;
 }
 
+void PSSparseServerTask::process_register_task(int sock, const Request& req) {
+  // read the task id
+  uint32_t data[2];  // task_id + remaining_time (sec)
+  if (read_all(sock, &data, sizeof(uint32_t) * 2) == 0) {
+    handle_failed_read(&req.poll_fd);
+    return;
+  }
+  // check if this task has already been registered
+  uint32_t task_id = data[0];
+  uint32_t remaining_time = data[1];
+  uint32_t task_reg =
+    (registered_tasks.find(task_id) != registered_tasks.end());
+
+  if (task_reg == 0) {
+    registered_tasks.insert(task_id);
+    task_to_remaining_time[task_id] = remaining_time;
+    task_to_starttime[task_id] = std::chrono::steady_clock::now();
+  }
+  send_all(sock, &task_reg, sizeof(uint32_t));
+
+  num_tasks++;
+}
+
+void PSSparseServerTask::declare_task_dead(uint32_t task_id) {
+    tasks_to_remaining_time[task_id] = -1;
+    task_to_starttime.erase(task_id);
+    num_tasks--;
+}
+
+void PSSparseServerTask::process_deregister_task(int sock, const Request& req) {
+  // read the task id
+  uint32_t task_id = 0;
+  if (read_all(sock, &task_id, sizeof(uint32_t)) == 0) {
+    handle_failed_read(&req.poll_fd);
+    return;
+  }
+  // check if this task has already been registered
+  auto it = registered_tasks.find(task_id);
+  uint32_t task_reg = (it != registered_tasks.end());
+
+  // when a task deregisters we set its remaining time to -1
+  if (task_reg != 0) {
+    declare_task_dead(task_id);
+  }
+  send_all(sock, &task_reg, sizeof(uint32_t));
+}
+
 void PSSparseServerTask::gradient_f() {
   std::vector<char> thread_buffer;
   thread_buffer.resize(120 * 1024 * 1024); // 120 MB
@@ -338,20 +389,10 @@ void PSSparseServerTask::gradient_f() {
 #endif
 
     if (operation == REGISTER_TASK) {
-      // read the task id
-      uint32_t task_id = 0;
-      if (read_all(sock, &task_id, sizeof(uint32_t)) == 0) {
-        handle_failed_read(&req.poll_fd);
-        continue;
-      }
-      // check if this task has already been registered
-      uint32_t task_reg =
-          (registered_tasks.find(task_id) != registered_tasks.end());
-
-      if (task_reg == 0) {
-        registered_tasks.insert(task_id);
-      }
-      send_all(sock, &task_reg, sizeof(uint32_t));
+      process_register_task(sock, req);
+      continue;
+    } else if (operation == DEREGISTER_TASK) {
+      process_deregister_task(sock, req);
       continue;
     } else if (operation == SEND_LR_GRADIENT || operation == SEND_MF_GRADIENT ||
                operation == GET_LR_SPARSE_MODEL ||
@@ -678,6 +719,21 @@ void sig_handler(int) {
   //std::cout << "Sig handler" << std::endl;
 }
 
+void PSSparseServerTask::check_tasks_lifetime() {
+  auto now = std::chrono::steady_clock::now();
+  for (const auto& task : task_to_starttime) {
+    uint32_t task_id = task.first;
+    auto start_time = task.second;
+
+    auto elapsed_sec =
+      std::chrono::duration_cast<std::chrono::seconds>(now - start_time).count();
+
+    if (elapsed_sec > task_to_remaining_time[task_id] + TIMEOUT_THRESHOLD) {
+      declare_task_dead(task_id);
+    }
+  }
+}
+
 /**
  * This is the task that runs the parameter server
  * This task is responsible for
@@ -738,8 +794,11 @@ void PSSparseServerTask::run(const Configuration& config) {
         << 1.0 * gradientUpdatesCount / elapsed_us * 1000 * 1000
         << " since (sec): " << since_start_sec
         << " #conns: " << num_connections
+        << " #tasks: " << num_tasks
         << std::endl;
       gradientUpdatesCount = 0;
+
+      check_tasks_lifetime();
     }
     sleep(1);
   }
@@ -760,15 +819,15 @@ void PSSparseServerTask::run(const Configuration& config) {
 }
 
 void PSSparseServerTask::checkpoint_model_loop() {
-    if (task_config.get_checkpoint_frequency() == 0) {
-        // checkpoint disabled
-        return;
-    }
+  if (task_config.get_checkpoint_frequency() == 0) {
+      // checkpoint disabled
+      return;
+  }
 
-    while (!kill_signal) {
-      sleep(task_config.get_checkpoint_frequency());
-      // checkpoint to s3
-    }
+  while (!kill_signal) {
+    sleep(task_config.get_checkpoint_frequency());
+    // checkpoint to s3
+  }
 }
 
 void PSSparseServerTask::checkpoint_model_file(

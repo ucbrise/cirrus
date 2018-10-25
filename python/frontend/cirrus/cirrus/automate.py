@@ -12,6 +12,8 @@ import threading
 import paramiko
 import boto3
 
+ID_LOCK = threading.Lock()
+ID = 0
 
 # A configuration to use for EC2 instances that will be used to build Cirrus.
 BUILD_INSTANCE = {
@@ -88,17 +90,52 @@ import subprocess
 import sys
 import logging
 import time
+import socket
+from struct import pack, unpack
 
 CONFIG_PATH = "/tmp/config.cfg"
 EXIT_POLL_INTERVAL = 0.001
+CONN_TIMEOUT_SECS = 10
+
+def register_task_id(ps_ip, ps_port, task_id):
+    print("Registering ps_ip: ", ps_ip, \
+          " ps_port: ", ps_port,\
+          " task_id: ", task_id)
+   
+    REGISTER_TASK = b'\x08\x00\x00\x00'
+    clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    clientsocket.settimeout(CONN_TIMEOUT_SECS)
+    clientsocket.connect((ps_ip, int(ps_port)))
+
+    # tell the parameter server we want to regis
+    clientsocket.send(REGISTER_TASK)
+    clientsocket.send(pack("I", int(task_id)))
+    # check the success of this
+    s = clientsocket.recv(32)
+    clientsocket.close()
+
+    success = unpack("I", s)[0]
+    return success == 0 # 0 when task_id was not registered before
 
 
 def run(event, _):
     log = logging.getLogger("main.run")
     
-    log.debug("Starting.")
+    print("Starting handler worker.")
     
     try:
+
+        worker_id = event["worker_id"]
+        ps_ip = event["ps_ip"]
+        ps_port = event["ps_port"]
+
+        print("worker_id: {}".format(worker_id))
+
+        # checking task
+        if register_task_id(ps_ip, ps_port, worker_id) == False:
+           print("Terminating because id: {} is repeated".format(worker_id))
+           return # terminate task because this is a repeated lambda
+
         executable_path = os.path.join(os.environ["LAMBDA_TASK_ROOT"],
                                        "parameter_server")
         log.debug("Determined executable path to be %s." % executable_path)
@@ -119,7 +156,7 @@ def run(event, _):
         log.debug(" ".join(command))
         process = subprocess.Popen(command, stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT)
-        for c in iter(lambda: process.stdout.read(1), b''):
+        for c in iter(lambda: process.stdout.read(100), b''):
             sys.stdout.write(c)
         
         while process.poll() is None:
@@ -132,6 +169,7 @@ def run(event, _):
         log.debug(msg)
         
         if process.returncode != 0:
+            print(msg)
             raise RuntimeError(msg)
         
         log.debug("Done.")
@@ -1024,6 +1062,14 @@ def concurrency_limit(lambda_name):
     # TODO: This does not properly handle the case where there is no limit.
     return response["Concurrency"]["ReservedConcurrentExecutions"]
 
+def get_worker_id():
+    global ID
+    with ID_LOCK:
+        ID += 1
+        return ID
+
+    
+
 
 def launch_worker(lambda_name, config, num_workers, ps):
     """Launch a worker.
@@ -1041,12 +1087,15 @@ def launch_worker(lambda_name, config, num_workers, ps):
     """
     log = logging.getLogger("cirrus.automate.launch_worker")
 
-    log.debug("launch_worker: Invoking Lambda.")
+
+    worker_id = get_worker_id()
+    log.debug("launch_worker: Invoking Lambda with id: {}.".format(worker_id))
     payload = {
         "config": config,
         "num_workers": num_workers,
         "ps_ip": ps.public_ip(),
-        "ps_port": ps.ps_port()
+        "ps_port": ps.ps_port(),
+        "worker_id": worker_id
     }
     response = lamb.invoke(
         FunctionName=lambda_name,
@@ -1074,8 +1123,18 @@ def maintain_workers(n, lambda_name, config, ps, stop_event):
             should no longer be refilled.
     """
     def maintain_one():
+        elapsed_sec = 0
         while not stop_event.is_set():
+
+            # the 2nd time onwards we sleep until we complete 5mins
+            if elapsed_sec > 0 and elapsed_sec < 1 * 60:
+                time_to_wait = 2 * 60 - elapsed_sec
+                print("Sleeping for {}".format(time_to_wait))
+                time.sleep(time_to_wait)
+
+            start = time.time()
             launch_worker(lambda_name, config, n, ps)
+            elapsed_sec = time.time() - start
 
 
     def thread_name(i):

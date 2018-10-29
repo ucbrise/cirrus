@@ -8,9 +8,12 @@ import zipfile
 import pipes
 import json
 import threading
+import inspect
 
 import paramiko
 import boto3
+
+from cirrus import handler
 
 ID_LOCK = threading.Lock()
 ID = 0
@@ -80,133 +83,25 @@ EXECUTABLES = ("parameter_server", "ps_test", "csv_to_libsvm")
 LAMBDA_COMPRESSION = zipfile.ZIP_DEFLATED
 
 # The name to give to the file containing the Lambda's handler code.
-LAMBDA_HANDLER_FILENAME = "main.py"
-
-# The Lambda's handler code.
-LAMBDA_HANDLER = r"""
-import json
-import os
-import subprocess
-import sys
-import logging
-import time
-import socket
-from struct import pack, unpack
-
-CONFIG_PATH = "/tmp/config.cfg"
-EXIT_POLL_INTERVAL = 0.001
-CONN_TIMEOUT_SECS = 10
-
-def register_task_id(ps_ip, ps_port, task_id, context):
-    print("Registering ps_ip: ", ps_ip, \
-          " ps_port: ", ps_port,\
-          " task_id: ", task_id)
-   
-    REGISTER_TASK = b'\x08\x00\x00\x00'
-    clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    clientsocket.settimeout(CONN_TIMEOUT_SECS)
-    clientsocket.connect((ps_ip, int(ps_port)))
-    
-    remain_sec = context.get_remaining_time_in_millis() / 1000.0
-
-    # tell the parameter server we want to register
-    clientsocket.send(REGISTER_TASK)
-    clientsocket.send(pack("II", int(task_id), int(remain_sec)))
-    # check the success of this
-    s = clientsocket.recv(32)
-    clientsocket.close()
-
-    success = unpack("I", s)[0]
-    return success == 0 # 0 when task_id was not registered before
-
-def print_context_info(context):
-    print("Log stream name:", context.log_stream_name)
-    print("Log group name:",  context.log_group_name)
-    print("Request ID:",context.aws_request_id)
-    print("Mem. limits(MB):", context.memory_limit_in_mb)
-    print("Time remaining (MS):", context.get_remaining_time_in_millis())
-
-def run(event, context):
-    log = logging.getLogger("main.run")
-    
-    print("Starting handler worker.")
-
-    print_context_info(context)
-    
-    try:
-
-        worker_id = event["worker_id"]
-        ps_ip = event["ps_ip"]
-        ps_port = event["ps_port"]
-
-        print("worker_id: {}".format(worker_id))
-
-        # checking task
-        if register_task_id(ps_ip, ps_port, worker_id, context) == False:
-           print("Terminating because id: {} is repeated".format(worker_id))
-           return # terminate task because this is a repeated lambda
-
-        executable_path = os.path.join(os.environ["LAMBDA_TASK_ROOT"],
-                                       "parameter_server")
-        log.debug("Determined executable path to be %s." % executable_path)
-    
-        with open(CONFIG_PATH, "w+") as config_file:
-            config_file.write(event["config"])
-        log.debug("Wrote config to %s." % CONFIG_PATH)
-    
-        command = [
-            executable_path,
-            "--config", CONFIG_PATH,
-            "--nworkers", str(event["num_workers"]),
-            "--rank", str(3),
-            "--ps_ip", event["ps_ip"],
-            "--ps_port", str(event["ps_port"])
-        ]
-        log.debug("Starting worker.")
-        log.debug(" ".join(command))
-        process = subprocess.Popen(command, stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT)
-        for c in iter(lambda: process.stdout.read(100), b''):
-            sys.stdout.write(c)
-        
-        while process.poll() is None:
-            time.sleep(EXIT_POLL_INTERVAL)
-            
-        if process.returncode >= 0:
-            msg = "The worker exited with code %d." % process.returncode
-        else:
-            msg = "The worker died with signal %d." % (-process.returncode)
-        log.debug(msg)
-        
-        if process.returncode != 0:
-            print(msg)
-            raise RuntimeError(msg)
-        
-        log.debug("Done.")
-        
-        return {
-            "statusCode": 200,
-            "body": json.dumps(msg)
-        }
-    except:
-        log.debug("The handler threw an error.")
-        raise
-"""
+LAMBDA_HANDLER_FILENAME = "handler.py"
 
 # The estimated delay of S3's eventual consistency, in seconds.
 S3_CONSISTENCY_DELAY = 20
 
 # The runtime for the worker Lambda.
-LAMBDA_RUNTIME = "python3.6"
+LAMBDA_RUNTIME = "python2.7"
 
 # The fully-qualified identifier of the handler of the worker Lambda.
-LAMBDA_HANDLER_FQID = "main.run"
+LAMBDA_HANDLER_FQID = "handler.run"
 
 # The maximum execution time to give the worker Lambda, in seconds. Capped by AWS at 5 minutes.
 LAMBDA_TIMEOUT = 5 * 60
 
 # The amount of memory (and in proportion, CPU/network) to give to the worker Lambda, in megabytes.
 LAMBDA_SIZE = 3008
+
+# The level of logs that the worker Lambda should write to CloudWatch.
+LAMBDA_LOG_LEVEL = "DEBUG"
 
 
 log = logging.getLogger("cirrus.automate")
@@ -900,7 +795,8 @@ def make_lambda_package(path, executables_path):
         log.debug("make_lambda_package: Writing handler.")
         info = zipfile.ZipInfo(LAMBDA_HANDLER_FILENAME)
         info.external_attr = 0o777 << 16  # Allow, in particular, execute permissions.
-        zip.writestr(info, LAMBDA_HANDLER)
+        handler_source = inspect.getsource(handler)
+        zip.writestr(info, handler_source)
 
         log.debug("make_lambda_package: Initializing S3.")
         s3_client = boto3.client("s3")
@@ -1105,7 +1001,8 @@ def launch_worker(lambda_name, config, num_workers, ps):
         "num_workers": num_workers,
         "ps_ip": ps.public_ip(),
         "ps_port": ps.ps_port(),
-        "worker_id": worker_id
+        "worker_id": worker_id,
+        "log_level": LAMBDA_LOG_LEVEL
     }
     response = lamb.invoke(
         FunctionName=lambda_name,

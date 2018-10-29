@@ -126,6 +126,10 @@ def _setup_region():
 
     configuration.config["aws"]["region"] = region
 
+    # Refresh cached AWS clients, so that clients are bound to the updated
+    #   region.
+    automate.clients.refresh()
+
 
 def _make_lambda():
     """Make the worker Lambda, prompting the user for permission.
@@ -156,7 +160,12 @@ def _make_lambda():
     concurrency = prompt(explanation, PROMPTS, validator, postprocess)
 
     print("Creating the Lambda function. This may take a minute.")
-    automate.make_lambda(LAMBDA_NAME, LAMBDA_PACKAGE_URL, concurrency)
+    # TODO: Temporary hack.
+    package_url = LAMBDA_PACKAGE_URL.replace(
+        "cirrus-public",
+        "-".join(("cirrus-public", configuration.config["aws"]["region"]))
+    )
+    automate.make_lambda(LAMBDA_NAME, package_url, concurrency)
 
 
 def _save_config():

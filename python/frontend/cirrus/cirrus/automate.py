@@ -14,13 +14,13 @@ import paramiko
 import boto3
 
 from cirrus import handler
+from cirrus import configuration
 
 ID_LOCK = threading.Lock()
 ID = 0
 
 # A configuration to use for EC2 instances that will be used to build Cirrus.
 BUILD_INSTANCE = {
-    "region": "us-west-1",
     "disk_size": 32,  # GB
     # This is amzn-ami-hvm-2017.03.1.20170812-x86_64-gp2, which is recommended
     #   by AWS as of Sep 27, 2018 for compiling executables for Lambda.
@@ -104,10 +104,32 @@ LAMBDA_SIZE = 3008
 LAMBDA_LOG_LEVEL = "DEBUG"
 
 
-log = logging.getLogger("cirrus.automate")
-log.debug("automate: Initializing Lambda client.")
-# TODO: Pull out region as a configuration value.
-lamb = boto3.client("lambda", BUILD_INSTANCE["region"])
+class ClientManager(object):
+    """A manager of cached AWS clients.
+    """
+
+    def __init__(self):
+        """Create a client manager.
+
+        Will create a client for Lambda (the `lamb` attribute).
+        """
+        self.refresh()
+
+
+    def refresh(self):
+        """Create or re-create this client manager's clients.
+        """
+        log = logging.getLogger("cirrus.automate.ClientManager.refresh")
+
+        log.debug("automate: Initializing Lambda client.")
+        self.lamb = boto3.client(
+            "lambda",
+            configuration.config["aws"]["region"]
+        )
+
+
+# Cached AWS clients to be used throughout this module.
+clients = ClientManager()
 
 
 class Instance(object):
@@ -132,7 +154,7 @@ class Instance(object):
         """
         log = logging.getLogger("cirrus.automate.Instance")
 
-        ec2 = boto3.resource("ec2", BUILD_INSTANCE["region"])
+        ec2 = boto3.resource("ec2", configuration.config["aws"]["region"])
 
         log.debug("images_exist: Describing images.")
         response = ec2.meta.client.describe_images(
@@ -153,7 +175,7 @@ class Instance(object):
         """
         log = logging.getLogger("cirrus.automate.Instance")
 
-        ec2 = boto3.resource("ec2", BUILD_INSTANCE["region"])
+        ec2 = boto3.resource("ec2", configuration.config["aws"]["region"])
 
         log.debug("delete_images: Describing images.")
         response = ec2.meta.client.describe_images(
@@ -166,13 +188,12 @@ class Instance(object):
 
         log.debug("delete_images: Done.")
 
-    def __init__(self, name, region, disk_size, typ, username, ami_id=None, ami_name=None):
+    def __init__(self, name, disk_size, typ, username, ami_id=None, ami_name=None):
         """Define an EC2 instance.
 
         Args:
             name (str): Name for the instance. The same name will be used for
                 the key pair and security group that get created.
-            region (str): Region for the instance.
             disk_size (int): Disk space for the instance, in GB.
             typ (str): Type for the instance.
             username (str): SSH username for the AMI.
@@ -181,7 +202,6 @@ class Instance(object):
                 the name `ami_name` owned by the AWS account is used.
         """
         self._name = name
-        self._region = region
         self._disk_size = disk_size
         self._ami_id = ami_id
         self._type = typ
@@ -189,7 +209,7 @@ class Instance(object):
         self._log = logging.getLogger("cirrus.automate.Instance")
 
         self._log.debug("__init__: Initializing EC2.")
-        self._ec2 = boto3.resource("ec2", self._region)
+        self._ec2 = boto3.resource("ec2", configuration.config["aws"]["region"])
 
         if self._ami_id is None:
             self._log.debug("__init__: Resolving AMI name to AMI ID.")
@@ -419,7 +439,7 @@ class Instance(object):
 
     def _make_instance_profile(self):
         self._log.debug("_make_instance_profile: Initializing IAM.")
-        iam = boto3.resource("iam", self._region)
+        iam = boto3.resource("iam", configuration.config["aws"]["region"])
 
         self._log.debug("_make_instance_profile: Creating role.")
         self._role = iam.create_role(
@@ -701,7 +721,6 @@ def make_build_image(name, replace=False):
 
     Args:
         name (str): The name to give the AMI.
-        region (str): The region for the AMI.
         replace (bool): Whether to replace any existing AMI with the same name.
             If False or omitted and an AMI with the same name exists, nothing
             will be done.
@@ -709,7 +728,7 @@ def make_build_image(name, replace=False):
     log = logging.getLogger("cirrus.automate.make_build_image")
 
     log.debug("make_build_image: Initializing EC2.")
-    ec2 = boto3.resource("ec2", BUILD_INSTANCE["region"])
+    ec2 = boto3.resource("ec2", configuration.config["aws"]["region"])
 
     log.debug("make_build_image: Checking for already-existent images.")
     if replace:
@@ -872,16 +891,15 @@ def make_lambda(name, lambda_package_path, concurrency=-1):
     assert isinstance(concurrency, (int, long))
     assert concurrency >= -1
 
-    # TODO: Make region an argument.
     log = logging.getLogger("cirrus.automate.make_lambda")
 
     log.debug("make_lambda: Initializing Lambda and IAM.")
-    lamb = boto3.client("lambda", BUILD_INSTANCE["region"])
-    iam = boto3.resource("iam", BUILD_INSTANCE["region"])
+    lamb = boto3.client("lambda", configuration.config["aws"]["region"])
+    iam = boto3.resource("iam", configuration.config["aws"]["region"])
 
     log.debug("make_lambda: Deleting any existing Lambda.")
     try:
-        lamb.delete_function(FunctionName=name)
+        clients.lamb.delete_function(FunctionName=name)
     except Exception:
         # This is a hack. An error may be caused by something other than the
         #   Lambda not existing.
@@ -926,7 +944,7 @@ def make_lambda(name, lambda_package_path, concurrency=-1):
 
     log.debug("make_lambda: Uploading ZIP package and creating Lambda.")
     bucket, key = _split_s3_url(lambda_package_path)
-    lamb.create_function(
+    clients.lamb.create_function(
         FunctionName=name,
         Runtime=LAMBDA_RUNTIME,
         Role=role.arn,
@@ -942,7 +960,7 @@ def make_lambda(name, lambda_package_path, concurrency=-1):
     if concurrency != -1:
         log.debug("make_lambda: Allocating reserved concurrent executions to "
                   "the Lambda.")
-        lamb.put_function_concurrency(
+        clients.lamb.put_function_concurrency(
             FunctionName=name,
             ReservedConcurrentExecutions=concurrency
         )
@@ -963,7 +981,7 @@ def concurrency_limit(lambda_name):
     log = logging.getLogger("cirrus.automate.concurrency_limit")
 
     log.debug("concurrency_limit: Querying the Lambda's concurrency limit.")
-    response = lamb.get_function(FunctionName=lambda_name)
+    response = clients.lamb.get_function(FunctionName=lambda_name)
 
     # TODO: This does not properly handle the case where there is no limit.
     return response["Concurrency"]["ReservedConcurrentExecutions"]
@@ -1004,7 +1022,7 @@ def launch_worker(lambda_name, config, num_workers, ps):
         "worker_id": worker_id,
         "log_level": LAMBDA_LOG_LEVEL
     }
-    response = lamb.invoke(
+    response = clients.lamb.invoke(
         FunctionName=lambda_name,
         InvocationType="RequestResponse",
         LogType="Tail",

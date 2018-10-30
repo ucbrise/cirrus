@@ -235,21 +235,21 @@ def test_hash(s3_bucket_input, s3_bucket_output, columns, n_buckets,
     timer.timestamp()
 
 
-def setup_test(timer, wipe_keys, preprocess, src_file,
+def setup_test(timer, wipe_keys, preprocess, skip_load, src_file,
                s3_bucket_output):
     """ Wipe keys and load_libsvm if needed. """
     if wipe_keys:
         timer.set_step("Wiping keys in bucket")
         delete_all_keys(s3_bucket_output)
         timer.timestamp()
-    if preprocess:
+    if preprocess and not skip_load:
         timer.set_step("Running load_libsvm")
         Preprocessing.load_libsvm(src_file, s3_bucket_output)
         timer.timestamp()
 
 
 def test_min_max(src_file, s3_bucket_output, min_v, max_v, objects=(),
-                 preprocess=False, wipe_keys=False,
+                 preprocess=False, skip_load=False, wipe_keys=False,
                  check_global_map_cache=True):
     """ Check that data was scaled correctly, assuming src_file was serialized
     sequentially into the keys specified in "objects". """
@@ -353,11 +353,11 @@ def test_min_max(src_file, s3_bucket_output, min_v, max_v, objects=(),
 
 
 def test_normal(src_file, s3_bucket_output, objects=(),
-                preprocess=False, wipe_keys=False,
+                preprocess=False, skip_load=False, wipe_keys=False,
                 check_global_map_cache=True):
     """ Check that data was normal scaled correctly. """
     timer = Timer("TEST_NORMAL", verbose=True)
-    setup_test(timer, wipe_keys, preprocess, src_file,
+    setup_test(timer, wipe_keys, preprocess, skip_load, src_file,
                s3_bucket_output)
     timer.set_step("Getting all keys")
     if not objects:
@@ -468,13 +468,13 @@ def main():
     timer.timestamp().set_step("Running test_min_max")
     if RUN_TEST == Test.ALL or RUN_TEST == Test.MIN_MAX_TEST:
         test_min_max(LIBSVM_FILE, OUTPUT_BUCKET, 0.0, 1.0,
-                     objects=["1", "2", "3"], preprocess=True, wipe_keys=True,
-                     check_global_map_cache=False)
+                     objects=["1", "2", "3"], preprocess=True, skip_load=False,
+                     wipe_keys=True, check_global_map_cache=False)
 
     timer.timestamp().set_step("Running test_normal")
     if RUN_TEST == Test.ALL or RUN_TEST == Test.NORMAL_TEST:
         test_normal(LIBSVM_FILE, OUTPUT_BUCKET, objects=["1", "2", "3"],
-                    preprocess=True, wipe_keys=True,
+                    preprocess=True, skip_load=False, wipe_keys=True,
                     check_global_map_cache=False)
 
     timer.timestamp().set_step("Running test_hash")

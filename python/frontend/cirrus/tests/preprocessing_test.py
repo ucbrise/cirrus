@@ -35,7 +35,7 @@ class Test(Enum):
     ALL = 6
     NONE = 7
 
-RUN_TEST = Test.ALL
+RUN_TEST = Test.LOAD_LIBSVM
 
 class SimpleTest(Thread):
     """ Test that the data is within the correct bounds. """

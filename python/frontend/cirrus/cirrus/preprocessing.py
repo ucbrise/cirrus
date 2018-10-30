@@ -64,12 +64,12 @@ class Preprocessing(object):
 
         timer.timestamp().set_step("To lil")
         lil = data.tolil(copy=False) # Convert to list of lists format
-        for row, data in zip(lil.rows, lil.data):
+        for row, (row_list, data) in enumerate(zip(lil.rows, lil.data)):
             # Iterate through the rows
             if row % 10000 == 0:
                 timer.timestamp().set_step("Reading 10000 rows")
             curr_row = []
-            for j, val in zip(row, data):
+            for j, val in zip(row_list, data):
                 curr_row.append((j, val))
             batch[batch_size] = curr_row
             batch_size += 1

@@ -14,7 +14,7 @@ def get_data_ranges(data):
                 x_col[idx] = 0
                 n_col[idx] = 0
             x_squared_col[idx] += float(val)**2
-            x_col[idx] += val
+            x_col[idx] += float(val)
             n_col[idx] += 1
 
     final = {}

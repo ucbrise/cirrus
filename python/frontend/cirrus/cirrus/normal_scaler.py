@@ -8,7 +8,7 @@ from cirrus.utils import get_all_keys, launch_threads, Timer,\
     get_redis_creds
 
 MAX_LAMBDAS = 400
-PRECISION = 10 # Number of decimals to round to
+EPSILON = .0001
 
 class LocalRange(LambdaThread):
     """ Get the mean and standard deviation for this chunk """
@@ -110,11 +110,14 @@ def update_local_maps(s3_bucket_input, objects, f_ranges,
         obj = s3_obj.get()["Body"].read()
         local_map = json.loads(obj.decode("utf-8"))
         for idx in local_map:
-            mean_x_sq = f_ranges[idx][0] / f_ranges[idx][2]
-            mean = f_ranges[idx][1] / f_ranges[idx][2]
+            mean_x_sq = f_ranges[idx][0] / float(f_ranges[idx][2])
+            mean = f_ranges[idx][1] / float(f_ranges[idx][2])
             try:
-                diff = round(mean_x_sq - mean**2, PRECISION)
-                local_map[idx] = [(diff)**(.5), mean]
+                diff = mean_x_sq - mean**2
+                std_dev = 0
+                if abs(diff) > EPSILON:
+                    std_dev = (diff)**(.5)
+                local_map[idx] = [std_dev, mean]
             except Exception as exc:
                 print(exc)
                 print("Index: {0}, E[X^2]: {1}, E[X]^2: {2}".format(idx,

@@ -442,6 +442,7 @@ def test_normal(src_file, s3_bucket_output, objects=(),
                             .format(obj_num, v_obj[1], scaled) +
                             " {0}, column {1} of libsvm file".format(
                                 row, col))
+                    printer("Original value {0}".format(v_orig))
                     printer("Sum(X) {0}, Sum(X^2) {1}, N {2}"
                             .format(sum_x, sum_x_squared, n_vals))
                     printer("E[X] {0}, E[X]^2 {1}, E[X^2] {2}"

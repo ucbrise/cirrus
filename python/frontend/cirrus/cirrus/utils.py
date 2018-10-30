@@ -78,20 +78,16 @@ def get_redis_creds():
 
 def wipe_redis():
     """ Wipe all keys from Redis """
-    with open(REDIS_TOML, "r") as f_handle:
-        creds = toml.load(f_handle)
-    redis_host = creds["host"]
-    redis_port = int(creds["port"])
-    redis_db = int(creds["db"])
-    redis_password = creds["password"]
+    creds = get_redis_creds()
     redis_client = StrictRedis(
-        host=redis_host, port=redis_port, password=redis_password,
-        db=redis_db)
+        host=creds["host"], port=creds["port"], password=creds["password"],
+        db=creds["db"])
     redis_client.flushdb()
 
 
-def launch_lambdas(lambda_cls, objects, max_lambdas=400, *params):
-    """ Launch one lambda for each of the objects passed in. """
+def launch_threads(lambda_cls, objects, max_lambdas=400, *params):
+    """ Launch one thread for each of the objects passed in, with the
+    specified parameters. """
     threads = deque()
     for i in objects:
         while len(threads) > max_lambdas:

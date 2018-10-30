@@ -1,10 +1,10 @@
 """ Helper functions for min max scaling, including
 Redis functions, getting and putting bounds in S3. """
 
-import json
 from collections import deque
 from threading import Thread
 from utils import Timer
+from lambda_utils import put_dict_in_s3, get_dict_from_s3
 
 EPSILON = .0001 # Epsilon to determine if two floats are equal
 UPPER_BOUND_SCRIPT = "for i, v in ipairs(KEYS)" \
@@ -25,15 +25,10 @@ LOWER_BOUND_SCRIPT = "for i, v in ipairs(KEYS)" \
 
 
 def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket,
-                     dest_object, use_redis, node_manager, chunk,
+                     dest_object, node_manager, chunk,
                      batch_push_to_redis=True):
     """ Add the dictionary of bounds to an S3 bucket or Redis instance. """
-    serialized = json.dumps(bounds)
-    s3_client.put_object(Bucket=dest_bucket, Key=dest_object,
-                         Body=serialized)
-    if not use_redis:
-        # Stop here and let the master thread aggregate if not using Redis
-        return
+    put_dict_in_s3(s3_client, bounds, dest_bucket, dest_object)
 
     upper_bound_func = redis_client.register_script(UPPER_BOUND_SCRIPT)
     lower_bound_func = redis_client.register_script(LOWER_BOUND_SCRIPT)
@@ -153,24 +148,15 @@ def push_keys_values_to_redis(node_manager, chunk, batch_push_to_redis,
     timer.timestamp()
 
 
-def get_global_bounds(s3_client, redis_client, bucket, src_object,
-                      use_redis, chunk):
+def get_global_bounds(s3_client, redis_client, bucket, src_object, chunk):
     """ Get the bounds across all objects, where each key is mapped
     to [min, max]. """
-    timer = Timer("CHUNK{0}".format(chunk)).set_step("S3")
-    # Determine whether to get the aggregated global bounds from the
-    # master thread, or the bounds from before and update (if using
-    # Redis)
-    suffix = "_final_bounds"
-    if use_redis:
-        suffix = "_bounds"
-    b_data = s3_client.get_object(
-        Bucket=bucket, Key=src_object + suffix)["Body"].read().decode("utf-8")
-    print("[CHUNK{0}] Global bounds are {1} bytes".format(chunk, len(b_data)))
-    bounds = json.loads(b_data)
-    if not use_redis:
-        return bounds
-    timer.timestamp().set_step("Constructing lists")
+    bounds = get_dict_from_s3(
+        s3_client,
+        bucket,
+        src_object + "_final_bounds",
+        chunk)
+    timer = Timer("CHUNK{0}".format(chunk)).set_step("Constructing lists")
     print(
         "[CHUNK{0}] Going to make {1} * 2 ".format(chunk,
                                                    len(bounds["max"])) + \

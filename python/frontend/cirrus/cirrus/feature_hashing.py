@@ -1,7 +1,7 @@
 """ Apply feature hashing to specified columns. """
 
 from cirrus.lambda_thread import LambdaThread
-from cirrus.utils import get_all_keys, launch_lambdas, Timer,\
+from cirrus.utils import get_all_keys, launch_threads, Timer,\
     get_redis_creds
 
 MAX_LAMBDAS = 400
@@ -39,7 +39,7 @@ def feature_hashing(s3_bucket_input, s3_bucket_output, columns,
     timer = Timer("FEATURE_HASHING")
     # Launch one HashingThread for each object.
     creds = get_redis_creds()
-    launch_lambdas(HashingThread, objects, MAX_LAMBDAS,
+    launch_threads(HashingThread, objects, MAX_LAMBDAS,
                    s3_bucket_input, s3_bucket_output, columns, n_buckets,
                    creds)
 

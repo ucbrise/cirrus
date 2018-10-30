@@ -3,10 +3,10 @@
 You can get the test data from
 {CIRRUS_ROOT}/tests/test_data/small_test_criteo.sh """
 
-from enum import Enum
 import os
 import pickle
 from threading import Thread
+from enum import Enum
 
 import boto3
 from botocore.exceptions import ClientError
@@ -16,7 +16,7 @@ import sklearn.datasets
 from context import cirrus
 from cirrus.preprocessing import Preprocessing, Normalization
 from cirrus.utils import get_all_keys, delete_all_keys, get_data_from_s3, \
-    launch_lambdas, prefix_print, Timer
+    launch_threads, prefix_print, Timer
 
 MAX_THREADS = 400
 HASH_SEED = 42  # Must be equal to the seed in feature_hashing_helper.py
@@ -29,10 +29,11 @@ class Test(Enum):
     """ Indicate which test to run. """
     LOAD_LIBSVM = 1
     SIMPLE_TEST = 2
-    EXACT_TEST = 3
+    MIN_MAX_TEST = 3
     HASH_TEST = 4
-    ALL = 5
-    NONE = 6
+    NORMAL_TEST = 5
+    ALL = 6
+    NONE = 7
 
 RUN_TEST = Test.ALL
 
@@ -210,7 +211,7 @@ def test_simple(s3_bucket_input, s3_bucket_output, min_v, max_v,
                                 objects, True, False, skip_bounds)
         timer.timestamp()
     timer.set_step("Running threads for each object")
-    launch_lambdas(SimpleTest, objects, 400, s3_bucket_input,
+    launch_threads(SimpleTest, objects, 400, s3_bucket_input,
                    s3_bucket_output, min_v, max_v)
     timer.timestamp()
 
@@ -229,34 +230,37 @@ def test_hash(s3_bucket_input, s3_bucket_output, columns, n_buckets,
             s3_bucket_input, s3_bucket_output, columns, n_buckets, objects)
         timer.timestamp()
     timer.set_step("Running threads for each object")
-    launch_lambdas(HashTest, objects, 400, s3_bucket_input,
+    launch_threads(HashTest, objects, 400, s3_bucket_input,
                    s3_bucket_output, columns, n_buckets)
     timer.timestamp()
 
 
-def test_exact(src_file, s3_bucket_output, min_v, max_v, objects=(),
-               preprocess=False, wipe_keys=False,
-               check_global_map_cache=True):
-    """ Check that data was scaled correctly, assuming src_file was serialized
-    sequentially into the keys specified in "objects". """
-    timer = Timer("TEST_EXACT", verbose=True)
+def setup_test(timer, wipe_keys, preprocess, src_file,
+               s3_bucket_output):
+    """ Wipe keys and load_libsvm if needed. """
     if wipe_keys:
         timer.set_step("Wiping keys in bucket")
         delete_all_keys(s3_bucket_output)
         timer.timestamp()
-    timer.set_step("Getting all keys")
-    original_obj = objects
-    if not objects:
-        objects = get_all_keys(s3_bucket_output)
-    timer.timestamp()
     if preprocess:
         timer.set_step("Running load_libsvm")
         Preprocessing.load_libsvm(src_file, s3_bucket_output)
         timer.timestamp()
-        if not original_obj:
-            timer.set_step("Fetching new objects list")
-            objects = get_all_keys(s3_bucket_output)
-            timer.timestamp()
+
+
+def test_min_max(src_file, s3_bucket_output, min_v, max_v, objects=(),
+                 preprocess=False, wipe_keys=False,
+                 check_global_map_cache=True):
+    """ Check that data was scaled correctly, assuming src_file was serialized
+    sequentially into the keys specified in "objects". """
+    timer = Timer("TEST_MIN_MAX", verbose=True)
+    setup_test(timer, wipe_keys, preprocess, src_file,
+               s3_bucket_output)
+    timer.set_step("Getting all keys")
+    if not objects:
+        objects = get_all_keys(s3_bucket_output)
+    timer.timestamp()
+    if preprocess:
         timer.set_step("Running preprocessing")
         Preprocessing.normalize(
             s3_bucket_output, s3_bucket_output, Normalization.MIN_MAX,
@@ -288,7 +292,7 @@ def test_exact(src_file, s3_bucket_output, min_v, max_v, objects=(),
     obj_idx = -1
     n_errors = 0
     obj = get_data_from_s3(client, s3_bucket_output, objects[obj_num])
-    printer = prefix_print("TEST_EXACT")
+    printer = prefix_print("TEST_MIN_MAX")
     for row in range(data.shape[0]):
         # row is the row in the libsvm file object
         # obj_idx is the row in the S3 object
@@ -347,6 +351,108 @@ def test_exact(src_file, s3_bucket_output, min_v, max_v, objects=(),
                 raise exc
     timer.timestamp()
 
+
+def test_normal(src_file, s3_bucket_output, objects=(),
+                preprocess=False, wipe_keys=False,
+                check_global_map_cache=True):
+    """ Check that data was normal scaled correctly. """
+    timer = Timer("TEST_NORMAL", verbose=True)
+    setup_test(timer, wipe_keys, preprocess, src_file,
+               s3_bucket_output)
+    timer.set_step("Getting all keys")
+    if not objects:
+        objects = get_all_keys(s3_bucket_output)
+    if preprocess:
+        timer.set_step("Running preprocessing")
+        Preprocessing.normalize(
+            s3_bucket_output, s3_bucket_output, Normalization.NORMAL,
+            objects)
+        timer.timestamp()
+    timer.set_step("Loading all data")
+    data = load_data(src_file)[0]
+    timer.timestamp().set_step("Constructing global map")
+    if check_global_map_cache and os.path.isfile("global_map"):
+        with open("global_map", "rb") as f:
+            g_map = pickle.load(f)
+    else:
+        g_map = {}  # Map of sum(X), sum(X^2) and N by column
+        for row in range(data.shape[0]):
+            cols = data[row, :].nonzero()[1]
+            for col in cols:
+                val = data[row, col]
+                if col not in g_map:
+                    g_map[col] = [0, 0, 0]
+                g_map[col][0] += val
+                g_map[col][1] += val**2
+                g_map[col][2] += 1
+        with open("global_map", "wb") as f:
+            pickle.dump(g_map, f)
+    timer.timestamp().set_step("Testing all chunks")
+    client = boto3.client("s3")
+    obj_num = 0
+    obj_idx = -1
+    n_errors = 0
+    obj = get_data_from_s3(client, s3_bucket_output, objects[obj_num])
+    printer = prefix_print("TEST_NORMAL")
+    for row in range(data.shape[0]):
+        # row is the row in the libsvm file object
+        # obj_idx is the row in the S3 object
+        cols = data[row, :].nonzero()[1]
+        obj_idx += 1
+        if obj_idx >= 50000:
+            obj_idx = 0
+            obj_num += 1
+            try:
+                obj = get_data_from_s3(
+                    client, s3_bucket_output, objects[obj_num])
+            except ClientError as exc:
+                printer("Error: Not enough chunks given the " +
+                        "number of rows in original data. Finished on " +
+                        "chunk index {0}, key {1}. Exception: {1}".format(
+                            obj_num, objects[obj_num], exc))
+                return
+        for idx, col in enumerate(cols):
+            try:
+                v_orig = data[row, col]
+                v_obj = obj[obj_idx][idx]
+                if v_obj[0] != col:
+                    # Ensure the column is correct
+                    printer("Value on row {0} of S3 object {1}".format(
+                        obj_idx, obj_num) +
+                            " has column {2}, expected column {3}".format(
+                                v_obj[0], col))
+                    n_errors += 1
+                    if n_errors == 10:
+                        return
+                sum_x, sum_x_squared, n_vals = g_map[col]
+                mean = sum_x / float(n_vals)
+                std_dev = (sum_x_squared / float(n_vals) - mean**2)**(.5)
+                scaled = 0
+                if std_dev != 0:
+                    scaled = (v_orig - mean) / std_dev
+                if abs(scaled - v_obj[1]) > EPSILON:
+                    printer("Value on row {0}, column {1} of".format(
+                        obj_idx, col) +
+                            " S3 object {0} is value {1}, expected {2} from row"
+                            .format(obj_num, v_obj[1], scaled) +
+                            " {0}, column {1} of libsvm file".format(
+                                row, col))
+                    printer("Sum(X) {0}, Sum(X^2) {1}, N {2}"
+                            .format(sum_x, sum_x_squared, n_vals))
+                    n_errors += 1
+                    if n_errors == 10:
+                        return
+            except IndexError as exc:
+                print("Exception on row {0} of S3 object {1}".format(
+                    obj_idx, obj_num) +
+                      ", row {0} col {1} of libsvm file".format(
+                          row, col))
+                print("Original data cols: {0}".format(cols))
+                print("S3 data cols: {0}".format(obj[obj_idx]))
+                raise exc
+    timer.timestamp()
+
+
 def main():
     """ Run all of the tests. """
     timer = Timer("MAIN", verbose=True).set_step("Running load_libsvm")
@@ -359,11 +465,17 @@ def main():
                     objects=["1", "2", "3"],
                     preprocess=True, wipe_keys=True)
 
-    timer.timestamp().set_step("Running test_exact")
-    if RUN_TEST == Test.ALL or RUN_TEST == Test.EXACT_TEST:
-        test_exact(LIBSVM_FILE, OUTPUT_BUCKET, 0.0, 1.0,
-                   objects=["1", "2", "3"], preprocess=True, wipe_keys=True,
-                   check_global_map_cache=False)
+    timer.timestamp().set_step("Running test_min_max")
+    if RUN_TEST == Test.ALL or RUN_TEST == Test.MIN_MAX_TEST:
+        test_min_max(LIBSVM_FILE, OUTPUT_BUCKET, 0.0, 1.0,
+                     objects=["1", "2", "3"], preprocess=True, wipe_keys=True,
+                     check_global_map_cache=False)
+
+    timer.timestamp().set_step("Running test_normal")
+    if RUN_TEST == Test.ALL or RUN_TEST == Test.NORMAL_TEST:
+        test_normal(LIBSVM_FILE, OUTPUT_BUCKET, objects=["1", "2", "3"],
+                    preprocess=True, wipe_keys=True,
+                    check_global_map_cache=False)
 
     timer.timestamp().set_step("Running test_hash")
     if RUN_TEST == Test.ALL or RUN_TEST == Test.HASH_TEST:

@@ -9,7 +9,7 @@ if [ $# -eq 0 ]
 fi
 
 FUNCTION_NAME=$1
-DEPENDENCIES="handler.py mmh3* min_max_helper.py ../utils.py normal_helper.py redis/ rediscluster/ toml/ feature_hashing_helper.py"
+DEPENDENCIES="handler.py mmh3* min_max_helper.py lambda_utils.py ../utils.py normal_helper.py redis/ rediscluster/ toml/ feature_hashing_helper.py"
 
 rm bundle.zip -f
 zip -9r bundle.zip $DEPENDENCIES

@@ -6,6 +6,7 @@ from rediscluster import StrictRedisCluster
 from rediscluster.nodemanager import NodeManager
 
 import feature_hashing_helper
+import lambda_utils
 import min_max_helper
 import normal_helper
 from utils import get_data_from_s3, serialize_data, Timer, prefix_print
@@ -113,7 +114,7 @@ def min_max_handler(s3_client, redis_client, data, labels,
         min_max_helper.put_bounds_in_db(
             s3_client, redis_client, bounds,
             event["s3_bucket_input"], event["s3_key"] + "_bounds",
-            redis_flag, node_manager, event["s3_key"])
+            node_manager, event["s3_key"])
         timer.timestamp()
     elif event["action"] == "LOCAL_SCALE":
         assert "s3_bucket_output" in event, "Must specify output bucket."
@@ -144,16 +145,15 @@ def normal_scaling_handler(s3_client, data, labels, event):
         print("Getting local data ranges...")
         bounds = normal_helper.get_data_ranges(data)
         print("Putting ranges in S3...")
-        min_max_helper.put_bounds_in_db(
-            s3_client, None, bounds, event["s3_bucket_input"],
-            event["s3_key"] + "_bounds",
-            False, None, event["s3_key"])
+        lambda_utils.put_dict_in_s3(
+            s3_client, bounds, event["s3_bucket_input"],
+            event["s3_key"] + "_bounds")
     elif event["action"] == "LOCAL_SCALE":
         assert "s3_bucket_output" in event, "Must specify output bucket."
         print("Getting global bounds...")
-        bounds = min_max_helper.get_global_bounds(
-            s3_client, None, event["s3_bucket_input"], event["s3_key"],
-            False, event["s3_key"])
+        bounds = lambda_utils.get_dict_from_s3(
+            s3_client, event["s3_bucket_input"],
+            event["s3_key"] + "_bounds", event["s3_key"])
         print("Scaling data...")
         scaled = normal_helper.scale_data(data, bounds)
         print("Serializing...")

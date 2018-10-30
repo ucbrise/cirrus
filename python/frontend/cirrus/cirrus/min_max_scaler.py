@@ -4,7 +4,7 @@ import json
 
 import boto3
 from cirrus.lambda_thread import LambdaThread
-from cirrus.utils import get_all_keys, launch_lambdas, wipe_redis,\
+from cirrus.utils import get_all_keys, launch_threads, wipe_redis,\
     Timer, get_redis_creds
 
 MAX_LAMBDAS = 400
@@ -68,7 +68,7 @@ def min_max_scaler(s3_bucket_input, s3_bucket_output, lower, upper,
     creds = get_redis_creds()
     if not skip_bounds:
         # Get the bounds
-        launch_lambdas(LocalBounds, objects, MAX_LAMBDAS,
+        launch_threads(LocalBounds, objects, MAX_LAMBDAS,
                        s3_bucket_input, use_redis, creds)
 
     timer.timestamp()
@@ -79,7 +79,7 @@ def min_max_scaler(s3_bucket_input, s3_bucket_output, lower, upper,
     timer.set_step("LocalScale")
     if not dry_run:
         # Scale the chunks
-        launch_lambdas(LocalScale, objects, MAX_LAMBDAS,
+        launch_threads(LocalScale, objects, MAX_LAMBDAS,
                        s3_bucket_input, s3_bucket_output,
                        lower, upper, use_redis, creds)
 

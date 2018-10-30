@@ -58,18 +58,20 @@ class Preprocessing(object):
         timer = Timer("LOAD_LIBSVM").set_step("Reading file")
         data = sklearn.datasets.load_svmlight_file(path)[0]
         timer.timestamp().set_step("Starting loop")
-        batch = []
+        batch = [0] * ROWS_PER_CHUNK
         batch_num = 1
         batch_size = 0
-        for row in range(data.shape[0]):
+
+        timer.timestamp().set_step("To lil")
+        lil = data.tolil(copy=False) # Convert to list of lists format
+        for row, data in zip(lil.rows, lil.data):
             # Iterate through the rows
             if row % 10000 == 0:
                 timer.timestamp().set_step("Reading 10000 rows")
-            cols = data[row, :].nonzero()[1]
             curr_row = []
-            for col_idx in cols:
-                curr_row.append((col_idx, data[row, col_idx]))
-            batch.append(curr_row)
+            for j, val in zip(row, data):
+                curr_row.append((j, val))
+            batch[batch_size] = curr_row
             batch_size += 1
             if batch_size == ROWS_PER_CHUNK:
                 # Put the lines in S3, 50000 lines at a time
@@ -78,14 +80,16 @@ class Preprocessing(object):
                 serialized = serialize_data(batch)
                 client.put_object(Bucket=s3_bucket, Key=str(batch_num),
                                   Body=serialized)
-                batch = []
+                batch = [0] * ROWS_PER_CHUNK
                 batch_num += 1
                 batch_size = 0
                 timer.timestamp().set_step("Starting next batch")
 
         if batch_size > 0:
             # Put any remaining lines in S3
-            timer.set_step("Writing final batch to S3")
+            timer.set_step("Trimming final batch")
+            batch = batch[0:batch_size]
+            timer.timestamp().set_step("Writing final batch to S3")
             serialized = serialize_data(batch)
             client.put_object(Bucket=s3_bucket, Key=str(batch_num),
                               Body=serialized)

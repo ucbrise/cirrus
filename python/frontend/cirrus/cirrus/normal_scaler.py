@@ -4,7 +4,7 @@ import json
 
 import boto3
 from cirrus.lambda_thread import LambdaThread
-from cirrus.utils import get_all_keys, launch_lambdas, Timer,\
+from cirrus.utils import get_all_keys, launch_threads, Timer,\
     get_redis_creds
 
 MAX_LAMBDAS = 400
@@ -53,7 +53,7 @@ def normal_scaler(s3_bucket_input, s3_bucket_output, objects=(), dry_run=False):
     # Calculate bounds for each chunk.
     timer = Timer("NORMAL_SCALING").set_step("LocalRange")
     creds = get_redis_creds()
-    launch_lambdas(LocalRange, objects, MAX_LAMBDAS, s3_bucket_input, creds)
+    launch_threads(LocalRange, objects, MAX_LAMBDAS, s3_bucket_input, creds)
 
     timer.timestamp().set_step("Creating the global map")
 
@@ -69,7 +69,7 @@ def normal_scaler(s3_bucket_input, s3_bucket_output, objects=(), dry_run=False):
     timer.timestamp().set_step("Local scaling")
     if not dry_run:
         # Scale the chunks and put them in the output bucket.
-        launch_lambdas(LocalScale, objects, MAX_LAMBDAS,
+        launch_threads(LocalScale, objects, MAX_LAMBDAS,
                        s3_bucket_input, s3_bucket_output, creds)
 
     timer.timestamp().set_step("Deleting local maps")

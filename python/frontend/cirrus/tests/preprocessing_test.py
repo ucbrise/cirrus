@@ -254,7 +254,7 @@ def test_min_max(src_file, s3_bucket_output, min_v, max_v, objects=(),
     """ Check that data was scaled correctly, assuming src_file was serialized
     sequentially into the keys specified in "objects". """
     timer = Timer("TEST_MIN_MAX", verbose=True)
-    setup_test(timer, wipe_keys, preprocess, src_file,
+    setup_test(timer, wipe_keys, preprocess, skip_load, src_file,
                s3_bucket_output)
     timer.set_step("Getting all keys")
     if not objects:

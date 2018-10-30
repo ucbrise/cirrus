@@ -28,7 +28,7 @@ def put_bounds_in_db(s3_client, redis_client, bounds, dest_bucket,
                      dest_object, node_manager, chunk,
                      batch_push_to_redis=True):
     """ Add the dictionary of bounds to an S3 bucket or Redis instance. """
-    put_dict_in_s3(s3_client, bounds, dest_bucket, dest_object)
+    put_dict_in_s3(s3_client, bounds, dest_bucket, dest_object + "_final_bounds")
 
     upper_bound_func = redis_client.register_script(UPPER_BOUND_SCRIPT)
     lower_bound_func = redis_client.register_script(LOWER_BOUND_SCRIPT)

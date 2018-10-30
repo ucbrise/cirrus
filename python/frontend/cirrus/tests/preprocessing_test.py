@@ -35,7 +35,7 @@ class Test(Enum):
     ALL = 6
     NONE = 7
 
-RUN_TEST = Test.LOAD_LIBSVM
+RUN_TEST = Test.NORMAL_TEST
 
 class SimpleTest(Thread):
     """ Test that the data is within the correct bounds. """
@@ -426,7 +426,12 @@ def test_normal(src_file, s3_bucket_output, objects=(),
                         return
                 sum_x, sum_x_squared, n_vals = g_map[col]
                 mean = sum_x / float(n_vals)
-                std_dev = (sum_x_squared / float(n_vals) - mean**2)**(.5)
+                std_dev = 0
+                variance = sum_x_squared / float(n_vals) - mean**2
+                if abs(variance) < EPSILON:
+                    std_dev = 0
+                else:
+                    std_dev = (variance)**.5
                 scaled = 0
                 if std_dev != 0:
                     scaled = (v_orig - mean) / std_dev
@@ -439,6 +444,10 @@ def test_normal(src_file, s3_bucket_output, objects=(),
                                 row, col))
                     printer("Sum(X) {0}, Sum(X^2) {1}, N {2}"
                             .format(sum_x, sum_x_squared, n_vals))
+                    printer("E[X] {0}, E[X]^2 {1}, E[X^2] {2}"
+                            .format(sum_x / float(n_vals),
+                                    (sum_x / float(n_vals))**2,
+                                    sum_x_squared / float(n_vals)))
                     n_errors += 1
                     if n_errors == 10:
                         return

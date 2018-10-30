@@ -19,7 +19,7 @@ def get_data_ranges(data):
 
     final = {}
     for k in x_squared_col:
-        final[k] = [x_squared_col[k] / n_col[k], x_col[k] / n_col[k], n_col[k]]
+        final[k] = [x_squared_col[k], x_col[k], n_col[k]]
     return final
 
 

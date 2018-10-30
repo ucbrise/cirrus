@@ -8,7 +8,7 @@ from cirrus.utils import get_all_keys, launch_threads, Timer,\
     get_redis_creds
 
 MAX_LAMBDAS = 400
-
+PRECISION = 10 # Number of decimals to round to
 
 class LocalRange(LambdaThread):
     """ Get the mean and standard deviation for this chunk """
@@ -89,15 +89,15 @@ def get_global_map(s3_bucket_input, objects, client):
                                 Key=str(i) + "_bounds")["Body"].read()
         local_map = json.loads(obj.decode("utf-8"))
         for idx in local_map:
-            sample_mean_x_squared, sample_mean_x, n_samples = local_map[idx]
+            sample_x_squared, sample_x, n_samples = local_map[idx]
             if idx not in f_ranges:
                 f_ranges[idx] = [
-                    sample_mean_x_squared * n_samples,
-                    sample_mean_x * n_samples,
+                    sample_x_squared,
+                    sample_x,
                     n_samples]
             else:
-                f_ranges[idx][0] += sample_mean_x_squared * n_samples
-                f_ranges[idx][1] += sample_mean_x * n_samples
+                f_ranges[idx][0] += sample_x_squared
+                f_ranges[idx][1] += sample_x
                 f_ranges[idx][2] += n_samples
     return f_ranges
 
@@ -112,7 +112,15 @@ def update_local_maps(s3_bucket_input, objects, f_ranges,
         for idx in local_map:
             mean_x_sq = f_ranges[idx][0] / f_ranges[idx][2]
             mean = f_ranges[idx][1] / f_ranges[idx][2]
-            local_map[idx] = [(mean_x_sq - mean**2)**(.5), mean]
+            try:
+                diff = round(mean_x_sq - mean**2, PRECISION)
+                local_map[idx] = [(diff)**(.5), mean]
+            except Exception as exc:
+                print(exc)
+                print("Index: {0}, E[X^2]: {1}, E[X]^2: {2}".format(idx,
+                                                                    mean_x_sq,
+                                                                    mean**2))
+                raise exc
         serialized = json.dumps(local_map)
         s3_client.put_object(Bucket=s3_bucket_input,
                              Key=str(i) + "_final_bounds", Body=serialized)

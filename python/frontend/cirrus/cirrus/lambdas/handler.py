@@ -47,7 +47,7 @@ def handler(event, context):
         feature_hashing_handler(s3_client, data, labels, event)
     elif event["normalization"] == "MIN_MAX":
         min_max_handler(s3_client, redis_client, data, labels,
-                        node_manager, redis_flag, event)
+                        node_manager, event)
     elif event["normalization"] == "NORMAL":
         normal_scaling_handler(s3_client, data, labels, event)
     timer.global_timestamp()
@@ -101,7 +101,7 @@ def feature_hashing_handler(s3_client, data, labels, event):
 
 
 def min_max_handler(s3_client, redis_client, data, labels,
-                    node_manager, redis_flag, event):
+                    node_manager, event):
     """ Either calculates the local bounds, or scales data and puts
     the new data in {src_object}_scaled. """
     timer = Timer("CHUNK{0}".format(event["s3_key"]))
@@ -113,7 +113,7 @@ def min_max_handler(s3_client, redis_client, data, labels,
         print("Putting bounds in S3...")
         min_max_helper.put_bounds_in_db(
             s3_client, redis_client, bounds,
-            event["s3_bucket_input"], event["s3_key"] + "_bounds",
+            event["s3_bucket_input"], event["s3_key"],
             node_manager, event["s3_key"])
         timer.timestamp()
     elif event["action"] == "LOCAL_SCALE":
@@ -124,7 +124,7 @@ def min_max_handler(s3_client, redis_client, data, labels,
         timer.set_step("Getting global bounds")
         bounds = min_max_helper.get_global_bounds(
             s3_client, redis_client, event["s3_bucket_input"], event["s3_key"],
-            redis_flag, event["s3_key"])
+            event["s3_key"])
         timer.timestamp().set_step("Scaling data")
         print("Scaling data...")
         scaled = min_max_helper.scale_data(data, bounds,
@@ -153,7 +153,7 @@ def normal_scaling_handler(s3_client, data, labels, event):
         print("Getting global bounds...")
         bounds = lambda_utils.get_dict_from_s3(
             s3_client, event["s3_bucket_input"],
-            event["s3_key"] + "_bounds", event["s3_key"])
+            event["s3_key"] + "_final_bounds", event["s3_key"])
         print("Scaling data...")
         scaled = normal_helper.scale_data(data, bounds)
         print("Serializing...")

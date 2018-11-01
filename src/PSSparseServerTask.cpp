@@ -11,10 +11,12 @@
 #include "SGD.h"
 #include "Nesterov.h"
 
-#undef DEBUG
+#define DEBUG
 
 #define MAX_CONNECTIONS (nworkers * 2 + 1) // (2 x # workers + 1)
 #define THREAD_MSG_BUFFER_SIZE 1000000
+
+#define TIMEOUT_THRESHOLD_SEC (20)
 
 namespace cirrus {
 
@@ -308,24 +310,33 @@ void PSSparseServerTask::process_register_task(int sock, const Request& req) {
     handle_failed_read(&req.poll_fd);
     return;
   }
+
   // check if this task has already been registered
   uint32_t task_id = data[0];
   uint32_t remaining_time = data[1];
   uint32_t task_reg =
     (registered_tasks.find(task_id) != registered_tasks.end());
+  
+  std::cout << "Registering task"
+            << " task_id: " << task_id
+            << " remaining_time: " << remaining_time
+            << " task_reg: " << task_reg
+            << std::endl;
 
   if (task_reg == 0) {
     registered_tasks.insert(task_id);
     task_to_remaining_time[task_id] = remaining_time;
     task_to_starttime[task_id] = std::chrono::steady_clock::now();
   }
-  send_all(sock, &task_reg, sizeof(uint32_t));
+  if (send_all(sock, &task_reg, sizeof(uint32_t)) != sizeof(uint32_t)) {
+    throw std::runtime_error("Error sending reply");
+  }
 
   num_tasks++;
 }
 
 void PSSparseServerTask::declare_task_dead(uint32_t task_id) {
-    tasks_to_remaining_time[task_id] = -1;
+    task_to_remaining_time[task_id] = -1;
     task_to_starttime.erase(task_id);
     num_tasks--;
 }
@@ -340,12 +351,19 @@ void PSSparseServerTask::process_deregister_task(int sock, const Request& req) {
   // check if this task has already been registered
   auto it = registered_tasks.find(task_id);
   uint32_t task_reg = (it != registered_tasks.end());
+  
+  std::cout << "Deregistering task"
+            << " task_id: " << task_id
+            << " task_reg: " << task_reg
+            << std::endl;
 
   // when a task deregisters we set its remaining time to -1
   if (task_reg != 0) {
     declare_task_dead(task_id);
   }
-  send_all(sock, &task_reg, sizeof(uint32_t));
+  if (send_all(sock, &task_reg, sizeof(uint32_t)) != sizeof(uint32_t)) {
+    throw std::runtime_error("Error sending reply");
+  }
 }
 
 void PSSparseServerTask::gradient_f() {
@@ -388,13 +406,7 @@ void PSSparseServerTask::gradient_f() {
               << operation_to_name[operation] << std::endl;
 #endif
 
-    if (operation == REGISTER_TASK) {
-      process_register_task(sock, req);
-      continue;
-    } else if (operation == DEREGISTER_TASK) {
-      process_deregister_task(sock, req);
-      continue;
-    } else if (operation == SEND_LR_GRADIENT || operation == SEND_MF_GRADIENT ||
+    if (operation == SEND_LR_GRADIENT || operation == SEND_MF_GRADIENT ||
                operation == GET_LR_SPARSE_MODEL ||
                operation == GET_MF_SPARSE_MODEL) {
       // read 4 bytes of the size of the remaining message
@@ -406,7 +418,11 @@ void PSSparseServerTask::gradient_f() {
       req.incoming_size = incoming_size;
     }
 
-    if (operation == SEND_LR_GRADIENT) {
+    if (operation == REGISTER_TASK) {
+      process_register_task(sock, req);
+    } else if (operation == DEREGISTER_TASK) {
+      process_deregister_task(sock, req);
+    } else if (operation == SEND_LR_GRADIENT) {
       if (!process_send_lr_gradient(req, thread_buffer)) {
         break;
       }
@@ -728,7 +744,7 @@ void PSSparseServerTask::check_tasks_lifetime() {
     auto elapsed_sec =
       std::chrono::duration_cast<std::chrono::seconds>(now - start_time).count();
 
-    if (elapsed_sec > task_to_remaining_time[task_id] + TIMEOUT_THRESHOLD) {
+    if (elapsed_sec > task_to_remaining_time[task_id] + TIMEOUT_THRESHOLD_SEC) {
       declare_task_dead(task_id);
     }
   }

@@ -314,6 +314,9 @@ void PSSparseServerTask::process_register_task(int sock, const Request& req) {
   // check if this task has already been registered
   uint32_t task_id = data[0];
   uint32_t remaining_time = data[1];
+
+  register_lock.lock();
+
   uint32_t task_reg =
     (registered_tasks.find(task_id) != registered_tasks.end());
   
@@ -328,6 +331,9 @@ void PSSparseServerTask::process_register_task(int sock, const Request& req) {
     task_to_remaining_time[task_id] = remaining_time;
     task_to_starttime[task_id] = std::chrono::steady_clock::now();
   }
+
+  register_lock.unlock();
+
   if (send_all(sock, &task_reg, sizeof(uint32_t)) != sizeof(uint32_t)) {
     throw std::runtime_error("Error sending reply");
   }
@@ -348,6 +354,9 @@ void PSSparseServerTask::process_deregister_task(int sock, const Request& req) {
     handle_failed_read(&req.poll_fd);
     return;
   }
+  
+  register_lock.lock();
+
   // check if this task has already been registered
   auto it = registered_tasks.find(task_id);
   uint32_t task_reg = (it != registered_tasks.end());
@@ -361,6 +370,9 @@ void PSSparseServerTask::process_deregister_task(int sock, const Request& req) {
   if (task_reg != 0) {
     declare_task_dead(task_id);
   }
+
+  register_lock.unlock();
+
   if (send_all(sock, &task_reg, sizeof(uint32_t)) != sizeof(uint32_t)) {
     throw std::runtime_error("Error sending reply");
   }
@@ -737,6 +749,7 @@ void sig_handler(int) {
 
 void PSSparseServerTask::check_tasks_lifetime() {
   auto now = std::chrono::steady_clock::now();
+
   for (const auto& task : task_to_starttime) {
     uint32_t task_id = task.first;
     auto start_time = task.second;
@@ -814,7 +827,9 @@ void PSSparseServerTask::run(const Configuration& config) {
         << std::endl;
       gradientUpdatesCount = 0;
 
+      register_lock.lock();
       check_tasks_lifetime();
+      register_lock.unlock();
     }
     sleep(1);
   }

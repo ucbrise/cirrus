@@ -43,4 +43,5 @@ int main() {
     }
     psi->send_lr_gradient(*lrg);
   }
+  return 0;
 }

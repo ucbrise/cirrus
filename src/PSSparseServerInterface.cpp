@@ -6,7 +6,7 @@
 #include "Checksum.h"
 #include "Constants.h"
 
-#define DEBUG
+#undef DEBUG
 
 #define MAX_MSG_SIZE (1024*1024)
 

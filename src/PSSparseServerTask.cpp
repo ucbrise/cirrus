@@ -11,7 +11,7 @@
 #include "SGD.h"
 #include "Nesterov.h"
 
-#define DEBUG
+#undef DEBUG
 
 #define MAX_CONNECTIONS (nworkers * 2 + 1) // (2 x # workers + 1)
 #define THREAD_MSG_BUFFER_SIZE 1000000

@@ -37,6 +37,8 @@ def run_interactive_setup():
 
     _set_up_region()
 
+    _set_up_bucket()
+
     _make_lambda()
 
     _set_up_instance_resources()
@@ -208,6 +210,21 @@ def _set_up_instance_resources():
               "complete setup.")
         return
     automate.Instance.set_up_security_group()
+
+
+def _set_up_bucket():
+    """Set up Cirrus' bucket in the user's AWS account.
+    """
+    explanation = ("Can we create an S3 bucket named '%s' in your AWS account?"
+                   % automate.get_bucket_name())
+    PROMPTS = ("y/n",)
+    validator = lambda c: c in ("y", "n")
+    postprocess = lambda c: c == "y"
+    if not prompt(explanation, PROMPTS, validator, postprocess):
+        print("Exiting. Cirrus will not be usable. Re-run the setup script to "
+              "complete setup.")
+        return
+    automate.set_up_bucket()
 
 
 def _save_config():

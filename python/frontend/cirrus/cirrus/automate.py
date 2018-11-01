@@ -10,6 +10,7 @@ import json
 import threading
 import inspect
 import os
+import random
 
 import paramiko
 import boto3
@@ -40,6 +41,9 @@ S3_READ_ONLY_ARN = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
 
 # The ARN of an IAM policy that allows write access to Cloudwatch logs.
 CLOUDWATCH_WRITE_ARN = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+
+# The base name of the bucket created by Cirrus in users' AWS accounts.
+BUCKET_BASE_NAME = "cirrus-bucket"
 
 # The estimated delay of IAM's eventual consistency, in seconds.
 IAM_CONSISTENCY_DELAY = 20
@@ -196,6 +200,21 @@ class ClientManager(object):
         return self._cloudwatch_logs
 
 
+    @property
+    def s3(self):
+        """Get an S3 resource.
+
+        Initializes one if none is cached.
+
+        Returns:
+            boto3.resources.base.ServiceResource: The resource."""
+        if self._s3 is None:
+            self._log.debug("ClientManager: Initializing S3 resource.")
+            self._s3 = boto3.resource(
+                "s3", configuration.config["aws"]["region"])
+        return self._s3
+
+
     def clear_cache(self):
         """Clear any cached clients.
         """
@@ -203,6 +222,7 @@ class ClientManager(object):
         self._iam = None
         self._ec2 = None
         self._cloudwatch_logs = None
+        self._s3 = None
 
 
 # Cached AWS clients to be used throughout this module.
@@ -1070,6 +1090,52 @@ def make_server_image(name, executables_path, instance):
     log.debug("make_server_image: Done.")
 
 
+def get_bucket_name():
+    """Get the name of Cirrus' S3 bucket in the user's AWS account.
+
+    Returns:
+        str: The name.
+    """
+    log = logging.getLogger("cirrus.automate.get_bucket_name")
+
+    log.debug("get_bucket_name: Retreiving account ID.")
+    account_id = boto3.client("sts").get_caller_identity().get("Account")
+
+    return BUCKET_BASE_NAME + "-" + account_id
+
+
+def set_up_bucket():
+    """Set up Cirrus' S3 bucket in the user's AWS account.
+    """
+    log = logging.getLogger("cirrus.automate.set_up_bucket")
+
+    log.debug("set_up_bucket: Checking for existing bucket.")
+    response = clients.s3.meta.client.list_buckets()
+    exists = False
+    bucket_name = get_bucket_name()
+    for bucket_info in response["Buckets"]:
+        if bucket_info["Name"] == bucket_name:
+            exists = True
+            break
+
+    if exists:
+        log.debug("set_up_bucket: Deleting contents of existing bucket.")
+        bucket = clients.s3.Bucket(bucket_name)
+        for obj in bucket.objects.all():
+            obj.delete()
+        log.debug("set_up_bucket: Deleting existing bucket.")
+        bucket.delete()
+
+    log.debug("set_up_bucket: Creating bucket.")
+    bucket_config = {
+        "LocationConstraint": configuration.config["aws"]["region"]
+    }
+    clients.s3.create_bucket(
+        Bucket=bucket_name,
+        CreateBucketConfiguration=bucket_config
+    )
+
+
 def make_lambda(name, lambda_package_path, concurrency=-1):
     """Make a worker Lambda function.
 
@@ -1135,16 +1201,22 @@ def make_lambda(name, lambda_package_path, concurrency=-1):
     #   heavy-tailed, so we actually need a retry mechanism.
     time.sleep(IAM_CONSISTENCY_DELAY)
 
-    log.debug("make_lambda: Uploading ZIP package and creating Lambda.")
-    bucket, key = _split_s3_url(lambda_package_path)
+    log.debug("make_lambda: Copying package to user's bucket.")
+    bucket_name = get_bucket_name()
+    bucket = clients.s3.Bucket(bucket_name)
+    src_bucket, src_key = _split_s3_url(lambda_package_path)
+    src = {"Bucket": src_bucket, "Key": src_key}
+    bucket.copy(src, src_key)
+
+    log.debug("make_lambda: Creating Lambda.")
     clients.lamb.create_function(
         FunctionName=name,
         Runtime=LAMBDA_RUNTIME,
         Role=role.arn,
         Handler=LAMBDA_HANDLER_FQID,
         Code={
-            "S3Bucket": bucket,
-            "S3Key": key
+            "S3Bucket": bucket_name,
+            "S3Key": src_key
         },
         Timeout=LAMBDA_TIMEOUT,
         MemorySize=LAMBDA_SIZE

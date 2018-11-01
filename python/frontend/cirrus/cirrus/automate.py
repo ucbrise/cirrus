@@ -87,7 +87,7 @@ LAMBDA_HANDLER_FILENAME = "handler.py"
 S3_CONSISTENCY_DELAY = 20
 
 # The runtime for the worker Lambda.
-LAMBDA_RUNTIME = "python2.7"
+LAMBDA_RUNTIME = "python3.6"
 
 # The fully-qualified identifier of the handler of the worker Lambda.
 LAMBDA_HANDLER_FQID = "handler.run"

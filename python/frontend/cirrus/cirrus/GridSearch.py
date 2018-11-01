@@ -168,7 +168,7 @@ class GridSearch:
             instance.buffer_commands(True)
 
         for cirrus_obj in self.cirrus_objs:
-            cirrus_obj.run()
+            cirrus_obj.run(False)
 
         threads = []
         for instance in self.instances:
@@ -196,6 +196,8 @@ class GridSearch:
 
     # Start threads to maintain all experiments
     def run(self, UI=False):
+        automate.clear_lambda_logs(setup.LAMBDA_NAME)
+
         self.start_queue_threads()
 
         if UI:

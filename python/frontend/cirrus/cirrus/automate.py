@@ -177,12 +177,32 @@ class ClientManager(object):
         return self._ec2
 
 
+    @property
+    def cloudwatch_logs(self):
+        """Get a Cloudwatch Logs client.
+
+        Initializes one if none is cached.
+
+        Returns:
+            botocore.client.BaseClient: The client.
+        """
+        if self._cloudwatch_logs is None:
+            self._log.debug("ClientManager: Initializing Cloudwatch Logs "
+                            "client.")
+            self._cloudwatch_logs = boto3.client(
+                "logs",
+                configuration.config["aws"]["region"]
+            )
+        return self._cloudwatch_logs
+
+
     def clear_cache(self):
         """Clear any cached clients.
         """
         self._lamb = None
         self._iam = None
         self._ec2 = None
+        self._cloudwatch_logs = None
 
 
 # Cached AWS clients to be used throughout this module.
@@ -1098,6 +1118,25 @@ def concurrency_limit(lambda_name):
 
     # TODO: This does not properly handle the case where there is no limit.
     return response["Concurrency"]["ReservedConcurrentExecutions"]
+
+
+def clear_lambda_logs(lambda_name):
+    """Clear the Cloudwatch logs for a given Lambda function.
+
+    Args:
+        lambda_name (str): The name of the Lambda function.
+    """
+    log = logging.getLogger("cirrus.automate.clear_lambda_logs")
+
+    log.debug("clear_lambda_logs: Listing log groups.")
+    name = "/aws/lambda/%s" % lambda_name
+    response = clients.cloudwatch_logs.describe_log_groups(
+        logGroupNamePrefix=name)
+
+    log.debug("clear_lambda_logs: Deleting matching log groups.")
+    for group_info in response["logGroups"]:
+        clients.cloudwatch_logs.delete_log_group(
+            logGroupName=group_info["logGroupName"])
 
 
 def launch_worker(lambda_name, task_id, config, num_workers, ps):

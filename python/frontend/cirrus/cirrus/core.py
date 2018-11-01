@@ -147,13 +147,18 @@ class BaseTask(object):
         else:
             return self.time_loss_lst
 
-    def run(self):
+    def run(self, delete_logs=True):
         """Run this task.
 
         Args:
+            delete_logs (bool): Whether to delete the worker Lambda function's
+                Cloudwatch logs before starting the experiment.
 
         Starts a parameter server and launches a fleet of workers.
         """
+        if delete_logs:
+            automate.clear_lambda_logs(setup.LAMBDA_NAME)
+
         self.ps.start(self.define_config())
         self.stop_event.clear()
 

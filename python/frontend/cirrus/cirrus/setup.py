@@ -1,4 +1,7 @@
-"""Utilities for setting up an installation of Cirrus."""
+"""Utilities for setting up an installation of Cirrus.
+
+Run this using `python -m cirrus.setup`! It uses relative imports.
+"""
 
 import textwrap
 import os
@@ -7,9 +10,8 @@ import sys
 import boto3
 import botocore.exceptions
 
-sys.path.insert(0, os.path.dirname(__file__))
-import configuration
-import automate
+from . import configuration
+from . import automate
 
 
 # The path at which boto3 expects the user's AWS credentials. Must be passed
@@ -19,7 +21,7 @@ AWS_CREDENTIALS_PATH = "~/.aws/credentials"
 
 # An S3 URL where a worker Lambda package has been published by the maintainers
 #   of Cirrus.
-LAMBDA_PACKAGE_URL = "s3://cirrus-public/0/lambda-package"
+LAMBDA_PACKAGE_URL = "s3://cirrus-public/1/lambda-package"
 
 
 # The name to give to the worker Lambda.
@@ -128,7 +130,7 @@ def _setup_region():
 
     # Refresh cached AWS clients, so that clients are bound to the updated
     #   region.
-    automate.clients.refresh()
+    automate.clients.clear_cache()
 
 
 def _make_lambda():

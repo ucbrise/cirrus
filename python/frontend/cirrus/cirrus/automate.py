@@ -13,8 +13,8 @@ import inspect
 import paramiko
 import boto3
 
-from cirrus import handler
-from cirrus import configuration
+from . import handler
+from . import configuration
 
 # A configuration to use for EC2 instances that will be used to build Cirrus.
 BUILD_INSTANCE = {
@@ -115,21 +115,47 @@ class ClientManager(object):
     def __init__(self):
         """Create a client manager.
 
-        Will create a client for Lambda (the `lamb` attribute).
+        Clients will not yet be initialized.
         """
-        self.refresh()
+        self.clear_cache()
+        self._log = logging.getLogger("cirrus.automate.ClientManager")
 
 
-    def refresh(self):
-        """Create or re-create this client manager's clients.
+    @property
+    def lamb(self):
+        """Get a Lambda client.
+
+        Initializes one if none is cached.
         """
-        log = logging.getLogger("cirrus.automate.ClientManager.refresh")
+        if self._lamb is None:
+            self._log.debug("ClientManager: Initializing Lambda client.")
+            self._lamb = boto3.client(
+                "lambda",
+                configuration.config["aws"]["region"]
+            )
+        return self._lamb
 
-        log.debug("automate: Initializing Lambda client.")
-        self.lamb = boto3.client(
-            "lambda",
-            configuration.config["aws"]["region"]
-        )
+
+    @property
+    def iam(self):
+        """Get an IAM resource.
+
+        Initializes one if none is cached.
+        """
+        if self._iam is None:
+            self._log.debug("ClientManager: Initializing IAM resource.")
+            self._iam = boto3.resource(
+                "iam",
+                configuration.config["aws"]["region"]
+            )
+        return self._iam
+
+
+    def clear_cache(self):
+        """Clear any cached clients.
+        """
+        self._lamb = None
+        self._iam = None
 
 
 # Cached AWS clients to be used throughout this module.
@@ -898,8 +924,6 @@ def make_lambda(name, lambda_package_path, concurrency=-1):
     log = logging.getLogger("cirrus.automate.make_lambda")
 
     log.debug("make_lambda: Initializing Lambda and IAM.")
-    lamb = boto3.client("lambda", configuration.config["aws"]["region"])
-    iam = boto3.resource("iam", configuration.config["aws"]["region"])
 
     log.debug("make_lambda: Deleting any existing Lambda.")
     try:
@@ -911,7 +935,7 @@ def make_lambda(name, lambda_package_path, concurrency=-1):
 
     log.debug("make_lambda: Deleting any existing IAM role.")
     try:
-        role = iam.Role(name)
+        role = clients.iam.Role(name)
         for policy in role.attached_policies.all():
             role.detach_policy(PolicyArn=policy.arn)
         role.delete()
@@ -921,7 +945,7 @@ def make_lambda(name, lambda_package_path, concurrency=-1):
         pass
 
     log.debug("make_lambda: Creating IAM role")
-    role = iam.create_role(
+    role = clients.iam.create_role(
         RoleName=name,
         AssumeRolePolicyDocument=\
         """{

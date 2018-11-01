@@ -6,8 +6,8 @@ import time
 
 import graph
 from utils import *
-import automate
-import setup
+from . import automate
+from . import setup
 
 logging.basicConfig(filename="cirrusbundle.log", level=logging.WARNING)
 

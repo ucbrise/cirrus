@@ -7,8 +7,8 @@ import boto3
 
 import messenger
 from CostModel import CostModel
-import automate
-import setup
+from . import automate
+from . import setup
 
 
 # Code shared by all Cirrus experiments

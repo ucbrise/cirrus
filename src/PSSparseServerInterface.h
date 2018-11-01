@@ -43,6 +43,7 @@ class PSSparseServerInterface {
    * Used to guarantee there are no duplicate tasks
    * @param id Unique id of task
    * @param remaining_time_sec Worker timeout in secs
+   * @return 0 if success, 1 otherwise
    */
   uint32_t register_task(uint32_t id, uint32_t remaining_time_sec);
 
@@ -50,6 +51,7 @@ class PSSparseServerInterface {
    * Marks task as terminated
    * Used by the PS to update the number of active workers
    * @param id Unique id of task
+   * @return 0 if success, 1 if already deregistered, 2 if not registered
    */
   uint32_t deregister_task(uint32_t id);
 

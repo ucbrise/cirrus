@@ -16,7 +16,7 @@
 #define MAX_CONNECTIONS (nworkers * 2 + 1) // (2 x # workers + 1)
 #define THREAD_MSG_BUFFER_SIZE 1000000
 
-#define TIMEOUT_THRESHOLD_SEC (20)
+#define TIMEOUT_THRESHOLD_SEC (3)
 
 namespace cirrus {
 
@@ -36,8 +36,8 @@ PSSparseServerTask::PSSparseServerTask(uint64_t model_size,
              worker_id,
              ps_ip,
              ps_port),
-      kill_signal(false),
       main_thread(0),
+      kill_signal(false),
       threads_barrier(new pthread_barrier_t, destroy_pthread_barrier) {
   std::cout << "PSSparseServerTask is built" << std::endl;
 
@@ -339,10 +339,22 @@ void PSSparseServerTask::process_register_task(int sock, const Request& req) {
   num_tasks++;
 }
 
-void PSSparseServerTask::declare_task_dead(uint32_t task_id) {
+uint32_t PSSparseServerTask::declare_task_dead(uint32_t task_id) {
+  std::cout << "Declaring task id: " << task_id << " as terminated"
+            << std::endl;
+
+  if (task_to_starttime.find(task_id) == task_to_starttime.end()) {
+    std::cout << "Task " << task_id << " has already been deregistered"
+              << std::endl;
+    return 1;
+  }
+
   task_to_remaining_time[task_id] = -1;
   task_to_starttime.erase(task_id);
+
   num_tasks--;
+
+  return 0;
 }
 
 void PSSparseServerTask::process_deregister_task(int sock, const Request& req) {
@@ -357,20 +369,24 @@ void PSSparseServerTask::process_deregister_task(int sock, const Request& req) {
 
   // check if this task has already been registered
   auto it = registered_tasks.find(task_id);
-  uint32_t task_reg = (it != registered_tasks.end());
+  uint32_t is_task_reg = (it != registered_tasks.end());
 
   std::cout << "Deregistering task"
-            << " task_id: " << task_id << " task_reg: " << task_reg
+            << " task_id: " << task_id << " is_task_reg: " << is_task_reg
             << std::endl;
 
+  uint32_t ret = 0;  // success return value
+
   // when a task deregisters we set its remaining time to -1
-  if (task_reg != 0) {
-    declare_task_dead(task_id);
+  if (is_task_reg) {
+    ret = declare_task_dead(task_id);
+  } else {
+    ret = 2;  // does not exist
   }
 
   register_lock.unlock();
 
-  if (send_all(sock, &task_reg, sizeof(uint32_t)) != sizeof(uint32_t)) {
+  if (send_all(sock, &ret, sizeof(uint32_t)) != sizeof(uint32_t)) {
     throw std::runtime_error("Error sending reply");
   }
 }
@@ -753,6 +769,8 @@ void PSSparseServerTask::check_tasks_lifetime() {
     auto elapsed_sec =
         std::chrono::duration_cast<std::chrono::seconds>(now - start_time)
             .count();
+
+    std::cout << "id " << task_id << " elapsed_sec " << elapsed_sec << std::endl;
 
     if (elapsed_sec > task_to_remaining_time[task_id] + TIMEOUT_THRESHOLD_SEC) {
       declare_task_dead(task_id);

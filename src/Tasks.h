@@ -306,7 +306,7 @@ class PSSparseServerTask : public MLTask {
   static void destroy_pthread_barrier(pthread_barrier_t*);
 
   void check_tasks_lifetime();
-  void declare_task_dead(uint32_t);
+  uint32_t declare_task_dead(uint32_t);
 
   /**
     * Attributes

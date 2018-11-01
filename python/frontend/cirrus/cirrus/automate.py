@@ -16,9 +16,6 @@ import boto3
 from cirrus import handler
 from cirrus import configuration
 
-ID_LOCK = threading.Lock()
-ID = 0
-
 # A configuration to use for EC2 instances that will be used to build Cirrus.
 BUILD_INSTANCE = {
     "disk_size": 32,  # GB
@@ -102,6 +99,13 @@ LAMBDA_SIZE = 3008
 
 # The level of logs that the worker Lambda should write to CloudWatch.
 LAMBDA_LOG_LEVEL = "DEBUG"
+
+# The maximum number of generations of Lambdas that will be invoked to serve as
+#   as the worker with a given ID.
+MAX_LAMBDA_GENERATIONS = 10000
+
+# The maximum number of workers that may work on a given experiment.
+MAX_WORKERS_PER_EXPERIMENT = 1000
 
 
 class ClientManager(object):
@@ -986,22 +990,16 @@ def concurrency_limit(lambda_name):
     # TODO: This does not properly handle the case where there is no limit.
     return response["Concurrency"]["ReservedConcurrentExecutions"]
 
-def get_worker_id():
-    global ID
-    with ID_LOCK:
-        ID += 1
-        return ID
 
-    
-
-
-def launch_worker(lambda_name, config, num_workers, ps):
+def launch_worker(lambda_name, task_id, config, num_workers, ps):
     """Launch a worker.
 
     Blocks until the worker terminates.
 
     Args:
         lambda_name (str): The name of a worker Lambda function.
+        task_id (int): The ID number of the task, to be used by the worker to
+            register with the parameter server.
         config (str): A configuration for the worker.
         num_workers (int): The total number of workers that are being launched.
         ps (ParameterServer): The parameter server that the worker should use.
@@ -1011,15 +1009,13 @@ def launch_worker(lambda_name, config, num_workers, ps):
     """
     log = logging.getLogger("cirrus.automate.launch_worker")
 
-
-    worker_id = get_worker_id()
-    log.debug("launch_worker: Invoking Lambda with id: {}.".format(worker_id))
+    log.debug("launch_worker: Launching Task %d." % task_id)
     payload = {
         "config": config,
         "num_workers": num_workers,
         "ps_ip": ps.public_ip(),
         "ps_port": ps.ps_port(),
-        "worker_id": worker_id,
+        "task_id": task_id,
         "log_level": LAMBDA_LOG_LEVEL
     }
     response = clients.lamb.invoke(
@@ -1028,15 +1024,17 @@ def launch_worker(lambda_name, config, num_workers, ps):
         LogType="Tail",
         Payload=json.dumps(payload)
     )
-    if response["StatusCode"] != 200:
-        # TODO: We should probably do something with the body of the response,
-        #   either print it or include it in the error.
-        raise RuntimeError("The invocation failed!")
 
-    log.debug("launch_worker: Done.")
+    status = response["StatusCode"]
+    message = "launch_worker: Task %d completed with status code %d." \
+              % (task_id, status)
+    if status == 200:
+        log.debug(message)
+    else:
+        raise RuntimeError(message)
 
 
-def maintain_workers(n, lambda_name, config, ps, stop_event):
+def maintain_workers(n, lambda_name, config, ps, stop_event, experiment_id):
     """Maintain a fixed-size fleet of workers.
 
     Args:
@@ -1044,12 +1042,27 @@ def maintain_workers(n, lambda_name, config, ps, stop_event):
         lambda_name (str): As for `launch_worker`.
         config (str): As for `launch_worker`.
         parameter_server (ParameterServer): As for `launch_worker`.
-        stop_event (threading.Event): An event indicating that the worker fleet
-            should no longer be refilled.
+        stop_event (threading.Event): An event indicating that no new
+            generations of the workers in the fleet should be launched.
+        experiment_id (int): The ID number of the experiment that these workers
+            will work on.
     """
-    def maintain_one():
+    assert n <= MAX_WORKERS_PER_EXPERIMENT
+
+    def maintain_one(worker_id):
+        """Maintain a single worker.
+
+        Launches generation after generation of Lambdas to serve as the
+            `worker_id`-th worker.
+
+        Args:
+            worker_id (int): The ID of the worker, in `[0, n)`.
+        """
+        generation = 0
+
         elapsed_sec = 0
         while not stop_event.is_set():
+            assert generation < MAX_LAMBDA_GENERATIONS
 
             # the 2nd time onwards we sleep until we complete 5mins
             if elapsed_sec > 0 and elapsed_sec < 1 * 60:
@@ -1058,19 +1071,24 @@ def maintain_workers(n, lambda_name, config, ps, stop_event):
                 time.sleep(time_to_wait)
 
             start = time.time()
-            launch_worker(lambda_name, config, n, ps)
+
+            task_id = worker_id * MAX_LAMBDA_GENERATIONS + generation
+            launch_worker(lambda_name, task_id, config, n, ps)
+
+            generation += 1
+
             elapsed_sec = time.time() - start
 
-
-    def thread_name(i):
-        return "maintain_workers.maintain_one " \
-               "[ps_public_ip=%s, ps_port=%d, worker_index=%d]" \
-               % (ps.public_ip(), ps.ps_port(), i)
-
-
-    threads = [threading.Thread(target=maintain_one, name=thread_name(i))
-               for i in range(n)]
-    [thread.start() for thread in threads]
+    base_id = experiment_id * MAX_WORKERS_PER_EXPERIMENT
+    threads = []
+    for worker_id in range(base_id, base_id + n):
+        thread = threading.Thread(
+            target=maintain_one,
+            name="Worker %d" % worker_id,
+            args=(worker_id,)
+        )
+        threads.append(thread)
+        thread.start()
 
 
 def launch_server(instance):

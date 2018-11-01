@@ -54,7 +54,7 @@ class GridSearch:
         base_port = 1337
         index = 0
         num_machines = len(instances)
-        for p in possibilities:
+        for i, p in enumerate(possibilities):
             configuration = zip(hyper_vars, p)
             modified_config = param_base.copy()
             for var_name, var_value in configuration:
@@ -63,6 +63,8 @@ class GridSearch:
                                                              modified_config["n_workers"] * 2)
             index = (index + 1) % num_machines
             base_port += 2
+
+            modified_config["experiment_id"] = i
 
             c = task(**modified_config)
             self.cirrus_objs.append(c)

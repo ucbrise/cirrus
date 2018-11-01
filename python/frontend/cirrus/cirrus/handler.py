@@ -32,7 +32,7 @@ def register_task_id(ps_ip, ps_port, task_id, time_left):
     Args:
         ps_ip (str): The public IP address of the parameter server.
         ps_port (int): The port of the parameter server.
-        task_id (int): The ID number of the worker.
+        task_id (int): The ID number of the task this worker is running.
         time_left (func[] -> int): A function that takes no arguments and
             returns the maximum amount of time the worker will live, in
             milliseconds, starting from the moment of the call.
@@ -64,9 +64,10 @@ def run(event, context):
     Args:
         event (dict[str, *]): The request. The value for `"log_level"` gives
             the name of the level of logs to write to CloudWatch. The value for
-            `"worker_id"` gives the ID number to be assigned to the worker. The
-            values for `"ps_ip"` and `"ps_port"` give the public IP address and
-            port of the parameter server that the worker should interface with.
+            `"task_id"` gives the task ID number to be assigned to the worker.
+            The values for `"ps_ip"` and `"ps_port"` give the public IP address
+            and port of the parameter server that the worker should interface
+            with.
         context (dict[str, *]): Information about the current execution context.
 
     Returns:
@@ -91,13 +92,13 @@ def run(event, context):
         log.debug("The time remaining is %dms."
                   % context.get_remaining_time_in_millis())
 
-        worker_id = event["worker_id"]
+        task_id = event["task_id"]
         num_workers = event["num_workers"]
         ps_ip = event["ps_ip"]
         ps_port = event["ps_port"]
 
-        log.debug("This is worker #%d, interfacing with %s:%d."
-                  % (worker_id, ps_ip, ps_port))
+        log.debug("This is Task %d, interfacing with %s:%d."
+                  % (task_id, ps_ip, ps_port))
 
         # Attempt to register with the parameter server; abort if a duplicate
         #   invocation with the same worker ID has already won the race.
@@ -105,7 +106,7 @@ def run(event, context):
         registration_succeeded = register_task_id(
             ps_ip,
             ps_port,
-            worker_id,
+            task_id,
             context.get_remaining_time_in_millis
         )
         if not registration_succeeded:

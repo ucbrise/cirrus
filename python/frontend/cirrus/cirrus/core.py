@@ -34,7 +34,8 @@ class BaseTask(object):
             grad_threshold,
             timeout,
             threshold_loss,
-            progress_callback
+            progress_callback,
+            experiment_id=0
             ):
         self.thread = threading.Thread(target=self.run)
         self.n_workers = n_workers
@@ -55,6 +56,7 @@ class BaseTask(object):
         self.timeout=timeout
         self.threshold_loss=threshold_loss
         self.progress_callback=progress_callback
+        self.experiment_id=experiment_id
         self.dead = False
         self.cost_model = None
         self.total_cost = 0
@@ -148,6 +150,8 @@ class BaseTask(object):
     def run(self):
         """Run this task.
 
+        Args:
+
         Starts a parameter server and launches a fleet of workers.
         """
         self.ps.start(self.define_config())
@@ -156,7 +160,7 @@ class BaseTask(object):
         time.sleep(10) # give some time to parameter server
 
         automate.maintain_workers(self.n_workers, setup.LAMBDA_NAME,
-            self.define_config(), self.ps, self.stop_event)
+            self.define_config(), self.ps, self.stop_event, self.experiment_id)
 
 
     def kill(self):

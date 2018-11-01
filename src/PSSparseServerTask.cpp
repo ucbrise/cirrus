@@ -770,7 +770,8 @@ void PSSparseServerTask::check_tasks_lifetime() {
         std::chrono::duration_cast<std::chrono::seconds>(now - start_time)
             .count();
 
-    std::cout << "id " << task_id << " elapsed_sec " << elapsed_sec << std::endl;
+    std::cout << "id " << task_id << " elapsed_sec " << elapsed_sec
+              << std::endl;
 
     if (elapsed_sec > task_to_remaining_time[task_id] + TIMEOUT_THRESHOLD_SEC) {
       declare_task_dead(task_id);

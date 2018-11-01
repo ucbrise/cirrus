@@ -19,7 +19,7 @@ EXIT_POLL_INTERVAL = 0.01
 REGISTER_TASK_MSG = b'\x08\x00\x00\x00'
 
 # The timeout for an attempt to connect to a parameter server, in seconds.
-PS_CONNECTION_TIMEOUT = 10
+PS_CONNECTION_TIMEOUT = 5
 
 # The size of buffer to use for relaying the worker's output to the Lambda's
 #   output, in bytes.

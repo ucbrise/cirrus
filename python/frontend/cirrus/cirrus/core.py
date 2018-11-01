@@ -162,10 +162,13 @@ class BaseTask(object):
         self.ps.start(self.define_config())
         self.stop_event.clear()
 
-        time.sleep(10) # give some time to parameter server
+        def wait_then_maintain_workers():
+            self.ps.wait_until_started()
+            automate.maintain_workers(self.n_workers, setup.LAMBDA_NAME,
+                self.define_config(), self.ps, self.stop_event,
+                self.experiment_id)
 
-        automate.maintain_workers(self.n_workers, setup.LAMBDA_NAME,
-            self.define_config(), self.ps, self.stop_event, self.experiment_id)
+        threading.Thread(target=wait_then_maintain_workers).start()
 
 
     def kill(self):

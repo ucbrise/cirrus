@@ -723,6 +723,10 @@ class Instance(object):
 
 
 class ParameterServer(object):
+    # The maximum amount of time that a parameter server can take to start, in
+    #   seconds.
+    MAX_START_TIME = 60
+
     def __init__(self, instance, ps_port, error_port, num_workers):
         self._instance = instance
         self._ps_port = ps_port
@@ -819,6 +823,35 @@ class ParameterServer(object):
                                " error task.")
 
 
+    def wait_until_started(self):
+        """Block until this parameter server has started.
+
+        The parameter server is considered to have started once attempts to
+            connect to it begin succeeding.
+
+        Raises:
+            RuntimeError: If this parameter server takes too long to start (or,
+                presumably, crashes).
+        """
+        total_attempts = self.MAX_START_TIME // handler.PS_CONNECTION_TIMEOUT
+
+        for attempt in range(1, total_attempts + 1):
+            self._log.debug("start: Making connection attempt #%d to %s."
+                            % (attempt, self))
+            start = time.time()
+            if self.reachable():
+                self._log.debug("start: %s launched." % self)
+                return
+            elapsed = time.time() - start
+
+            remaining = handler.PS_CONNECTION_TIMEOUT - elapsed
+            if remaining > 0:
+                time.sleep(remaining)
+
+        raise RuntimeError("%s appears not to have started successfully."
+                           % self)
+
+
     def stop(self):
         for task in ("error", "ps"):
             kill_command = "kill -9 $(cat %s_%d.pid)" % (task, self.ps_port())
@@ -849,6 +882,33 @@ class ParameterServer(object):
             raise RuntimeError("An error occurred while getting the output of "
                                " the error task.")
         return stdout
+
+
+    def reachable(self):
+        """Return whether this parameter server is reachable.
+
+        This parameter server is reachable if attempts to connect to it succeed.
+
+        Returns:
+            bool: Whether this parameter server is reachable.
+        """
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(handler.PS_CONNECTION_TIMEOUT)
+            sock.connect((self.public_ip(), self.ps_port()))
+            sock.close()
+            return True
+        except:
+            return False
+
+
+    def __str__(self):
+        """Return a string representation of this parameter server.
+
+        Returns:
+            str: The string representation.
+        """
+        return "ParameterServer@%s:%d" % (self.public_ip(), self.ps_port())
 
 
 def make_build_image(name, replace=False):

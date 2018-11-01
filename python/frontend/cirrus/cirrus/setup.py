@@ -33,11 +33,13 @@ def run_interactive_setup():
     """
     configuration.config["aws"] = {}
 
-    _setup_aws_credentials()
+    _set_up_aws_credentials()
 
-    _setup_region()
+    _set_up_region()
 
     _make_lambda()
+
+    _set_up_instance_resources()
 
     _save_config()
 
@@ -46,7 +48,7 @@ def run_interactive_setup():
     print("Done.")
 
 
-def _setup_aws_credentials():
+def _set_up_aws_credentials():
     """If the user does not already have functioning AWS credentials in place,
         prompt for AWS credentials and obtain permission to save them to
         AWS_CREDENTIALS_PATH.
@@ -115,7 +117,7 @@ def _aws_authorized(id=None, secret=None):
         return True
 
 
-def _setup_region():
+def _set_up_region():
     """Prompt the user for their preferred AWS region and add it to the
         configuration.
     """
@@ -136,13 +138,14 @@ def _setup_region():
 def _make_lambda():
     """Make the worker Lambda, prompting the user for permission.
     """
-    explanation = ("Can we create a Lambda function named %s in your AWS" 
+    explanation = ("Can we create a Lambda function named '%s' in your AWS" 
                    " account?") % LAMBDA_NAME
     PROMPTS = ("y/n",)
     validator = lambda c: c in ("y", "n")
     postprocess = lambda c: c == "y"
     if not prompt(explanation, PROMPTS, validator, postprocess):
-        print("Cirrus will not be usable without this Lambda.")
+        print("Exiting. Cirrus will not be usable. Re-run the setup script to "
+              "complete setup.")
         return
 
     explanation = "How many concurrent executions, at maximum, should the " \
@@ -168,6 +171,43 @@ def _make_lambda():
         "-".join(("cirrus-public", configuration.config["aws"]["region"]))
     )
     automate.make_lambda(LAMBDA_NAME, package_url, concurrency)
+
+
+def _set_up_instance_resources():
+    """Set up resources that are needed by `automate.Instance`.
+    """
+    explanation = ("Can we create an IAM role named '%s' in your AWS account?"
+                   % automate.Instance.ROLE_NAME)
+    PROMPTS = ("y/n",)
+    validator = lambda c: c in ("y", "n")
+    postprocess = lambda c: c == "y"
+    if not prompt(explanation, PROMPTS, validator, postprocess):
+        print("Exiting. Cirrus will not be usable. Re-run the setup script to "
+              "complete setup.")
+        return
+    automate.Instance.set_up_role()
+
+    explanation = ("Can we create a key pair named '%s' in your AWS account?"
+                   % automate.Instance.KEY_PAIR_NAME)
+    PROMPTS = ("y/n",)
+    validator = lambda c: c in ("y", "n")
+    postprocess = lambda c: c == "y"
+    if not prompt(explanation, PROMPTS, validator, postprocess):
+        print("Exiting. Cirrus will not be usable. Re-run the setup script to "
+              "complete setup.")
+        return
+    automate.Instance.set_up_key_pair()
+
+    explanation = ("Can we create a security group named '%s' in your AWS "
+                   "account?" % automate.Instance.SECURITY_GROUP_NAME)
+    PROMPTS = ("y/n",)
+    validator = lambda c: c in ("y", "n")
+    postprocess = lambda c: c == "y"
+    if not prompt(explanation, PROMPTS, validator, postprocess):
+        print("Exiting. Cirrus will not be usable. Re-run the setup script to "
+              "complete setup.")
+        return
+    automate.Instance.set_up_security_group()
 
 
 def _save_config():

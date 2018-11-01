@@ -1,20 +1,20 @@
 #include <unistd.h>
 #include <cstdlib>
-#include <string>
-#include <vector>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <sstream>
+#include <string>
 #include <thread>
+#include <vector>
 
+#include <Configuration.h>
 #include <InputReader.h>
 #include <PSSparseServerInterface.h>
 #include <SparseLRModel.h>
-#include <Configuration.h>
-#include "SGD.h"
-#include "Utils.h"
-#include "Serializers.h"
 #include <Tasks.h>
+#include "SGD.h"
+#include "Serializers.h"
+#include "Utils.h"
 
 using namespace cirrus;
 

@@ -318,13 +318,11 @@ void PSSparseServerTask::process_register_task(int sock, const Request& req) {
   register_lock.lock();
 
   uint32_t task_reg =
-    (registered_tasks.find(task_id) != registered_tasks.end());
-  
+      (registered_tasks.find(task_id) != registered_tasks.end());
+
   std::cout << "Registering task"
-            << " task_id: " << task_id
-            << " remaining_time: " << remaining_time
-            << " task_reg: " << task_reg
-            << std::endl;
+            << " task_id: " << task_id << " remaining_time: " << remaining_time
+            << " task_reg: " << task_reg << std::endl;
 
   if (task_reg == 0) {
     registered_tasks.insert(task_id);
@@ -342,9 +340,9 @@ void PSSparseServerTask::process_register_task(int sock, const Request& req) {
 }
 
 void PSSparseServerTask::declare_task_dead(uint32_t task_id) {
-    task_to_remaining_time[task_id] = -1;
-    task_to_starttime.erase(task_id);
-    num_tasks--;
+  task_to_remaining_time[task_id] = -1;
+  task_to_starttime.erase(task_id);
+  num_tasks--;
 }
 
 void PSSparseServerTask::process_deregister_task(int sock, const Request& req) {
@@ -354,16 +352,15 @@ void PSSparseServerTask::process_deregister_task(int sock, const Request& req) {
     handle_failed_read(&req.poll_fd);
     return;
   }
-  
+
   register_lock.lock();
 
   // check if this task has already been registered
   auto it = registered_tasks.find(task_id);
   uint32_t task_reg = (it != registered_tasks.end());
-  
+
   std::cout << "Deregistering task"
-            << " task_id: " << task_id
-            << " task_reg: " << task_reg
+            << " task_id: " << task_id << " task_reg: " << task_reg
             << std::endl;
 
   // when a task deregisters we set its remaining time to -1
@@ -419,8 +416,7 @@ void PSSparseServerTask::gradient_f() {
 #endif
 
     if (operation == SEND_LR_GRADIENT || operation == SEND_MF_GRADIENT ||
-               operation == GET_LR_SPARSE_MODEL ||
-               operation == GET_MF_SPARSE_MODEL) {
+        operation == GET_LR_SPARSE_MODEL || operation == GET_MF_SPARSE_MODEL) {
       // read 4 bytes of the size of the remaining message
       uint32_t incoming_size = 0;
       if (read_all(sock, &incoming_size, sizeof(uint32_t)) == 0) {
@@ -755,7 +751,8 @@ void PSSparseServerTask::check_tasks_lifetime() {
     auto start_time = task.second;
 
     auto elapsed_sec =
-      std::chrono::duration_cast<std::chrono::seconds>(now - start_time).count();
+        std::chrono::duration_cast<std::chrono::seconds>(now - start_time)
+            .count();
 
     if (elapsed_sec > task_to_remaining_time[task_id] + TIMEOUT_THRESHOLD_SEC) {
       declare_task_dead(task_id);
@@ -820,11 +817,10 @@ void PSSparseServerTask::run(const Configuration& config) {
     if (elapsed_us > 1000000) {
       last_tick = now;
       std::cout << "Events in the last sec: "
-        << 1.0 * gradientUpdatesCount / elapsed_us * 1000 * 1000
-        << " since (sec): " << since_start_sec
-        << " #conns: " << num_connections
-        << " #tasks: " << num_tasks
-        << std::endl;
+                << 1.0 * gradientUpdatesCount / elapsed_us * 1000 * 1000
+                << " since (sec): " << since_start_sec
+                << " #conns: " << num_connections << " #tasks: " << num_tasks
+                << std::endl;
       gradientUpdatesCount = 0;
 
       register_lock.lock();
@@ -851,8 +847,8 @@ void PSSparseServerTask::run(const Configuration& config) {
 
 void PSSparseServerTask::checkpoint_model_loop() {
   if (task_config.get_checkpoint_frequency() == 0) {
-      // checkpoint disabled
-      return;
+    // checkpoint disabled
+    return;
   }
 
   while (!kill_signal) {

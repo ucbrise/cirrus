@@ -18,12 +18,12 @@ int main() {
   if (registered != 1) {
     throw std::runtime_error("Expected 1");
   }
-  
+
   registered = psi->register_task(0, 100);
   if (registered != 1) {
     throw std::runtime_error("Expected 1");
   }
-  
+
   registered = psi->deregister_task(0);
   if (registered != 1) {
     throw std::runtime_error("Expected 1");

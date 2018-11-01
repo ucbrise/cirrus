@@ -262,12 +262,11 @@ void PSSparseServerInterface::send_mf_gradient(const MFSparseGradient& gradient)
   delete[] data;
 }
 
-uint32_t PSSparseServerInterface::register_task(
-    uint32_t id, uint32_t remaining_time_sec) {
+uint32_t PSSparseServerInterface::register_task(uint32_t id,
+                                                uint32_t remaining_time_sec) {
 #ifdef DEBUG
   std::cout << "Registering task id: " << id
-            << " remaining_time_sec: " << remaining_time_sec
-            << std::endl;
+            << " remaining_time_sec: " << remaining_time_sec << std::endl;
 #endif
 
   uint32_t data[3] = {REGISTER_TASK, id, remaining_time_sec};
@@ -284,8 +283,7 @@ uint32_t PSSparseServerInterface::register_task(
 
 uint32_t PSSparseServerInterface::deregister_task(uint32_t id) {
 #ifdef DEBUG
-  std::cout << "Deregistering task id: " << id
-            << std::endl;
+  std::cout << "Deregistering task id: " << id << std::endl;
 #endif
 
   uint32_t data[2] = {DEREGISTER_TASK, id};
@@ -294,8 +292,7 @@ uint32_t PSSparseServerInterface::deregister_task(uint32_t id) {
   }
 
 #ifdef DEBUG
-  std::cout << "Deregistering reading reply: "
-            << std::endl;
+  std::cout << "Deregistering reading reply: " << std::endl;
 #endif
   uint32_t status;
   if (read_all(sock, &status, sizeof(uint32_t)) == 0) {
@@ -303,7 +300,7 @@ uint32_t PSSparseServerInterface::deregister_task(uint32_t id) {
   }
   return status;
 }
-  
+
 void PSSparseServerInterface::set_status(uint32_t id, uint32_t status) {
   std::cout << "Setting status id: " << id << " status: " << status << std::endl;
   uint32_t data[3] = {SET_TASK_STATUS, id, status};

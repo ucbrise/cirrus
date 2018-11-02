@@ -62,4 +62,4 @@ test_register_worker_SOURCES = test_register_worker.cpp $(CIRRUS_SRC_FILES)
 test_keyvalue_SOURCES = test_keyvalue.cpp $(CIRRUS_SRC_FILES)
 
 clean:
-	rm -rf a.out test_iterator
+	rm -rf a.out

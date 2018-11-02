@@ -31,7 +31,7 @@ LAMBDA_NAME = "cirrus_worker"
 def run_interactive_setup():
     """Run an interactive command-line setup process.
     """
-    configuration.config["aws"] = {}
+    configuration.config(False)["aws"] = {}
 
     _set_up_aws_credentials()
 
@@ -130,7 +130,7 @@ def _set_up_region():
 
     region = prompt(EXPLANATION, PROMPTS, validator)
 
-    configuration.config["aws"]["region"] = region
+    configuration.config(False)["aws"]["region"] = region
 
     # Refresh cached AWS clients, so that clients are bound to the updated
     #   region.
@@ -154,7 +154,7 @@ def _make_lambda():
                   "Lambda function be limited to? Your AWS account must have " \
                   "at least this many unreserved concurrent executions " \
                   "available in the %s region." \
-                  % configuration.config["aws"]["region"]
+                  % configuration.config(False)["aws"]["region"]
     PROMPTS = ("Executions",)
     # TODO: Actually check that the chosen number is valid. It should be less
     #   than the account's limit - 100.
@@ -170,7 +170,7 @@ def _make_lambda():
     # TODO: Temporary hack.
     package_url = LAMBDA_PACKAGE_URL.replace(
         "cirrus-public",
-        "-".join(("cirrus-public", configuration.config["aws"]["region"]))
+        "-".join(("cirrus-public", configuration.config(False)["aws"]["region"]))
     )
     automate.make_lambda(LAMBDA_NAME, package_url, concurrency)
 
@@ -231,7 +231,7 @@ def _save_config():
     """Save the configuration.
     """
     with open(os.path.expanduser(configuration.CONFIGURATION_PATH), "w+") as f:
-        configuration.config.write(f)
+        configuration.config(False).write(f)
 
 
 def prompt(explanation, prompts, validator=None, postprocess=None):

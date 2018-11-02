@@ -140,7 +140,7 @@ class ClientManager(object):
             self._log.debug("ClientManager: Initializing Lambda client.")
             self._lamb = boto3.client(
                 "lambda",
-                configuration.config["aws"]["region"]
+                configuration.config()["aws"]["region"]
             )
         return self._lamb
 
@@ -158,7 +158,7 @@ class ClientManager(object):
             self._log.debug("ClientManager: Initializing IAM resource.")
             self._iam = boto3.resource(
                 "iam",
-                configuration.config["aws"]["region"]
+                configuration.config()["aws"]["region"]
             )
         return self._iam
 
@@ -176,7 +176,7 @@ class ClientManager(object):
             self._log.debug("ClientManager: Initializing EC2 client.")
             self._ec2 = boto3.client(
                 "ec2",
-                configuration.config["aws"]["region"]
+                configuration.config()["aws"]["region"]
             )
         return self._ec2
 
@@ -195,7 +195,7 @@ class ClientManager(object):
                             "client.")
             self._cloudwatch_logs = boto3.client(
                 "logs",
-                configuration.config["aws"]["region"]
+                configuration.config()["aws"]["region"]
             )
         return self._cloudwatch_logs
 
@@ -211,7 +211,7 @@ class ClientManager(object):
         if self._s3 is None:
             self._log.debug("ClientManager: Initializing S3 resource.")
             self._s3 = boto3.resource(
-                "s3", configuration.config["aws"]["region"])
+                "s3", configuration.config()["aws"]["region"])
         return self._s3
 
 
@@ -265,7 +265,7 @@ class Instance(object):
         """
         log = logging.getLogger("cirrus.automate.Instance")
 
-        ec2 = boto3.resource("ec2", configuration.config["aws"]["region"])
+        ec2 = boto3.resource("ec2", configuration.config()["aws"]["region"])
 
         log.debug("images_exist: Describing images.")
         response = ec2.meta.client.describe_images(
@@ -286,7 +286,7 @@ class Instance(object):
         """
         log = logging.getLogger("cirrus.automate.Instance")
 
-        ec2 = boto3.resource("ec2", configuration.config["aws"]["region"])
+        ec2 = boto3.resource("ec2", configuration.config()["aws"]["region"])
 
         log.debug("delete_images: Describing images.")
         response = ec2.meta.client.describe_images(
@@ -441,7 +441,7 @@ class Instance(object):
         self._log = logging.getLogger("cirrus.automate.Instance")
 
         self._log.debug("__init__: Initializing EC2.")
-        self._ec2 = boto3.resource("ec2", configuration.config["aws"]["region"])
+        self._ec2 = boto3.resource("ec2", configuration.config()["aws"]["region"])
 
         if self._ami_id is None:
             self._log.debug("__init__: Resolving AMI name to AMI ID.")
@@ -943,7 +943,7 @@ def make_build_image(name, replace=False):
     log = logging.getLogger("cirrus.automate.make_build_image")
 
     log.debug("make_build_image: Initializing EC2.")
-    ec2 = boto3.resource("ec2", configuration.config["aws"]["region"])
+    ec2 = boto3.resource("ec2", configuration.config()["aws"]["region"])
 
     log.debug("make_build_image: Checking for already-existent images.")
     if replace:
@@ -1128,7 +1128,7 @@ def set_up_bucket():
 
     log.debug("set_up_bucket: Creating bucket.")
     bucket_config = {
-        "LocationConstraint": configuration.config["aws"]["region"]
+        "LocationConstraint": configuration.config()["aws"]["region"]
     }
     clients.s3.create_bucket(
         Bucket=bucket_name,

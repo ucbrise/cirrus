@@ -27,11 +27,6 @@ BUILD_INSTANCE = {
     "typ": "t3.xlarge",
     "username": "ec2-user"
 }
-BUILD_IMAGE_NAME = "cirrus_build_image"
-SERVER_IMAGE_NAME = "cirrus_server_image"
-EXECUTABLES_PATH = "s3://cirrus-public/executables"
-LAMBDA_PACKAGE_PATH = "s3://cirrus-public/lambda_package"
-LAMBDA_NAME = "cirrus_lambda"
 
 # The ARN of an IAM policy that allows full access to S3.
 S3_FULL_ACCESS_ARN = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
@@ -1050,7 +1045,8 @@ def make_lambda_package(path, executables_path):
     log.debug("make_lambda_package: Uploading package.")
     file.seek(0)
     bucket, key = _split_s3_url(path)
-    s3_client.upload_fileobj(file, bucket, key)
+    s3_client.upload_fileobj(file, bucket, key,
+        ExtraArgs={"ACL": "bucket-owner-full-control"})
 
     log.debug("make_lambda_package: Waiting for changes to take effect.")
     # Waits for S3's eventual consistency to catch up. Ideally, something more sophisticated would be used since the
@@ -1369,37 +1365,6 @@ def maintain_workers(n, lambda_name, config, ps, stop_event, experiment_id):
         )
         threads.append(thread)
         thread.start()
-
-
-def launch_server(instance):
-    """Launch a parameter server.
-
-    Args:
-        instance (EC2Instance): The instance on which to launch the server.
-            Should use an AMI produced by `make_server_image`.
-    """
-    pass
-
-
-def build():
-    """Build Cirrus.
-
-    Publishes Cirrus' executables, a worker Lambda ZIP package, and a parameter
-        server AMI on S3.
-    """
-    make_build_image(BUILD_IMAGE_NAME)
-    with Instance(**BUILD_INSTANCE) as instance:  # FIXME
-        make_executables(EXECUTABLES_PATH, instance)
-        make_lambda_package(LAMBDA_PACKAGE_PATH, EXECUTABLES_PATH)
-        make_server_image(SERVER_IMAGE_NAME, EXECUTABLES_PATH, instance)
-
-
-def deploy():
-    """Deploy Cirrus.
-
-    Creates a worker Lambda function.
-    """
-    make_lambda(LAMBDA_NAME, LAMBDA_PACKAGE_PATH)
 
 
 def _split_s3_url(url):

@@ -21,7 +21,7 @@ AWS_CREDENTIALS_PATH = "~/.aws/credentials"
 
 # An S3 URL where a worker Lambda package has been published by the maintainers
 #   of Cirrus.
-LAMBDA_PACKAGE_URL = "s3://cirrus-public/1/lambda-package"
+LAMBDA_PACKAGE_URL = "s3://cirrus-builds/0/lambda-package"
 
 
 # The name to give to the worker Lambda.

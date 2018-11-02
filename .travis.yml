@@ -27,6 +27,8 @@ script:
    - for i in "./tests/test_travis_lr/test.sh & sleep 1" "./tests/test_travis_lr/error"; do eval ${i}; done
    - ./tests/test_data/jester.sh
    - for i in "./tests/test_travis_mf/test.sh & sleep 1" "./tests/test_travis_mf/error"; do eval ${i}; done
+   - ./tests/test_travis/test_register.sh
+   - ./tests/test_travis/test_keyvalue.sh
 
 env:
   global:

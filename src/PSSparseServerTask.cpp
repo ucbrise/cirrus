@@ -44,6 +44,7 @@ PSSparseServerTask::PSSparseServerTask(uint64_t model_size,
   std::atomic_init(&gradientUpdatesCount, 0UL);
   std::atomic_init(&thread_count, 0);
 
+  set_operation_maps();
 
   for (int i = 0; i < NUM_PS_WORK_THREADS; i++) {
     thread_msg_buffer[i].reset(new char[THREAD_MSG_BUFFER_SIZE]);
@@ -523,12 +524,18 @@ bool PSSparseServerTask::process_set_value(int sock,
                                            std::vector<char>& thread_buffer,
                                            int) {
   struct {
-    char key[KEY_SIZE + 1];
+    char key[KEY_SIZE];
     uint32_t value_size;
   } msg;
 
+  memset(&msg, 0, sizeof(msg));
+
   // read the key (KEY_SIZE bytes)
-  if (read_all(sock, &msg, sizeof(msg)) == 0) {
+  if (read_all(sock, msg.key, KEY_SIZE) == 0) {
+    handle_failed_read(&req.poll_fd);
+    return false;
+  }
+  if (read_all(sock, &msg.value_size, sizeof(uint32_t)) == 0) {
     handle_failed_read(&req.poll_fd);
     return false;
   }
@@ -537,7 +544,7 @@ bool PSSparseServerTask::process_set_value(int sock,
       new char[msg.value_size], std::default_delete<char[]>());
 
   // read the key value
-  if (read_all(sock, value_data.get(), sizeof(msg.value_size)) == 0) {
+  if (read_all(sock, value_data.get(), msg.value_size) == 0) {
     handle_failed_read(&req.poll_fd);
     return false;
   }

@@ -329,6 +329,10 @@ void PSSparseServerInterface::set_value(const std::string& key,
   char key_char[KEY_SIZE] = {0};
   std::copy(key.data(), key.data() + key.size(), key_char);
 
+  uint32_t operation = SET_VALUE;
+  if (send_all(sock, &operation, sizeof(operation)) != sizeof(operation)) {
+    throw std::runtime_error("Error sending operation");
+  }
   if (send_all(sock, key_char, KEY_SIZE) != KEY_SIZE) {
     throw std::runtime_error("Error sending key name");
   }
@@ -340,10 +344,15 @@ void PSSparseServerInterface::set_value(const std::string& key,
   }
 }
 
-std::shared_ptr<char> PSSparseServerInterface::get_value(
+std::pair<std::shared_ptr<char>, uint32_t> PSSparseServerInterface::get_value(
     const std::string& key) {
   char key_char[KEY_SIZE] = {0};
   std::copy(key.data(), key.data() + key.size(), key_char);
+
+  uint32_t operation = GET_VALUE;
+  if (send_all(sock, &operation, sizeof(operation)) != sizeof(operation)) {
+    throw std::runtime_error("Error sending operation");
+  }
 
   if (send_all(sock, key_char, KEY_SIZE) != KEY_SIZE) {
     throw std::runtime_error("Error sending key name");
@@ -356,7 +365,7 @@ std::shared_ptr<char> PSSparseServerInterface::get_value(
 
   if (size == 0) {
     // object not found
-    return std::shared_ptr<char>(nullptr);
+    return std::make_pair(std::shared_ptr<char>(nullptr), 0);
   }
 
   std::shared_ptr<char> value_data =
@@ -366,7 +375,7 @@ std::shared_ptr<char> PSSparseServerInterface::get_value(
     throw std::runtime_error("Error receiving value data");
   }
 
-  return value_data;
+  return std::make_pair(value_data, size);
 }
 
 } // namespace cirrus

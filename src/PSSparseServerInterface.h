@@ -51,7 +51,7 @@ class PSSparseServerInterface {
    * @param key Key name
    * @return Returns pointer to raw value
    */
-  std::shared_ptr<char> get_value(const std::string& key);
+  std::pair<std::shared_ptr<char>, uint32_t> get_value(const std::string& key);
   
   /*
    * Marks task as running on the parameter server

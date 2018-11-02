@@ -1,7 +1,7 @@
 AUTOMAKE_OPTIONS = foreign
 
 CXX=g++
-CXXFLAGS=-Wall -ansi -O3 -std=c++17 -ggdb -Werror
+CXXFLAGS=-Wall -ansi -O3 -std=c++17 -ggdb
 
 TOP_DIR=../../../..
 THIRD_PARTY_DIR=../../third_party

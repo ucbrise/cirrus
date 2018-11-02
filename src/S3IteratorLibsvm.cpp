@@ -302,7 +302,6 @@ std::vector<std::shared_ptr<SparseDataset>> S3IteratorLibsvm::parseObjLibsvm(
   while (1) {
     std::shared_ptr<SparseDataset> minibatch;
 
-    uint64_t start = get_time_us();
     if (!buildDatasetLibsvm(data, index, minibatch)) {
 #ifdef DEBUG
       std::cout << "Finished text returning " << result.size() << " minibatches"
@@ -412,7 +411,6 @@ void S3IteratorLibsvm::threadFunction(const Configuration& config) {
   try_start:
     try {
       std::cout << "S3IteratorLibsvm: getting object" << std::endl;
-      uint64_t start = get_time_us();
 
       s3_obj = s3_client->s3_get_object_range_ptr(s3_key, s3_bucket, range);
 

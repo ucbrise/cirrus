@@ -1,7 +1,7 @@
 AUTOMAKE_OPTIONS = foreign
 
 CXX=g++
-CXXFLAGS=-Wall -ansi -O3 -std=c++17 -ggdb
+CXXFLAGS=-Wall -ansi -O3 -std=c++17 -ggdb -Werror
 
 bin_PROGRAMS = test_ps worker error
 

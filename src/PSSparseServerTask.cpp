@@ -574,10 +574,11 @@ uint32_t PSSparseServerTask::declare_task_dead(uint32_t task_id) {
   return 0;
 }
 
-bool PSSparseServerTask::process_deregister_task(int sock,
-                                               const Request& req,
-                                               std::vector<char>& thread_buffer,
-                                               int) {
+bool PSSparseServerTask::process_deregister_task(
+    int sock,
+    const Request& req,
+    std::vector<char>& thread_buffer,
+    int) {
   // read the task id
   uint32_t task_id = 0;
   if (read_all(sock, &task_id, sizeof(uint32_t)) == 0) {

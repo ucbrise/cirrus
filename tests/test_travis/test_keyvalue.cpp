@@ -15,13 +15,13 @@ int main() {
   }
 
   psi->set_value("key", value, sizeof(value));
-  
+
   std::pair<std::shared_ptr<char>, uint32_t> ret = psi->get_value("key");
 
   if (ret.second != sizeof(value)) {
     throw std::runtime_error("Wrong size");
   }
-  if (memcmp(&value, ret.first.get(), sizeof(value))) { 
+  if (memcmp(&value, ret.first.get(), sizeof(value))) {
     throw std::runtime_error("Wrong value");
   }
 

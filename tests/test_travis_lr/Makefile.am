@@ -1,9 +1,9 @@
 AUTOMAKE_OPTIONS = foreign
 
 CXX=g++
-CXXFLAGS=-Wall -ansi -O3 -std=c++17 -ggdb
+CXXFLAGS=-Wall -ansi -O3 -std=c++17 -ggdb -Werror
 
-bin_PROGRAMS = test_lr test_ps worker error test_register_worker
+bin_PROGRAMS = test_lr test_ps worker error
 
 TOP_DIR=../../../..
 THIRD_PARTY_DIR=../../third_party
@@ -63,7 +63,6 @@ test_lr_SOURCES = check_correctness_cirrus_sgd.cpp $(CIRRUS_SRC_FILES)
 test_ps_SOURCES = ps_test.cpp $(CIRRUS_SRC_FILES)
 
 worker_SOURCES = worker.cpp $(CIRRUS_SRC_FILES)
-test_register_worker_SOURCES = test_register_worker.cpp $(CIRRUS_SRC_FILES)
 
 error_SOURCES = error.cpp $(CIRRUS_SRC_FILES)
 

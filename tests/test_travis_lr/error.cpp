@@ -1,15 +1,17 @@
 #include <Tasks.h>
 
-#include "Serializers.h"
-#include "config.h"
-#include "Utils.h"
-#include "SparseLRModel.h"
-#include "PSSparseServerInterface.h"
 #include "Configuration.h"
 #include "InputReader.h"
+#include "PSSparseServerInterface.h"
+#include "Serializers.h"
+#include "SparseLRModel.h"
+#include "Utils.h"
+#include "config.h"
 
 #define DEBUG
 #define ERROR_INTERVAL_USEC (100000)  // time between error checks
+
+#define LOSS_THRESHOLD (0.66)
 
 using namespace cirrus;
 
@@ -72,9 +74,11 @@ int main() {
       throw std::runtime_error(std::string("Error ") + exec.what());
     }
   }
-  if (avg_loss < 0.66) {
+  if (avg_loss < LOSS_THRESHOLD) {
     exit(EXIT_SUCCESS);
   } else {
     exit(EXIT_FAILURE);
   }
+
+  return 0;
 }

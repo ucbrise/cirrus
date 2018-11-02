@@ -1,15 +1,15 @@
 #include <unistd.h>
 #include <cstdlib>
-#include <string>
-#include <vector>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <sstream>
+#include <string>
 #include <thread>
+#include <vector>
 
+#include <Configuration.h>
 #include <InputReader.h>
 #include <SparseLRModel.h>
-#include <Configuration.h>
 #include "SGD.h"
 
 using namespace cirrus;

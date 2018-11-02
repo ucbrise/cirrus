@@ -16,6 +16,8 @@
 #define MAX_CONNECTIONS (nworkers * 2 + 1) // (2 x # workers + 1)
 #define THREAD_MSG_BUFFER_SIZE 1000000
 
+#define TIMEOUT_THRESHOLD_SEC (3)
+
 namespace cirrus {
 
 PSSparseServerTask::PSSparseServerTask(uint64_t model_size,
@@ -34,24 +36,28 @@ PSSparseServerTask::PSSparseServerTask(uint64_t model_size,
              worker_id,
              ps_ip,
              ps_port),
-      kill_signal(false),
       main_thread(0),
+      kill_signal(false),
       threads_barrier(new pthread_barrier_t, destroy_pthread_barrier) {
   std::cout << "PSSparseServerTask is built" << std::endl;
 
   std::atomic_init(&gradientUpdatesCount, 0UL);
   std::atomic_init(&thread_count, 0);
 
-  operation_to_name[0] = "SEND_LR_GRADIENT";
-  operation_to_name[1] = "SEND_MF_GRADIENT";
-  operation_to_name[2] = "GET_LR_FULL_MODEL";
-  operation_to_name[3] = "GET_MF_FULL_MODEL";
-  operation_to_name[4] = "GET_LR_SPARSE_MODEL";
-  operation_to_name[5] = "GET_MF_SPARSE_MODEL";
-  operation_to_name[6] = "SET_TASK_STATUS";
-  operation_to_name[7] = "GET_TASK_STATUS";
-  operation_to_name[8] = "REGISTER_TASK";
-  operation_to_name[9] = "GET_NUM_CONNS";
+  operation_to_name[SEND_LR_GRADIENT] = "SEND_LR_GRADIENT";
+  operation_to_name[SEND_MF_GRADIENT] = "SEND_MF_GRADIENT";
+  operation_to_name[GET_LR_FULL_MODEL] = "GET_LR_FULL_MODEL";
+  operation_to_name[GET_MF_FULL_MODEL] = "GET_MF_FULL_MODEL";
+  operation_to_name[GET_LR_SPARSE_MODEL] = "GET_LR_SPARSE_MODEL";
+  operation_to_name[GET_MF_SPARSE_MODEL] = "GET_MF_SPARSE_MODEL";
+  operation_to_name[SET_TASK_STATUS] = "SET_TASK_STATUS";
+  operation_to_name[GET_TASK_STATUS] = "GET_TASK_STATUS";
+  operation_to_name[REGISTER_TASK] = "REGISTER_TASK";
+  operation_to_name[DEREGISTER_TASK] = "DEREGISTER_TASK";
+  operation_to_name[GET_NUM_CONNS] = "GET_NUM_CONNS";
+  operation_to_name[GET_NUM_UPDATES] = "GET_NUM_UPDATES";
+  operation_to_name[GET_LAST_TIME_ERROR] = "GET_LAST_TIME_ERROR";
+  operation_to_name[KILL_SIGNAL] = "KILL_SIGNAL";
 
   for (int i = 0; i < NUM_PS_WORK_THREADS; i++) {
     thread_msg_buffer[i].reset(new char[THREAD_MSG_BUFFER_SIZE]);
@@ -297,6 +303,94 @@ void PSSparseServerTask::handle_failed_read(struct pollfd* pfd) {
   pfd->revents = 0;
 }
 
+void PSSparseServerTask::process_register_task(int sock, const Request& req) {
+  // read the task id
+  uint32_t data[2];  // task_id + remaining_time (sec)
+  if (read_all(sock, &data, sizeof(uint32_t) * 2) == 0) {
+    handle_failed_read(&req.poll_fd);
+    return;
+  }
+
+  // check if this task has already been registered
+  uint32_t task_id = data[0];
+  uint32_t remaining_time = data[1];
+
+  register_lock.lock();
+
+  uint32_t task_reg =
+      (registered_tasks.find(task_id) != registered_tasks.end());
+
+  std::cout << "Registering task"
+            << " task_id: " << task_id << " remaining_time: " << remaining_time
+            << " task_reg: " << task_reg << std::endl;
+
+  if (task_reg == 0) {
+    registered_tasks.insert(task_id);
+    task_to_remaining_time[task_id] = remaining_time;
+    task_to_starttime[task_id] = std::chrono::steady_clock::now();
+  }
+
+  register_lock.unlock();
+
+  if (send_all(sock, &task_reg, sizeof(uint32_t)) != sizeof(uint32_t)) {
+    throw std::runtime_error("Error sending reply");
+  }
+
+  num_tasks++;
+}
+
+uint32_t PSSparseServerTask::declare_task_dead(uint32_t task_id) {
+  std::cout << "Declaring task id: " << task_id << " as terminated"
+            << std::endl;
+
+  if (task_to_starttime.find(task_id) == task_to_starttime.end()) {
+    std::cout << "Task " << task_id << " has already been deregistered"
+              << std::endl;
+    return 1;
+  }
+
+  task_to_remaining_time[task_id] = -1;
+  task_to_starttime.erase(task_id);
+
+  num_tasks--;
+
+  return 0;
+}
+
+void PSSparseServerTask::process_deregister_task(int sock, const Request& req) {
+  // read the task id
+  uint32_t task_id = 0;
+  if (read_all(sock, &task_id, sizeof(uint32_t)) == 0) {
+    handle_failed_read(&req.poll_fd);
+    return;
+  }
+
+  register_lock.lock();
+
+  // check if this task has already been registered
+  auto it = registered_tasks.find(task_id);
+  uint32_t is_task_reg = (it != registered_tasks.end());
+
+  std::cout << "Deregistering task"
+            << " task_id: " << task_id << " is_task_reg: " << is_task_reg
+            << std::endl;
+
+  uint32_t ret = 0;  // success return value
+
+  // when a task deregisters we set its remaining time to -1
+  if (is_task_reg) {
+    ret = declare_task_dead(task_id);
+  } else {
+    ret = 2;  // does not exist
+  }
+
+  register_lock.unlock();
+
+  if (send_all(sock, &ret, sizeof(uint32_t)) != sizeof(uint32_t)) {
+    throw std::runtime_error("Error sending reply");
+  }
+}
+
 void PSSparseServerTask::gradient_f() {
   std::vector<char> thread_buffer;
   thread_buffer.resize(120 * 1024 * 1024); // 120 MB
@@ -337,25 +431,8 @@ void PSSparseServerTask::gradient_f() {
               << operation_to_name[operation] << std::endl;
 #endif
 
-    if (operation == REGISTER_TASK) {
-      // read the task id
-      uint32_t task_id = 0;
-      if (read_all(sock, &task_id, sizeof(uint32_t)) == 0) {
-        handle_failed_read(&req.poll_fd);
-        continue;
-      }
-      // check if this task has already been registered
-      uint32_t task_reg =
-          (registered_tasks.find(task_id) != registered_tasks.end());
-
-      if (task_reg == 0) {
-        registered_tasks.insert(task_id);
-      }
-      send_all(sock, &task_reg, sizeof(uint32_t));
-      continue;
-    } else if (operation == SEND_LR_GRADIENT || operation == SEND_MF_GRADIENT ||
-               operation == GET_LR_SPARSE_MODEL ||
-               operation == GET_MF_SPARSE_MODEL) {
+    if (operation == SEND_LR_GRADIENT || operation == SEND_MF_GRADIENT ||
+        operation == GET_LR_SPARSE_MODEL || operation == GET_MF_SPARSE_MODEL) {
       // read 4 bytes of the size of the remaining message
       uint32_t incoming_size = 0;
       if (read_all(sock, &incoming_size, sizeof(uint32_t)) == 0) {
@@ -365,7 +442,11 @@ void PSSparseServerTask::gradient_f() {
       req.incoming_size = incoming_size;
     }
 
-    if (operation == SEND_LR_GRADIENT) {
+    if (operation == REGISTER_TASK) {
+      process_register_task(sock, req);
+    } else if (operation == DEREGISTER_TASK) {
+      process_deregister_task(sock, req);
+    } else if (operation == SEND_LR_GRADIENT) {
       if (!process_send_lr_gradient(req, thread_buffer)) {
         break;
       }
@@ -678,6 +759,26 @@ void sig_handler(int) {
   //std::cout << "Sig handler" << std::endl;
 }
 
+void PSSparseServerTask::check_tasks_lifetime() {
+  auto now = std::chrono::steady_clock::now();
+
+  for (const auto& task : task_to_starttime) {
+    uint32_t task_id = task.first;
+    auto start_time = task.second;
+
+    auto elapsed_sec =
+        std::chrono::duration_cast<std::chrono::seconds>(now - start_time)
+            .count();
+
+    std::cout << "id " << task_id << " elapsed_sec " << elapsed_sec
+              << std::endl;
+
+    if (elapsed_sec > task_to_remaining_time[task_id] + TIMEOUT_THRESHOLD_SEC) {
+      declare_task_dead(task_id);
+    }
+  }
+}
+
 /**
  * This is the task that runs the parameter server
  * This task is responsible for
@@ -735,11 +836,15 @@ void PSSparseServerTask::run(const Configuration& config) {
     if (elapsed_us > 1000000) {
       last_tick = now;
       std::cout << "Events in the last sec: "
-        << 1.0 * gradientUpdatesCount / elapsed_us * 1000 * 1000
-        << " since (sec): " << since_start_sec
-        << " #conns: " << num_connections
-        << std::endl;
+                << 1.0 * gradientUpdatesCount / elapsed_us * 1000 * 1000
+                << " since (sec): " << since_start_sec
+                << " #conns: " << num_connections << " #tasks: " << num_tasks
+                << std::endl;
       gradientUpdatesCount = 0;
+
+      register_lock.lock();
+      check_tasks_lifetime();
+      register_lock.unlock();
     }
     sleep(1);
   }
@@ -760,15 +865,15 @@ void PSSparseServerTask::run(const Configuration& config) {
 }
 
 void PSSparseServerTask::checkpoint_model_loop() {
-    if (task_config.get_checkpoint_frequency() == 0) {
-        // checkpoint disabled
-        return;
-    }
+  if (task_config.get_checkpoint_frequency() == 0) {
+    // checkpoint disabled
+    return;
+  }
 
-    while (!kill_signal) {
-      sleep(task_config.get_checkpoint_frequency());
-      // checkpoint to s3
-    }
+  while (!kill_signal) {
+    sleep(task_config.get_checkpoint_frequency());
+    // checkpoint to s3
+  }
 }
 
 void PSSparseServerTask::checkpoint_model_file(

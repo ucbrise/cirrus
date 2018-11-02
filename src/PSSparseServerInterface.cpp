@@ -6,7 +6,7 @@
 #include "Checksum.h"
 #include "Constants.h"
 
-//#define DEBUG
+#undef DEBUG
 
 #define MAX_MSG_SIZE (1024*1024)
 
@@ -261,7 +261,46 @@ void PSSparseServerInterface::send_mf_gradient(const MFSparseGradient& gradient)
   }
   delete[] data;
 }
-  
+
+uint32_t PSSparseServerInterface::register_task(uint32_t id,
+                                                uint32_t remaining_time_sec) {
+#ifdef DEBUG
+  std::cout << "Registering task id: " << id
+            << " remaining_time_sec: " << remaining_time_sec << std::endl;
+#endif
+
+  uint32_t data[3] = {REGISTER_TASK, id, remaining_time_sec};
+  if (send_all(sock, data, sizeof(uint32_t) * 3) == -1) {
+    throw std::runtime_error("Error registering task");
+  }
+
+  uint32_t status;
+  if (read_all(sock, &status, sizeof(uint32_t)) == 0) {
+    throw std::runtime_error("Error getting task register return");
+  }
+  return status;
+}
+
+uint32_t PSSparseServerInterface::deregister_task(uint32_t id) {
+#ifdef DEBUG
+  std::cout << "Deregistering task id: " << id << std::endl;
+#endif
+
+  uint32_t data[2] = {DEREGISTER_TASK, id};
+  if (send_all(sock, data, sizeof(uint32_t) * 2) == -1) {
+    throw std::runtime_error("Error registering task");
+  }
+
+#ifdef DEBUG
+  std::cout << "Deregistering reading reply: " << std::endl;
+#endif
+  uint32_t status;
+  if (read_all(sock, &status, sizeof(uint32_t)) == 0) {
+    throw std::runtime_error("Error getting task register return");
+  }
+  return status;
+}
+
 void PSSparseServerInterface::set_status(uint32_t id, uint32_t status) {
   std::cout << "Setting status id: " << id << " status: " << status << std::endl;
   uint32_t data[3] = {SET_TASK_STATUS, id, status};

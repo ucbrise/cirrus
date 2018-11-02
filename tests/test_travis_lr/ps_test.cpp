@@ -8,4 +8,6 @@ int main() {
       config.get_minibatch_size(), config.get_num_features(), 2, 1, "127.0.0.1",
       1337);
   st.run(config);
+
+  return 0;
 }

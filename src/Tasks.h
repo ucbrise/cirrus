@@ -11,6 +11,7 @@
 #include "S3SparseIterator.h"
 #include "OptimizationMethod.h"
 
+#include <chrono>
 #include <map>
 #include <string>
 #include <unordered_map>
@@ -164,6 +165,7 @@ class ErrorSparseTask : public MLTask {
    double last_time = 0.0;
    double last_error = 0.0;
    std::atomic<double> curr_error;
+   std::atomic<double> total_loss;
 };
 
 class PerformanceLambdaTask : public MLTask {
@@ -308,13 +310,17 @@ class PSSparseServerTask : public MLTask {
                                    const Request&,
                                    std::vector<char>&,
                                    int);
-  bool process_register_task(int, const Request&, std::vector<char>&, int);
   bool process_get_value(int, const Request&, std::vector<char>&, int);
   bool process_set_value(int, const Request&, std::vector<char>&, int);
+  bool process_register_task(int, const Request&, std::vector<char>&, int);
+  bool process_deregister_task(int, const Request&, std::vector<char>&, int);
 
   void kill_server();
 
   static void destroy_pthread_barrier(pthread_barrier_t*);
+
+  void check_tasks_lifetime();
+  uint32_t declare_task_dead(uint32_t);
 
   /**
     * Attributes
@@ -330,7 +336,12 @@ class PSSparseServerTask : public MLTask {
   // threads to handle requests
   std::vector<std::unique_ptr<std::thread>> gradient_thread;
 
-  std::set<uint64_t> registered_tasks;  //< which tasks have registered
+  std::set<uint64_t> registered_tasks;  //< ids of registered tasks
+  // reamining time (sec) of each registered task
+  std::map<uint64_t, int64_t> task_to_remaining_time;
+  std::map<uint64_t, std::chrono::time_point<std::chrono::steady_clock>>
+      task_to_starttime;
+  std::mutex register_lock;  //< to coordinate access to reg. datastructures
 
   // thread to checkpoint model
   std::vector<std::unique_ptr<std::thread>> checkpoint_thread;
@@ -358,7 +369,8 @@ class PSSparseServerTask : public MLTask {
   std::unique_ptr<SparseLRModel> lr_model;  //< last computed model
   std::unique_ptr<MFModel> mf_model;        //< last computed model
   Configuration task_config;                //< config for parameter server
-  uint32_t num_connections = 0;             //< number of current connections
+  uint32_t num_connections = 0;             //< num of current connections
+  uint32_t num_tasks = 0;                   //< num of currently reg. tasks
 
   std::map<int, bool> task_to_status;            //< keep track of task status
   std::map<int, std::string> operation_to_name;  //< request id to name

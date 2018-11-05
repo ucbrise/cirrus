@@ -30,12 +30,10 @@ int main() {
     double total_loss = ret.first;
     double total_accuracy = ret.second;
     double total_num_samples = test_data->num_samples();
-    double total_num_features = test_data->num_features();
 
     std::cout << "[ERROR_TASK] Loss (Total/Avg): " << total_loss << "/"
               << (total_loss / total_num_samples)
               << " Accuracy: " << (total_accuracy) << std::endl;
-    double avg_loss = (total_loss / total_num_samples);
   }
 
   return 0;

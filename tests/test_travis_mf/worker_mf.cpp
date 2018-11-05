@@ -36,7 +36,7 @@ int main() {
   psi->connect();
   int version = 0;
   while (1) {
-    for (uint64_t i = 0; i < nusers; i += batch_size) {
+    for (int i = 0; i < nusers; i += batch_size) {
       int actual_batch_size = batch_size;
       if (i + batch_size >= nusers) {
         actual_batch_size = nusers - i - 1;

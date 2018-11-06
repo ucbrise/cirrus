@@ -1046,7 +1046,7 @@ def make_lambda_package(path, executables_path):
     file.seek(0)
     bucket, key = _split_s3_url(path)
     s3_client.upload_fileobj(file, bucket, key,
-        ExtraArgs={"ACL": "bucket-owner-full-control"})
+        ExtraArgs={"ACL": "public-read"})
 
     log.debug("make_lambda_package: Waiting for changes to take effect.")
     # Waits for S3's eventual consistency to catch up. Ideally, something more sophisticated would be used since the

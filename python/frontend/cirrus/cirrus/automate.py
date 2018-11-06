@@ -927,7 +927,7 @@ class ParameterServer(object):
 
 
 def make_build_image(name, replace=False):
-    """Make an AMI sutiable for compiling Cirrus on.
+    """Make an AMI suitable for compiling Cirrus on.
 
     Args:
         name (str): The name to give the AMI.
@@ -1073,6 +1073,10 @@ def make_server_image(name, executables_path, instance):
 
     log.debug("make_server_image: Checking for already-existent images.")
     Instance.delete_images(name)
+
+    log.debug("make_server_image: Installing the AWS CLI.")
+    instance.run_command("sudo apt update")
+    instance.run_command("yes | sudo apt install awscli")
 
     log.debug("make_server_image: Putting parameter_server executable on instance.")
     instance.download_s3(executables_path + "/parameter_server", "~/parameter_server")

@@ -21,11 +21,17 @@ from . import configuration
 # A configuration to use for EC2 instances that will be used to build Cirrus.
 BUILD_INSTANCE = {
     "disk_size": 32,  # GB
-    # This is amzn-ami-hvm-2017.03.1.20170812-x86_64-gp2, which is recommended
-    #   by AWS as of Sep 27, 2018 for compiling executables for Lambda.
-    "ami_id": "ami-3a674d5a",
-    "typ": "t3.xlarge",
+    "typ": "c5.4xlarge",
     "username": "ec2-user"
+}
+
+# The base AMI to use for making the build image. Gives its AMI ID in each
+#   region.
+# This is amzn-ami-hvm-2017.03.1.20170812-x86_64-gp2, which is recommended by
+#   AWS as of Sep 27, 2018 for compiling executables for Lambda.
+BUILD_BASE_IMAGE = {
+    "us-west-1": "ami-3a674d5a",
+    "us-west-2": "ami-aa5ebdd2"
 }
 
 # The ARN of an IAM policy that allows full access to S3.
@@ -60,8 +66,31 @@ yes | sudo yum install gcc72-c++
 wget https://cmake.org/files/v3.10/cmake-3.10.0.tar.gz
 tar -xvzf cmake-3.10.0.tar.gz
 cd cmake-3.10.0; ./bootstrap
-cd cmake-3.10.0; make
+cd cmake-3.10.0; make -j 16
 cd cmake-3.10.0; sudo make install
+
+# Install newer versions of as and ld.
+yes | sudo yum install binutils
+
+# The above pulled in an old version of make. Install a newer version of make by
+#   compiling from source.
+wget https://ftp.gnu.org/gnu/make/make-4.2.tar.gz
+tar -xf make-4.2.tar.gz
+cd make-4.2; ./configure
+cd make-4.2; make -j 16
+cd make-4.2; sudo make install
+sudo ln -sf /usr/local/bin/make /usr/bin/make
+
+# Compile glibc from source with static NSS. Use the resulting libpthread.a
+#   instead of the default.
+git clone git://sourceware.org/git/glibc.git
+cd glibc; git checkout release/2.28/master
+mkdir glibc/build
+cd glibc/build; ../configure --disable-sanity-checks --enable-static-nss \
+    --prefix ~/glibc_build
+cd glibc/build; make -j 16
+cd glibc/build; make install
+sudo cp ~/glibc_build/lib/libpthread.a  /usr/lib64/libpthread.a
 """
 
 # A series of commands that results in ~/cirrus/src containing Cirrus'
@@ -69,8 +98,9 @@ cd cmake-3.10.0; sudo make install
 BUILD_COMMANDS = """
 git clone https://github.com/jcarreira/cirrus
 cd cirrus; ./bootstrap.sh
-cd cirrus; ./configure --enable-static-nss --disable-option-checking --prefix=/home/ec2-user/glibc
-cd cirrus; make -j 10
+cd cirrus; ./configure --enable-static-nss --disable-option-checking \
+    --prefix=/home/ec2-user/glibc_build
+cd cirrus; make -j 16
 """
 
 # The filenames of Cirrus' executables.
@@ -415,7 +445,7 @@ class Instance(object):
         log.debug("set_up_role: Done.")
 
 
-    def __init__(self, name, disk_size, typ, username, ami_id=None, ami_name=None):
+    def __init__(self, name, disk_size, typ, username, ami_id=None, ami_name=None, ami_public=False):
         """Define an EC2 instance.
 
         Args:
@@ -509,15 +539,16 @@ class Instance(object):
         self._log.debug("run_command: Running `%s`." % command)
         _, stdout, stderr = self._ssh_client.exec_command(command)
 
+        # exec_command is asynchronous. The following waits for completion.
         self._log.debug("run_command: Waiting for completion.")
-        # exec_command is asynchronous. This waits for completion.
-        status = stdout.channel.recv_exit_status()
-        self._log.debug("run_command: Exit code was %d." % status)
 
         self._log.debug("run_command: Fetching stdout and stderr.")
-        stdout, stderr = stdout.read(), stderr.read()
-        self._log.debug("run_command: stdout had length %d." % len(stdout))
-        self._log.debug("run_command: stderr had length %d." % len(stderr))
+        stdout_data, stderr_data = stdout.read(), stderr.read()
+        self._log.debug("run_command: stdout had length %d." % len(stdout_data))
+        self._log.debug("run_command: stderr had length %d." % len(stderr_data))
+
+        status = stdout.channel.recv_exit_status()
+        self._log.debug("run_command: Exit code was %d." % status)
 
         self._log.debug("run_command: Done.")
         return status, stdout, stderr
@@ -556,24 +587,23 @@ class Instance(object):
         )))
 
 
-    def upload_s3(self, src, dest):
+    def upload_s3(self, src, dest, public):
         """Upload a file from this instance to S3.
 
         Args:
             src (str): A path to a file on this instance. If relative, then
                 relative to the home folder of this instance's SSH user.
             dest (str): A path on S3 to upload to.
+            public (bool): Whether to give the resulting S3 object the
+                "public-read" ACL.
         """
         assert not src.startswith("s3://")
         assert dest.startswith("s3://")
 
-        self.run_command(" ".join((
-            "aws",
-            "s3",
-            "cp",
-            src,
-            dest
-        )))
+        command = ["aws", "s3", "cp", src, dest]
+        if public:
+            command.extend(("--acl", "public-read"))
+        self.run_command(" ".join(command))
 
 
     def upload(self, content, dest):
@@ -949,7 +979,8 @@ def make_build_image(name, replace=False):
             return
 
     log.debug("make_build_image: Launching an instance.")
-    instance = Instance("make_build_image", **BUILD_INSTANCE)
+    ami_id = BUILD_BASE_IMAGE[configuration.config()["aws"]["region"]]
+    instance = Instance("make_build_image", ami_id=ami_id, **BUILD_INSTANCE)
     instance.start()
 
     for command in ENVIRONMENT_COMMANDS.split("\n")[1:-1]:
@@ -1000,7 +1031,8 @@ def make_executables(path, instance):
 
     log.debug("make_executables:  Publishing executables.")
     for executable in EXECUTABLES:
-        instance.upload_s3("~/cirrus/src/%s" % executable, path + "/" + executable)
+        instance.upload_s3("~/cirrus/src/%s" % executable,
+                           path + "/" + executable, public=True)
 
     log.debug("make_executables:  Done.")
 

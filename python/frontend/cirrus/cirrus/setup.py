@@ -167,12 +167,7 @@ def _make_lambda():
     concurrency = prompt(explanation, PROMPTS, validator, postprocess)
 
     print("Creating the Lambda function. This may take a minute.")
-    # TODO: Temporary hack.
-    package_url = LAMBDA_PACKAGE_URL.replace(
-        "cirrus-public",
-        "-".join(("cirrus-public", configuration.config(False)["aws"]["region"]))
-    )
-    automate.make_lambda(LAMBDA_NAME, package_url, concurrency)
+    automate.make_lambda(LAMBDA_NAME, LAMBDA_PACKAGE_URL, concurrency)
 
 
 def _set_up_instance_resources():

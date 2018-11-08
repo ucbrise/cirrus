@@ -25,6 +25,12 @@ BUILD_INSTANCE = {
     "username": "ec2-user"
 }
 
+# The type of instance to use for compilation.
+BUILD_INSTANCE_TYPE = "c5.4xlarge"
+
+# The disk size, in GB, to use for compilation.
+BUILD_INSTANCE_SIZE = 32
+
 # The base AMI to use for making the build image. Gives its AMI ID in each
 #   region.
 # This is amzn-ami-hvm-2017.03.1.20170812-x86_64-gp2, which is recommended by
@@ -32,6 +38,14 @@ BUILD_INSTANCE = {
 BUILD_BASE_IMAGE = {
     "us-west-1": "ami-3a674d5a",
     "us-west-2": "ami-aa5ebdd2"
+}
+
+# The base AMI to use for making the Ubuntu build image. Gives the AMI ID for
+#   each supported region. This is "Ubuntu Server 18.04 LTS (HVM), SSD Volume
+#   Type", found in the AWS console.
+UBUNTU_BASE_IMAGES = {
+    "us-west-1": "ami-063aa838bd7631e0b",
+    "us-west-2": "ami-0bbe6b35405ecebdb"
 }
 
 # The ARN of an IAM policy that allows full access to S3.
@@ -1035,6 +1049,85 @@ def make_executables(path, instance):
                            path + "/" + executable, public=True)
 
     log.debug("make_executables:  Done.")
+
+
+def make_ubuntu_build_image(name):
+    """Make an Ubuntu AMI suitable for compiling Cirrus on.
+
+    Deletes any existing AMI with the same name. The resulting AMI will be
+        private.
+
+    Args:
+        name (str): The name to give the AMI.
+    """
+    log = logging.getLogger("cirrus.automate.make_ubuntu_build_image")
+
+    log.debug("make_ubuntu_build_image: Deleting any existing images with the "
+              "same name.")
+    Instance.delete_images(name)
+
+    log.debug("make_ubuntu_build_image: Launching an instance.")
+    region = configuration.config()["aws"]["region"]
+    instance = Instance("cirrus_make_ubuntu_build_image",
+                        ami_id=UBUNTU_BASE_IMAGES[region],
+                        disk_size=BUILD_INSTANCE_SIZE,
+                        typ=BUILD_INSTANCE_TYPE,
+                        username="ubuntu")
+    instance.start()
+
+    log.debug("make_ubuntu_build_image: Setting up the environment.")
+    # Why twice? Sometimes it doesn't work the first time. It might also just be
+    #   a timing thing.
+    instance.run_command("sudo apt-get update")
+    instance.run_command("sudo apt-get update")
+    instance.run_command("yes | sudo apt-get install build-essential cmake \
+                          automake zlib1g-dev libssl-dev libcurl4-nss-dev \
+                          bison libldap2-dev libkrb5-dev")
+    instance.run_command("yes | sudo apt-get install awscli")
+
+    log.debug("make_ubuntu_build_image: Saving the image.")
+    instance.save_image(name)
+
+    log.debug("make_ubuntu_build_image: Terminating the instance.")
+    instance.cleanup()
+
+
+def make_executables(path, image_name, username):
+    """Compile Cirrus and publish its executables.
+
+    Overwrites any existing S3 objects with the same name. The resulting S3
+        objects will be public.
+
+    Args:
+        path (str): A S3 path to a "directory" in which to publish the
+            executables.
+        image_name (str): The name of the AMI to compile on.
+        username (str): The SSH username to use with the AMI.
+    """
+    log = logging.getLogger("cirrus.automate.make_executables")
+
+    log.debug("make_executables: Launching an instance.")
+    instance = Instance("cirrus_make_executables",
+                        ami_name=image_name,
+                        disk_size=BUILD_INSTANCE_SIZE,
+                        typ=BUILD_INSTANCE_TYPE,
+                        username=username)
+    instance.start()
+
+    log.debug("make_executables: Building Cirrus.")
+    instance.run_command("git clone https://github.com/jcarreira/cirrus.git")
+    instance.run_command("cd cirrus; ./bootstrap.sh")
+    instance.run_command("cd cirrus; make -j 16")
+
+    log.debug("make_executables: Publishing executables.")
+    for executable in EXECUTABLES:
+        instance.upload_s3("~/cirrus/src/%s" % executable,
+                           path + "/" + executable, public=True)
+
+    log.debug("make_executables: Terminating the instance.")
+    instance.cleanup()
+
+    log.debug("make_executables: Done.")
 
 
 def make_lambda_package(path, executables_path):

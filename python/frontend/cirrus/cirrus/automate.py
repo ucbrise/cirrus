@@ -31,11 +31,11 @@ BUILD_INSTANCE_TYPE = "c5.4xlarge"
 # The disk size, in GB, to use for compilation.
 BUILD_INSTANCE_SIZE = 32
 
-# The base AMI to use for making the build image. Gives its AMI ID in each
-#   region.
-# This is amzn-ami-hvm-2017.03.1.20170812-x86_64-gp2, which is recommended by
-#   AWS as of Sep 27, 2018 for compiling executables for Lambda.
-BUILD_BASE_IMAGE = {
+# The base AMI to use for making the Amazon Linux build image. Gives the AMI ID
+#   for each supported region. This is "amzn-ami-hvm-2017.03.1.20170812
+#   -x86_64-gp2", which is recommended by AWS as of Sep 27, 2018 for compiling
+#   executables for Lambda.
+AMAZON_BASE_IMAGES = {
     "us-west-1": "ami-3a674d5a",
     "us-west-2": "ami-aa5ebdd2"
 }
@@ -62,60 +62,6 @@ BUCKET_BASE_NAME = "cirrus-bucket"
 
 # The estimated delay of IAM's eventual consistency, in seconds.
 IAM_CONSISTENCY_DELAY = 20
-
-# A series of commands that sets up the proper build environment.
-ENVIRONMENT_COMMANDS = """
-# Install some necessary packages.
-yes | sudo yum install git glibc-static openssl-static.x86_64 \
-    zlib-static.x86_64 libcurl-devel
-yes | sudo yum groupinstall "Development Tools"
-
-# The above installed a recent version of gcc, but an old version of g++.
-#   Install a newer version of g++.
-yes | sudo yum remove gcc48-c++
-yes | sudo yum install gcc72-c++
-
-# The above pulled in an old version of cmake. Install a newer version of cmake
-#   by compiling from source.
-wget https://cmake.org/files/v3.10/cmake-3.10.0.tar.gz
-tar -xvzf cmake-3.10.0.tar.gz
-cd cmake-3.10.0; ./bootstrap
-cd cmake-3.10.0; make -j 16
-cd cmake-3.10.0; sudo make install
-
-# Install newer versions of as and ld.
-yes | sudo yum install binutils
-
-# The above pulled in an old version of make. Install a newer version of make by
-#   compiling from source.
-wget https://ftp.gnu.org/gnu/make/make-4.2.tar.gz
-tar -xf make-4.2.tar.gz
-cd make-4.2; ./configure
-cd make-4.2; make -j 16
-cd make-4.2; sudo make install
-sudo ln -sf /usr/local/bin/make /usr/bin/make
-
-# Compile glibc from source with static NSS. Use the resulting libpthread.a
-#   instead of the default.
-git clone git://sourceware.org/git/glibc.git
-cd glibc; git checkout release/2.28/master
-mkdir glibc/build
-cd glibc/build; ../configure --disable-sanity-checks --enable-static-nss \
-    --prefix ~/glibc_build
-cd glibc/build; make -j 16
-cd glibc/build; make install
-sudo cp ~/glibc_build/lib/libpthread.a  /usr/lib64/libpthread.a
-"""
-
-# A series of commands that results in ~/cirrus/src containing Cirrus'
-#   executables.
-BUILD_COMMANDS = """
-git clone https://github.com/jcarreira/cirrus
-cd cirrus; ./bootstrap.sh
-cd cirrus; ./configure --enable-static-nss --disable-option-checking \
-    --prefix=/home/ec2-user/glibc_build
-cd cirrus; make -j 16
-"""
 
 # The filenames of Cirrus' executables.
 EXECUTABLES = ("parameter_server", "ps_test", "csv_to_libsvm")
@@ -970,85 +916,80 @@ class ParameterServer(object):
         return "ParameterServer@%s:%d" % (self.public_ip(), self.ps_port())
 
 
-def make_build_image(name, replace=False):
-    """Make an AMI suitable for compiling Cirrus on.
+def make_amazon_build_image(name):
+    """Make an Amazon Linux AMI suitable for compiling Cirrus on.
+
+    Deletes any existing AMI with the same name. The resulting AMI will be
+        private.
 
     Args:
         name (str): The name to give the AMI.
-        replace (bool): Whether to replace any existing AMI with the same name.
-            If False or omitted and an AMI with the same name exists, nothing
-            will be done.
     """
-    log = logging.getLogger("cirrus.automate.make_build_image")
+    log = logging.getLogger("cirrus.automate.make_amazon_build_image")
 
-    log.debug("make_build_image: Initializing EC2.")
-    ec2 = boto3.resource("ec2", configuration.config()["aws"]["region"])
+    log.debug("make_amazon_build_image: Deleting any existing images with the "
+              "same name.")
+    Instance.delete_images(name)
 
-    log.debug("make_build_image: Checking for already-existent images.")
-    if replace:
-        Instance.delete_images(name)
-    else:
-        if Instance.images_exist(name):
-            log.debug("make_build_image: Done.")
-            return
-
-    log.debug("make_build_image: Launching an instance.")
-    ami_id = BUILD_BASE_IMAGE[configuration.config()["aws"]["region"]]
-    instance = Instance("make_build_image", ami_id=ami_id, **BUILD_INSTANCE)
+    log.debug("make_amazon_build_image: Launching an instance.")
+    region = configuration.config()["aws"]["region"]
+    instance = Instance("cirrus_make_amazon_build_image",
+                        ami_id=AMAZON_BASE_IMAGES[region],
+                        disk_size=BUILD_INSTANCE_SIZE,
+                        typ=BUILD_INSTANCE_TYPE,
+                        username="ec2-user")
     instance.start()
 
-    for command in ENVIRONMENT_COMMANDS.split("\n")[1:-1]:
-        log.debug("make_build_image: Running a build command.")
-        status, stdout, stderr = instance.run_command(command)
-        if status != 0:
-            MESSAGE = "A build command errored."
-            print("=" * len(MESSAGE))
-            print(MESSAGE)
-            print("=" * len(MESSAGE))
-            print("command:", command)
-            print()
-            print("stdout:", stdout)
-            print()
-            print("stderr:", stderr)
-            print()
-            raise RuntimeError("A build command errored.")
+    log.debug("make_amazon_build_image: Setting up the environment.")
 
+    # Install some necessary packages.
+    instance.run_command("yes | sudo yum install git "
+        "glibc-static openssl-static.x86_64 zlib-static.x86_64 libcurl-devel")
+    instance.run_command("yes | sudo yum groupinstall \"Development Tools\"")
+
+    # The above installed a recent version of gcc, but an old version of g++.
+    #   Install a newer version of g++.
+    instance.run_command("yes | sudo yum remove gcc48-c++")
+    instance.run_command("yes | sudo yum install gcc72-c++")
+
+    # The above pulled in an old version of cmake. Install a newer version of
+    #   cmake by compiling from source.
+    instance.run_command(
+        "wget https://cmake.org/files/v3.10/cmake-3.10.0.tar.gz")
+    instance.run_command("tar -xvzf cmake-3.10.0.tar.gz")
+    instance.run_command("cd cmake-3.10.0; ./bootstrap")
+    instance.run_command("cd cmake-3.10.0; make -j 16")
+    instance.run_command("cd cmake-3.10.0; sudo make install")
+
+    # Install newer versions of as and ld.
+    instance.run_command("yes | sudo yum install binutils")
+
+    # The above pulled in an old version of make. Install a newer version of
+    #   make by compiling from source.
+    instance.run_command("wget https://ftp.gnu.org/gnu/make/make-4.2.tar.gz")
+    instance.run_command("tar -xf make-4.2.tar.gz")
+    instance.run_command("cd make-4.2; ./configure")
+    instance.run_command("cd make-4.2; make -j 16")
+    instance.run_command("cd make-4.2; sudo make install")
+    instance.run_command("sudo ln -sf /usr/local/bin/make /usr/bin/make")
+
+    # Compile glibc from source with static NSS. Use the resulting libpthread.a
+    #   instead of the default.
+    instance.run_command("git clone git://sourceware.org/git/glibc.git")
+    instance.run_command("cd glibc; git checkout release/2.28/master")
+    instance.run_command("mkdir glibc/build")
+    instance.run_command("cd glibc/build; ../configure --disable-sanity-checks "
+                         "--enable-static-nss --prefix ~/glibc_build")
+    instance.run_command("cd glibc/build; make -j 16")
+    instance.run_command("cd glibc/build; make install")
+    instance.run_command("sudo cp ~/glibc_build/lib/libpthread.a "
+                         "/usr/lib64/libpthread.a")
+
+    log.debug("make_amazon_build_image: Saving the image.")
     instance.save_image(name)
 
-    log.debug("make_build_image: Cleaning up instance.")
+    log.debug("make_amazon_build_image: Terminating the instance.")
     instance.cleanup()
-
-    log.debug("make_build_image: Done.")
-
-
-def make_executables(path, instance):
-    """Compile Cirrus and publish its executables.
-
-    Args:
-        path (str): A S3 path to a "directory" in which to publish the
-            executables.
-        instance (EC2Instance): The instance on which to compile. Should use an
-            AMI produced by `make_build_image`.
-    """
-    log = logging.getLogger("cirrus.automate.make_executables")
-
-    log.debug("make_executables: Running build commands.")
-    for command in BUILD_COMMANDS.split("\n")[1:-1]:
-        status, stdout, stderr = instance.run_command(command)
-        if status != 0:
-            MESSAGE = "A build command had nonzero exit status."
-            print("="*10, MESSAGE, "="*10)
-            print("command:", command, "\n")
-            print("stdout:", stdout, "\n")
-            print("stderr:", stderr, "\n")
-            raise RuntimeError(MESSAGE)
-
-    log.debug("make_executables:  Publishing executables.")
-    for executable in EXECUTABLES:
-        instance.upload_s3("~/cirrus/src/%s" % executable,
-                           path + "/" + executable, public=True)
-
-    log.debug("make_executables:  Done.")
 
 
 def make_ubuntu_build_image(name):

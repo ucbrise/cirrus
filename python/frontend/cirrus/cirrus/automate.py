@@ -521,7 +521,7 @@ class Instance(object):
         self._log.debug("run_command: Exit code was %d." % status)
 
         self._log.debug("run_command: Done.")
-        return status, stdout, stderr
+        return status, stdout_data, stderr_data
 
 
     def buffer_commands(self, flag):

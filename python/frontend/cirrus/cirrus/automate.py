@@ -405,7 +405,8 @@ class Instance(object):
         log.debug("set_up_role: Done.")
 
 
-    def __init__(self, name, disk_size, typ, username, ami_id=None, ami_name=None, ami_public=False):
+    def __init__(self, name, disk_size, typ, username, ami_id=None,
+                 ami_name=None, ami_public=False, spot_bid=None):
         """Define an EC2 instance.
 
         Args:
@@ -417,12 +418,15 @@ class Instance(object):
             ami_id (str): ID of the AMI for the instance. If omitted or None, `ami_name` must be provided.
             ami_name (str): Name of the AMI for the instance. Only used if `ami_id` is not provided. The first AMI with
                 the name `ami_name` owned by the AWS account is used.
+            spot_bid (str): The spot instance bid to make, as a dollar amount
++                per hour. If omitted or None, the instance will not be spot.
         """
         self._name = name
         self._disk_size = disk_size
         self._ami_id = ami_id
         self._type = typ
         self._username = username
+        self._spot_bid = spot_bid
         self._log = logging.getLogger("cirrus.automate.Instance")
 
         self._log.debug("__init__: Initializing EC2.")
@@ -653,26 +657,42 @@ class Instance(object):
 
     def _start_and_wait(self):
         self._log.debug("_start_and_wait: Starting a new instance.")
-        # The EC2 instance will be created with an EBS volume that gets
-        #   deleted automatically when the instance is terminated.
-        instances = self._ec2.create_instances(
-            BlockDeviceMappings=[
-                {
-                    "DeviceName": "/dev/xvda",
-                    "Ebs": {
-                        "DeleteOnTermination": True,
-                        "VolumeSize": self._disk_size,
-                    }
-                },
-            ],
-            KeyName=self.KEY_PAIR_NAME,
-            ImageId=self._ami_id,
-            InstanceType=self._type,
-            MinCount=1,
-            MaxCount=1,
-            SecurityGroups=[self.SECURITY_GROUP_NAME],
-            IamInstanceProfile={"Name": self._instance_profile.name}
-        )
+        tag = {
+            "Key": "Name",
+            "Value": self._name
+        }
+        tag_spec = {
+            "ResourceType": "instance",
+            "Tags": [tag]
+        }
+        block_dev = {
+            "DeviceName": "/dev/xvda",
+            "Ebs": {
+                "DeleteOnTermination": True,
+                "VolumeSize": self._disk_size,
+            }
+        }
+        create_args = {
+            "BlockDeviceMappings": [block_dev],
+            "KeyName": self.KEY_PAIR_NAME,
+            "ImageId": self._ami_id,
+            "InstanceType": self._type,
+            "MinCount": 1,
+            "MaxCount": 1,
+            "SecurityGroups": [self.SECURITY_GROUP_NAME],
+            "IamInstanceProfile": {"Name": self._instance_profile.name},
+            "TagSpecifications": [tag_spec]
+        }
+        if self._spot_bid is not None:
+            create_args["InstanceMarketOptions"] = {
+                "MarketType": "spot",
+                "SpotOptions": {
+                    "MaxPrice": self._spot_bid,
+                    "SpotInstanceType": "one-time",
+                    "InstanceInterruptionBehavior": "terminate"
+                }
+            }
+        instances = self._ec2.create_instances(**create_args)
         self.instance = instances[0]
 
         self._log.debug("_start_and_wait: Waiting for instance to enter " \

@@ -455,17 +455,23 @@ class Instance(object):
     def start(self):
         """Start the instance.
 
+        If an instance with the same name is already running, it will be reused
+            and no new instance will be started.
+
         When finished, call `cleanup`. `cleanup` will also be registered as an
             `atexit` cleanup function so that it will still be called despite
             any errors.
         """
         atexit.register(self.cleanup)
 
-        self._log.debug("start: Calling _make_instance_profile.")
-        self._make_instance_profile()
+        self._log.debug("start: Checking if an instance with the same name is "
+                        + "already running.")
+        if not self._exists():
+            self._log.debug("start: Calling _make_instance_profile.")
+            self._make_instance_profile()
 
-        self._log.debug("start: Calling _start_and_wait.")
-        self._start_and_wait()
+            self._log.debug("start: Calling _start_and_wait.")
+            self._start_and_wait()
 
         self._log.debug("start: Done.")
 
@@ -633,6 +639,32 @@ class Instance(object):
             print(MESSAGE)
             print("=" * len(MESSAGE))
             raise sys.exc_info()[1]
+
+
+    def _exists(self):
+        self._log.debug("_exists: Listing instances.")
+        name_filter = {
+            "Name": "tag:Name",
+            "Values": [self._name]
+        }
+        state_filter = {
+            "Name": "instance-state-name",
+            "Values": ["running"]
+        }
+        filters = [name_filter, state_filter]
+        instances = list(self._ec2.instances.filter(Filters=filters))
+
+        if len(instances) > 0:
+            self._log.info("_exists: An existing instance with the same name "
+                           "was found.")
+            self.instance = instances[0]
+            name = self._name + "_instance_profile"
+            self._instance_profile = clients.iam.InstanceProfile(name)
+            return True
+
+        self._log.info("_exists: No existing instance with the same name "
+                       "was found.")
+        return False
 
 
     def _make_instance_profile(self):

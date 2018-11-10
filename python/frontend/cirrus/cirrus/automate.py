@@ -242,6 +242,9 @@ class Instance(object):
     # The name of the role used by Instances.
     ROLE_NAME = "cirrus_instance_role"
 
+    # The name of the instance profile used by Instances.
+    INSTANCE_PROFILE_NAME = "cirrus_instance_profile"
+
 
     @staticmethod
     def images_exist(name):
@@ -411,6 +414,50 @@ class Instance(object):
         log.debug("set_up_role: Done.")
 
 
+    @classmethod
+    def set_up_instance_profile(cls):
+        """Create an instance profile for use by `Instance`s.
+
+        Deletes any existing instance profile with the same name. The instance
+            role must have already been created.
+        """
+        log = logging.getLogger("automate.instance.set_up_instance_profile")
+
+        log.debug("set_up_instance_profile: Checking for an existing instance "
+                  "profile.")
+        existing = None
+        for instance_profile in clients.iam.instance_profiles.all():
+            if instance_profile.name == cls.INSTANCE_PROFILE_NAME:
+                existing = instance_profile
+                break
+        if existing is not None:
+            log.debug("set_up_instance_profile: Listing the roles of existing "
+                      "instance profile.")
+            for role in existing.roles.all():
+                log.debug("set_up_instance_profile: Removing role from "
+                          "existing instance profile.")
+                existing.remove_role(RoleName=role.name)
+            log.debug("set_up_instance_profile: Deleting existing instance "
+                      "profile.")
+            existing.delete()
+
+        log.debug("set_up_instance_profile: Creating instance profile.")
+        instance_profile = clients.iam.create_instance_profile(
+            InstanceProfileName=cls.INSTANCE_PROFILE_NAME)
+
+        log.debug("set_up_instance_profile: Adding role to instance profile.")
+        instance_profile.add_role(RoleName=cls.ROLE_NAME)
+
+        log.debug("set_up_instance_profile: Waiting for changes to take "
+                  "effect.")
+        # IAM is eventually consistent, so we need to wait for our changes to be
+        #   reflected. The delay distribution is heavy-tailed, so this might
+        #   still error, rarely. The right way is to retry at an interval.
+        time.sleep(IAM_CONSISTENCY_DELAY)
+
+        log.debug("set_up_instance_profile: Done.")
+
+
     def __init__(self, name, disk_size, typ, username, ami_id=None,
                  ami_name=None, ami_public=False, spot_bid=None):
         """Define an EC2 instance.
@@ -473,9 +520,6 @@ class Instance(object):
         self._log.debug("start: Checking if an instance with the same name is "
                         + "already running.")
         if not self._exists():
-            self._log.debug("start: Calling _make_instance_profile.")
-            self._make_instance_profile()
-
             self._log.debug("start: Calling _start_and_wait.")
             self._start_and_wait()
 
@@ -673,26 +717,6 @@ class Instance(object):
         return False
 
 
-    def _make_instance_profile(self):
-        self._log.debug("_make_instance_profile: Creating instance profile.")
-        name = self._name + "_instance_profile"
-        self._instance_profile = clients.iam.create_instance_profile(
-            InstanceProfileName=name)
-
-        self._log.debug("_make_instance_profile: Adding role to instance " \
-                        "profile.")
-        self._instance_profile.add_role(RoleName=self.ROLE_NAME)
-
-        self._log.debug("_make_instance_profile: Waiting for changes to take " \
-                        "effect.")
-        # IAM is eventually consistent, so we need to wait for our changes to be
-        #   reflected. The delay distribution is heavy-tailed, so this might
-        #   still error, rarely. The right way is to retry at an interval.
-        time.sleep(IAM_CONSISTENCY_DELAY)
-
-        self._log.debug("_make_instance_profile: Done.")
-
-
     def _start_and_wait(self):
         self._log.debug("_start_and_wait: Starting a new instance.")
         tag = {
@@ -718,7 +742,7 @@ class Instance(object):
             "MinCount": 1,
             "MaxCount": 1,
             "SecurityGroups": [self.SECURITY_GROUP_NAME],
-            "IamInstanceProfile": {"Name": self._instance_profile.name},
+            "IamInstanceProfile": {"Name": self.INSTANCE_PROFILE_NAME},
             "TagSpecifications": [tag_spec]
         }
         if self._spot_bid is not None:

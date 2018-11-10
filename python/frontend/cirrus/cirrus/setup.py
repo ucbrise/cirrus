@@ -206,6 +206,17 @@ def _set_up_instance_resources():
         return
     automate.Instance.set_up_security_group()
 
+    explanation = ("Can we create an instance profile named '%s' in your AWS "
+                   "account?" % automate.Instance.INSTANCE_PROFILE_NAME)
+    PROMPTS = ("y/n",)
+    validator = lambda c: c in ("y", "n")
+    postprocess = lambda c: c == "y"
+    if not prompt(explanation, PROMPTS, validator, postprocess):
+        print("Exiting. Cirrus will not be usable. Re-run the setup script to "
+              "complete setup.")
+        return
+    automate.Instance.set_up_instance_profile()
+
 
 def _set_up_bucket():
     """Set up Cirrus' bucket in the user's AWS account.
@@ -263,8 +274,6 @@ def prompt(explanation, prompts, validator=None, postprocess=None):
                 return args[0]
             return args
 
-    print("")
-    print("")
     print(explanation)
 
     while True:
@@ -275,6 +284,8 @@ def prompt(explanation, prompts, validator=None, postprocess=None):
             print("")
             print("Invalid.")
 
+    print("")
+    print("")
     return postprocess(*values)
 
 

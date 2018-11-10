@@ -1156,7 +1156,7 @@ def make_lambda_package(path, executables_path):
         executable = io.BytesIO()
 
         log.debug("make_lambda_package: Downloading executable.")
-        executables_path += "/parameter_server"
+        executables_path += "/amazon/parameter_server"
         bucket, key = _split_s3_url(executables_path)
         s3_client.download_fileobj(bucket, key, executable)
 
@@ -1213,7 +1213,8 @@ def make_server_image(name, executables_path):
     instance.run_command("yes | sudo apt install awscli")
 
     log.debug("make_server_image: Putting parameter_server executable on instance.")
-    instance.download_s3(executables_path + "/parameter_server", "~/parameter_server")
+    instance.download_s3(executables_path + "/ubuntu/parameter_server",
+                         "~/parameter_server")
 
     log.debug("make_server_image: Setting permissions of executable.")
     instance.run_command("chmod +x ~/parameter_server")

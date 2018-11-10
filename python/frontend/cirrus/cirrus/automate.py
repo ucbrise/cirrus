@@ -31,6 +31,12 @@ BUILD_INSTANCE_TYPE = "c5.4xlarge"
 # The disk size, in GB, to use for compilation.
 BUILD_INSTANCE_SIZE = 32
 
+# The type of instance to use for parameter servers.
+SERVER_INSTANCE_TYPE = "m5a.2xlarge"
+
+# The disk size, in GB, to use for parameter servers.
+SERVER_INSTANCE_SIZE = 32
+
 # The base AMI to use for making the Amazon Linux build image. Gives the AMI ID
 #   for each supported region. This is "amzn-ami-hvm-2017.03.1.20170812
 #   -x86_64-gp2", which is recommended by AWS as of Sep 27, 2018 for compiling
@@ -1175,15 +1181,13 @@ def make_lambda_package(path, executables_path):
     log.debug("make_lambda_package: Done.")
 
 
-def make_server_image(name, executables_path, instance):
+def make_server_image(name, executables_path):
     """Make an AMI that runs parameter servers.
 
     Args:
         name (str): The name to give the AMI.
         executables_path (str): An S3 path to a "directory" from which to get
             Cirrus' executables.
-        instance (EC2Instance): The instance to use to set up the image. Should
-            use an AMI produced by `make_build_image`.
     """
     assert executables_path.startswith("s3://")
 
@@ -1191,6 +1195,15 @@ def make_server_image(name, executables_path, instance):
 
     log.debug("make_server_image: Checking for already-existent images.")
     Instance.delete_images(name)
+
+    log.debug("make_server_image: Launching an instance.")
+    region = configuration.config()["aws"]["region"]
+    instance = Instance("cirrus_make_server_image",
+                        ami_id=UBUNTU_BASE_IMAGES[region],
+                        disk_size=SERVER_INSTANCE_SIZE,
+                        typ=SERVER_INSTANCE_TYPE,
+                        username="ubuntu")
+    instance.start()
 
     log.debug("make_server_image: Installing the AWS CLI.")
     # Why twice? Sometimes it didn't know about the awscli package unless I
@@ -1207,6 +1220,9 @@ def make_server_image(name, executables_path, instance):
 
     log.debug("make_server_image: Creating image from instance.")
     instance.save_image(name)
+
+    log.debug("make_server_image: Terminating the instance.")
+    instance.cleanup()
 
     log.debug("make_server_image: Done.")
 

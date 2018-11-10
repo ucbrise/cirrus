@@ -1042,6 +1042,7 @@ def make_amazon_build_image(name):
     instance.run_command("cd glibc/build; make install")
     instance.run_command("sudo cp ~/glibc_build/lib/libpthread.a "
                          "/usr/lib64/libpthread.a")
+    instance.run_command("sudo cp ~/glibc_build/lib/libc.a /usr/lib64/libc.a")
 
     log.debug("make_amazon_build_image: Saving the image.")
     instance.save_image(name)

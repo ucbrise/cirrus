@@ -21,7 +21,7 @@ AWS_CREDENTIALS_PATH = "~/.aws/credentials"
 
 # An S3 URL where a worker Lambda package has been published by the maintainers
 #   of Cirrus.
-LAMBDA_PACKAGE_URL = "s3://cirrus-public/0/lambda-package"
+LAMBDA_PACKAGE_URL = "s3://cirrus-public/lambda_package"
 
 
 # The name to give to the worker Lambda.
@@ -84,7 +84,8 @@ def _set_up_aws_credentials():
         aws_access_key_id = %s
         aws_secret_access_key = %s""" % (id, secret))
     path = os.path.expanduser(AWS_CREDENTIALS_PATH)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    if not os.path.exists(os.path.dirname(path)):
+        os.makedirs(os.path.dirname(path))
     with open(path, "w+") as f:
         f.write(credentials)
 

@@ -9,7 +9,6 @@ import sys
 import paramiko
 import boto3
 
-from . import automate
 from . import configuration
 
 # The ARN of an IAM policy that allows full access to S3.
@@ -97,6 +96,8 @@ class Instance(object):
         Deletes any existing key pair with the same name. Saves the private key
             to `~/cirrus_key_pair.pem`.
         """
+        from . import automate
+
         log = logging.getLogger("automate.Instance.set_up_key_pair")
 
         log.debug("set_up_key_pair: Checking for an existing key pair.")
@@ -125,6 +126,8 @@ class Instance(object):
 
         Deletes any existing security groups with the same name.
         """
+        from . import automate
+
         log = logging.getLogger("automate.Instance.set_up_security_group")
 
         log.debug("set_up_security_group: Checking for existing security "
@@ -163,6 +166,8 @@ class Instance(object):
 
         Deletes any existing role with the same name.
         """
+        from . import automate
+
         log = logging.getLogger("automate.instance.set_up_role")
 
         log.debug("set_up_role: Checking for an existing role.")
@@ -179,12 +184,19 @@ class Instance(object):
             log.debug("set_up_role: Listing the policies of existing role.")
             role_policy_response = iam_client.list_attached_role_policies(
                 RoleName=cls.ROLE_NAME)
-            log.debug("set_up_role: Detaching policies from existing role.")
             for policy_info in role_policy_response["AttachedPolicies"]:
+                log.debug("set_up_role: Detaching policy from existing role.")
                 iam_client.detach_role_policy(
                     RoleName=cls.ROLE_NAME,
                     PolicyArn=policy_info["PolicyArn"]
                 )
+            log.debug("set_up_role: Listing the instance profiles of existing "
+                      "role.")
+            role = automate.clients.iam.Role(cls.ROLE_NAME)
+            for instance_profile in role.instance_profiles.all():
+                log.debug("set_up_role: Detaching instance profile from "
+                          "existing role.")
+                instance_profile.remove_role(RoleName=cls.ROLE_NAME)
             log.debug("set_up_role: Deleting an existing role.")
             iam_client.delete_role(RoleName=cls.ROLE_NAME)
 
@@ -218,6 +230,8 @@ class Instance(object):
         Deletes any existing instance profile with the same name. The instance
             role must have already been created.
         """
+        from . import automate
+
         log = logging.getLogger("automate.instance.set_up_instance_profile")
 
         log.debug("set_up_instance_profile: Checking for an existing instance "
@@ -230,7 +244,7 @@ class Instance(object):
         if existing is not None:
             log.debug("set_up_instance_profile: Listing the roles of existing "
                       "instance profile.")
-            for role in existing.roles.all():
+            for role in existing.roles:
                 log.debug("set_up_instance_profile: Removing role from "
                           "existing instance profile.")
                 existing.remove_role(RoleName=role.name)
@@ -489,6 +503,8 @@ class Instance(object):
 
 
     def _exists(self):
+        from . import automate
+
         self._log.debug("_exists: Listing instances.")
         name_filter = {
             "Name": "tag:Name",

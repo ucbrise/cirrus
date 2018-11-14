@@ -6,7 +6,7 @@
 #include "Checksum.h"
 #include "Constants.h"
 
-//#define DEBUG
+#undef DEBUG
 
 #define MAX_MSG_SIZE (1024*1024)
 
@@ -261,7 +261,46 @@ void PSSparseServerInterface::send_mf_gradient(const MFSparseGradient& gradient)
   }
   delete[] data;
 }
-  
+
+uint32_t PSSparseServerInterface::register_task(uint32_t id,
+                                                uint32_t remaining_time_sec) {
+#ifdef DEBUG
+  std::cout << "Registering task id: " << id
+            << " remaining_time_sec: " << remaining_time_sec << std::endl;
+#endif
+
+  uint32_t data[3] = {REGISTER_TASK, id, remaining_time_sec};
+  if (send_all(sock, data, sizeof(uint32_t) * 3) == -1) {
+    throw std::runtime_error("Error registering task");
+  }
+
+  uint32_t status;
+  if (read_all(sock, &status, sizeof(uint32_t)) == 0) {
+    throw std::runtime_error("Error getting task register return");
+  }
+  return status;
+}
+
+uint32_t PSSparseServerInterface::deregister_task(uint32_t id) {
+#ifdef DEBUG
+  std::cout << "Deregistering task id: " << id << std::endl;
+#endif
+
+  uint32_t data[2] = {DEREGISTER_TASK, id};
+  if (send_all(sock, data, sizeof(uint32_t) * 2) == -1) {
+    throw std::runtime_error("Error registering task");
+  }
+
+#ifdef DEBUG
+  std::cout << "Deregistering reading reply: " << std::endl;
+#endif
+  uint32_t status;
+  if (read_all(sock, &status, sizeof(uint32_t)) == 0) {
+    throw std::runtime_error("Error getting task register return");
+  }
+  return status;
+}
+
 void PSSparseServerInterface::set_status(uint32_t id, uint32_t status) {
   std::cout << "Setting status id: " << id << " status: " << status << std::endl;
   uint32_t data[3] = {SET_TASK_STATUS, id, status};
@@ -280,6 +319,63 @@ uint32_t PSSparseServerInterface::get_status(uint32_t id) {
     throw std::runtime_error("Error getting task status");
   }
   return status;
+}
+
+void PSSparseServerInterface::set_value(const std::string& key,
+                                        char* data,
+                                        uint32_t size) {
+  assert(key.size() <= KEY_SIZE);
+
+  char key_char[KEY_SIZE] = {0};
+  std::copy(key.data(), key.data() + key.size(), key_char);
+
+  uint32_t operation = SET_VALUE;
+  if (send_all(sock, &operation, sizeof(operation)) != sizeof(operation)) {
+    throw std::runtime_error("Error sending operation");
+  }
+  if (send_all(sock, key_char, KEY_SIZE) != KEY_SIZE) {
+    throw std::runtime_error("Error sending key name");
+  }
+  if (send_all(sock, &size, sizeof(uint32_t)) != sizeof(uint32_t)) {
+    throw std::runtime_error("Error sending value size");
+  }
+  if (send_all(sock, data, size) != size) {
+    throw std::runtime_error("Error sending value data");
+  }
+}
+
+std::pair<std::shared_ptr<char>, uint32_t> PSSparseServerInterface::get_value(
+    const std::string& key) {
+  char key_char[KEY_SIZE] = {0};
+  std::copy(key.data(), key.data() + key.size(), key_char);
+
+  uint32_t operation = GET_VALUE;
+  if (send_all(sock, &operation, sizeof(operation)) != sizeof(operation)) {
+    throw std::runtime_error("Error sending operation");
+  }
+
+  if (send_all(sock, key_char, KEY_SIZE) != KEY_SIZE) {
+    throw std::runtime_error("Error sending key name");
+  }
+
+  uint32_t size = 0;
+  if (read_all(sock, &size, sizeof(uint32_t)) != sizeof(uint32_t)) {
+    throw std::runtime_error("Error reading key value");
+  }
+
+  if (size == 0) {
+    // object not found
+    return std::make_pair(std::shared_ptr<char>(nullptr), 0);
+  }
+
+  std::shared_ptr<char> value_data =
+      std::shared_ptr<char>(new char[size], std::default_delete<char[]>());
+
+  if (read_all(sock, value_data.get(), size) != size) {
+    throw std::runtime_error("Error receiving value data");
+  }
+
+  return std::make_pair(value_data, size);
 }
 
 } // namespace cirrus

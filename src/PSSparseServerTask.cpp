@@ -16,6 +16,8 @@
 #define MAX_CONNECTIONS (nworkers * 2 + 1) // (2 x # workers + 1)
 #define THREAD_MSG_BUFFER_SIZE 1000000
 
+#define TIMEOUT_THRESHOLD_SEC (3)
+
 namespace cirrus {
 
 PSSparseServerTask::PSSparseServerTask(uint64_t model_size,
@@ -34,28 +36,68 @@ PSSparseServerTask::PSSparseServerTask(uint64_t model_size,
              worker_id,
              ps_ip,
              ps_port),
-      kill_signal(false),
       main_thread(0),
+      kill_signal(false),
       threads_barrier(new pthread_barrier_t, destroy_pthread_barrier) {
   std::cout << "PSSparseServerTask is built" << std::endl;
 
   std::atomic_init(&gradientUpdatesCount, 0UL);
   std::atomic_init(&thread_count, 0);
 
-  operation_to_name[0] = "SEND_LR_GRADIENT";
-  operation_to_name[1] = "SEND_MF_GRADIENT";
-  operation_to_name[2] = "GET_LR_FULL_MODEL";
-  operation_to_name[3] = "GET_MF_FULL_MODEL";
-  operation_to_name[4] = "GET_LR_SPARSE_MODEL";
-  operation_to_name[5] = "GET_MF_SPARSE_MODEL";
-  operation_to_name[6] = "SET_TASK_STATUS";
-  operation_to_name[7] = "GET_TASK_STATUS";
-  operation_to_name[8] = "REGISTER_TASK";
-  operation_to_name[9] = "GET_NUM_CONNS";
+  set_operation_maps();
 
   for (int i = 0; i < NUM_PS_WORK_THREADS; i++) {
     thread_msg_buffer[i].reset(new char[THREAD_MSG_BUFFER_SIZE]);
   }
+}
+
+void PSSparseServerTask::set_operation_maps() {
+  operation_to_name[SEND_LR_GRADIENT] = "SEND_LR_GRADIENT";
+  operation_to_name[SEND_MF_GRADIENT] = "SEND_MF_GRADIENT";
+  operation_to_name[GET_LR_FULL_MODEL] = "GET_LR_FULL_MODEL";
+  operation_to_name[GET_MF_FULL_MODEL] = "GET_MF_FULL_MODEL";
+  operation_to_name[GET_LR_SPARSE_MODEL] = "GET_LR_SPARSE_MODEL";
+  operation_to_name[GET_MF_SPARSE_MODEL] = "GET_MF_SPARSE_MODEL";
+  operation_to_name[SET_TASK_STATUS] = "SET_TASK_STATUS";
+  operation_to_name[GET_TASK_STATUS] = "GET_TASK_STATUS";
+  operation_to_name[REGISTER_TASK] = "REGISTER_TASK";
+  operation_to_name[DEREGISTER_TASK] = "DEREGISTER_TASK";
+  operation_to_name[GET_NUM_CONNS] = "GET_NUM_CONNS";
+  operation_to_name[GET_NUM_UPDATES] = "GET_NUM_UPDATES";
+  operation_to_name[GET_LAST_TIME_ERROR] = "GET_LAST_TIME_ERROR";
+  operation_to_name[KILL_SIGNAL] = "KILL_SIGNAL";
+  operation_to_name[SET_VALUE] = "SET_VALUE";
+  operation_to_name[GET_VALUE] = "GET_VALUE";
+
+  using namespace std::placeholders;
+  operation_to_f[SEND_LR_GRADIENT] = std::bind(
+      &PSSparseServerTask::process_send_lr_gradient, this, _1, _2, _3, _4);
+  operation_to_f[SEND_MF_GRADIENT] = std::bind(
+      &PSSparseServerTask::process_send_mf_gradient, this, _1, _2, _3, _4);
+  operation_to_f[GET_LR_SPARSE_MODEL] = std::bind(
+      &PSSparseServerTask::process_get_lr_sparse_model, this, _1, _2, _3, _4);
+  operation_to_f[GET_MF_SPARSE_MODEL] = std::bind(
+      &PSSparseServerTask::process_get_mf_sparse_model, this, _1, _2, _3, _4);
+  operation_to_f[GET_MF_FULL_MODEL] = std::bind(
+      &PSSparseServerTask::process_get_mf_full_model, this, _1, _2, _3, _4);
+  operation_to_f[GET_LR_FULL_MODEL] = std::bind(
+      &PSSparseServerTask::process_get_lr_full_model, this, _1, _2, _3, _4);
+  operation_to_f[SET_TASK_STATUS] = std::bind(
+      &PSSparseServerTask::process_set_task_status, this, _1, _2, _3, _4);
+  operation_to_f[GET_TASK_STATUS] = std::bind(
+      &PSSparseServerTask::process_get_task_status, this, _1, _2, _3, _4);
+  operation_to_f[GET_NUM_CONNS] = std::bind(
+      &PSSparseServerTask::process_get_num_conns, this, _1, _2, _3, _4);
+  operation_to_f[GET_NUM_UPDATES] = std::bind(
+      &PSSparseServerTask::process_get_num_updates, this, _1, _2, _3, _4);
+  operation_to_f[REGISTER_TASK] = std::bind(
+      &PSSparseServerTask::process_register_task, this, _1, _2, _3, _4);
+  operation_to_f[DEREGISTER_TASK] = std::bind(
+      &PSSparseServerTask::process_deregister_task, this, _1, _2, _3, _4);
+  operation_to_f[SET_VALUE] =
+      std::bind(&PSSparseServerTask::process_set_value, this, _1, _2, _3, _4);
+  operation_to_f[GET_VALUE] =
+      std::bind(&PSSparseServerTask::process_get_value, this, _1, _2, _3, _4);
 }
 
 std::shared_ptr<char> PSSparseServerTask::serialize_lr_model(
@@ -77,9 +119,15 @@ bool PSSparseServerTask::testRemove(struct pollfd x, int poll_id) {
 }
 
 bool PSSparseServerTask::process_send_mf_gradient(
+    int sock,
     const Request& req,
-    std::vector<char>& thread_buffer) {
-  uint32_t incoming_size = req.incoming_size;
+    std::vector<char>& thread_buffer,
+    int) {
+  uint32_t incoming_size = 0;
+  if (read_all(sock, &incoming_size, sizeof(uint32_t)) == 0) {
+    handle_failed_read(&req.poll_fd);
+    return false;
+  }
 #ifdef DEBUG
   std::cout << "APPLY_GRADIENT_REQ incoming size: " << incoming_size
             << std::endl;
@@ -112,9 +160,16 @@ bool PSSparseServerTask::process_send_mf_gradient(
 }
 
 bool PSSparseServerTask::process_send_lr_gradient(
+    int sock,
     const Request& req,
-    std::vector<char>& thread_buffer) {
-  uint32_t incoming_size = req.incoming_size;
+    std::vector<char>& thread_buffer,
+    int) {
+  // read 4 bytes of the size of the remaining message
+  uint32_t incoming_size = 0;
+  if (read_all(sock, &incoming_size, sizeof(uint32_t)) == 0) {
+    handle_failed_read(&req.poll_fd);
+    return false;
+  }
 #ifdef DEBUG
   std::cout << "APPLY_GRADIENT_REQ incoming size: " << incoming_size
             << std::endl;
@@ -146,7 +201,15 @@ bool PSSparseServerTask::process_send_lr_gradient(
 // move this to SparseMFModel
 
 bool PSSparseServerTask::process_get_mf_sparse_model(
-    const Request& req, std::vector<char>& thread_buffer, int thread_number) {
+    int sock,
+    const Request& req,
+    std::vector<char>& thread_buffer,
+    int thread_number) {
+  uint32_t incoming_size = 0;
+  if (read_all(sock, &incoming_size, sizeof(uint32_t)) == 0) {
+    handle_failed_read(&req.poll_fd);
+    return false;
+  }
   uint32_t k_items = 0;
   uint32_t base_user_id = 0;
   uint32_t minibatch_size = 0;
@@ -189,10 +252,17 @@ bool PSSparseServerTask::process_get_mf_sparse_model(
 }
 
 bool PSSparseServerTask::process_get_lr_sparse_model(
-    const Request& req, std::vector<char>& thread_buffer) {
+    int sock,
+    const Request& req,
+    std::vector<char>& thread_buffer,
+    int) {
   // need to parse the buffer to get the indices of the model we want
   // to send back to the client
-  uint32_t incoming_size = req.incoming_size;
+  uint32_t incoming_size = 0;
+  if (read_all(sock, &incoming_size, sizeof(uint32_t)) == 0) {
+    handle_failed_read(&req.poll_fd);
+    return false;
+  }
   if (incoming_size > thread_buffer.size()) {
     throw std::runtime_error("Not enough buffer");
   }
@@ -214,6 +284,7 @@ bool PSSparseServerTask::process_get_lr_sparse_model(
   assert(to_send_size < 1024 * 1024);
   char data_to_send[1024 * 1024]; // 1MB
   char* data_to_send_ptr = data_to_send;
+
 #ifdef DEBUG
   std::cout << "Sending back: " << num_entries
     << " weights from model. Size: " << to_send_size
@@ -234,7 +305,10 @@ bool PSSparseServerTask::process_get_lr_sparse_model(
 }
 
 bool PSSparseServerTask::process_get_mf_full_model(
-    const Request& req, std::vector<char>& thread_buffer) {
+    int sock,
+    const Request& req,
+    std::vector<char>& thread_buffer,
+    int) {
   model_lock.lock();
   auto mf_model_copy = *mf_model;
   model_lock.unlock();
@@ -262,10 +336,17 @@ bool PSSparseServerTask::process_get_mf_full_model(
 }
 
 bool PSSparseServerTask::process_get_lr_full_model(
-    const Request& req, std::vector<char>& thread_buffer) {
+    int sock,
+    const Request& req,
+    std::vector<char>& thread_buffer,
+    int) {
   model_lock.lock();
   auto lr_model_copy = *lr_model;
   model_lock.unlock();
+
+  // TODO: This should be largest non-zero weight in model. That way
+  // we can reduce the model size, espeically for a large model split across
+  // multiple PS
   uint32_t model_size = lr_model_copy.getSerializedSize();
 
   if (thread_buffer.size() < model_size) {
@@ -290,6 +371,247 @@ void PSSparseServerTask::handle_failed_read(struct pollfd* pfd) {
             << std::endl;
   pfd->fd = -1;
   pfd->revents = 0;
+}
+
+bool PSSparseServerTask::process_set_task_status(
+    int sock,
+    const Request& req,
+    std::vector<char>& thread_buffer,
+    int) {
+  uint32_t data[2] = {0};  // id + status
+  if (read_all(sock, data, sizeof(uint32_t) * 2) == 0) {
+    handle_failed_read(&req.poll_fd);
+    return false;
+  }
+#ifdef debug
+  std::cout << "set status task id: " << data[0] << " status: " << data[1]
+            << std::endl;
+#endif
+  task_to_status[data[0]] = data[1];
+
+  return true;
+}
+
+bool PSSparseServerTask::process_get_task_status(
+    int sock,
+    const Request& req,
+    std::vector<char>& thread_buffer,
+    int) {
+  uint32_t task_id;
+  if (read_all(sock, &task_id, sizeof(uint32_t)) == 0) {
+    return false;
+  }
+#ifdef debug
+  std::cout << "get status task id: " << task_id << std::endl;
+#endif
+  assert(task_id < 10000);
+  if (task_to_status.find(task_id) == task_to_status.end() ||
+      task_to_status[task_id] == false) {
+    uint32_t status = 0;
+    if (send_all(sock, &status, sizeof(uint32_t)) != sizeof(uint32_t)) {
+      return false;
+    }
+  } else {
+    uint32_t status = 1;
+    if (send_all(sock, &status, sizeof(uint32_t)) != sizeof(uint32_t)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool PSSparseServerTask::process_get_num_updates(
+    int sock,
+    const Request& req,
+    std::vector<char>& thread_buffer,
+    int) {
+  std::cout << "Retrieve info: " << num_updates << std::endl;
+  if (send_all(sock, &num_updates, sizeof(uint32_t)) != sizeof(uint32_t)) {
+    throw std::runtime_error("Error sending number of connections");
+  }
+  return true;
+}
+
+bool PSSparseServerTask::process_register_task(int sock,
+                                               const Request& req,
+                                               std::vector<char>& thread_buffer,
+                                               int) {
+  // read the task id
+  uint32_t data[2];  // task_id + remaining_time (sec)
+  if (read_all(sock, &data, sizeof(uint32_t) * 2) == 0) {
+    handle_failed_read(&req.poll_fd);
+    return false;
+  }
+
+  // check if this task has already been registered
+  uint32_t task_id = data[0];
+  uint32_t remaining_time = data[1];
+
+  register_lock.lock();
+
+  uint32_t task_reg =
+      (registered_tasks.find(task_id) != registered_tasks.end());
+
+  std::cout << "Registering task"
+            << " task_id: " << task_id << " remaining_time: " << remaining_time
+            << " task_reg: " << task_reg << std::endl;
+
+  if (task_reg == 0) {
+    registered_tasks.insert(task_id);
+    task_to_remaining_time[task_id] = remaining_time;
+    task_to_starttime[task_id] = std::chrono::steady_clock::now();
+  }
+
+  register_lock.unlock();
+
+  if (send_all(sock, &task_reg, sizeof(uint32_t)) != sizeof(uint32_t)) {
+    std::cout << "Error sending reply" << std::endl;
+    return false;
+  }
+
+  num_tasks++;
+
+  return true;
+}
+
+bool PSSparseServerTask::process_get_num_conns(int sock,
+                                               const Request& req,
+                                               std::vector<char>& thread_buffer,
+                                               int) {
+  // NOTE: Consider changing this to flatbuffer serialization?
+  std::cout << "Retrieve info: " << num_connections << std::endl;
+  if (send_all(sock, &num_connections, sizeof(uint32_t)) != sizeof(uint32_t)) {
+    throw std::runtime_error("Error sending number of connections");
+  }
+
+  return true;
+}
+
+bool PSSparseServerTask::process_get_value(int sock,
+                                           const Request& req,
+                                           std::vector<char>& thread_buffer,
+                                           int) {
+  char key[KEY_SIZE + 1] = {0};
+
+  // read the key (KEY_SIZE bytes)
+  if (read_all(sock, &key, KEY_SIZE) == 0) {
+    handle_failed_read(&req.poll_fd);
+    return false;
+  }
+
+  // XXX can use string_view here?
+  auto map_iterator = key_value_map.find(std::string(key));
+  if (map_iterator == key_value_map.end()) {
+    uint32_t not_found = 0;
+    if (send_all(sock, &not_found, sizeof(char)) != sizeof(char)) {
+      return false;
+    }
+  } else {
+    uint32_t value_size = map_iterator->second.first;
+    if (send_all(sock, &value_size, sizeof(uint32_t)) != sizeof(uint32_t)) {
+      return false;
+    }
+    if (send_all(sock, map_iterator->second.second.get(), value_size) !=
+        value_size) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool PSSparseServerTask::process_set_value(int sock,
+                                           const Request& req,
+                                           std::vector<char>& thread_buffer,
+                                           int) {
+  struct {
+    char key[KEY_SIZE];
+    uint32_t value_size;
+  } msg;
+
+  memset(&msg, 0, sizeof(msg));
+
+  // read the key (KEY_SIZE bytes)
+  if (read_all(sock, msg.key, KEY_SIZE) == 0) {
+    handle_failed_read(&req.poll_fd);
+    return false;
+  }
+  if (read_all(sock, &msg.value_size, sizeof(uint32_t)) == 0) {
+    handle_failed_read(&req.poll_fd);
+    return false;
+  }
+
+  std::shared_ptr<char> value_data = std::shared_ptr<char>(
+      new char[msg.value_size], std::default_delete<char[]>());
+
+  // read the key value
+  if (read_all(sock, value_data.get(), msg.value_size) == 0) {
+    handle_failed_read(&req.poll_fd);
+    return false;
+  }
+
+  // XXX here we do 1 deallocation and one allocation
+  // XXX can use string view?
+  key_value_map[std::string(msg.key)] =
+      std::make_pair(msg.value_size, value_data);
+  return true;
+}
+
+uint32_t PSSparseServerTask::declare_task_dead(uint32_t task_id) {
+  std::cout << "Declaring task id: " << task_id << " as terminated"
+            << std::endl;
+
+  if (task_to_starttime.find(task_id) == task_to_starttime.end()) {
+    std::cout << "Task " << task_id << " has already been deregistered"
+              << std::endl;
+    return 1;
+  }
+
+  task_to_remaining_time[task_id] = -1;
+  task_to_starttime.erase(task_id);
+
+  num_tasks--;
+
+  return 0;
+}
+
+bool PSSparseServerTask::process_deregister_task(
+    int sock,
+    const Request& req,
+    std::vector<char>& thread_buffer,
+    int) {
+  // read the task id
+  uint32_t task_id = 0;
+  if (read_all(sock, &task_id, sizeof(uint32_t)) == 0) {
+    handle_failed_read(&req.poll_fd);
+    return false;
+  }
+
+  register_lock.lock();
+
+  // check if this task has already been registered
+  auto it = registered_tasks.find(task_id);
+  uint32_t is_task_reg = (it != registered_tasks.end());
+
+  std::cout << "Deregistering task"
+            << " task_id: " << task_id << " is_task_reg: " << is_task_reg
+            << std::endl;
+
+  uint32_t ret = 0;  // success return value
+
+  // when a task deregisters we set its remaining time to -1
+  if (is_task_reg) {
+    ret = declare_task_dead(task_id);
+  } else {
+    ret = 2;  // does not exist
+  }
+
+  register_lock.unlock();
+
+  if (send_all(sock, &ret, sizeof(uint32_t)) != sizeof(uint32_t)) {
+    std::cout << "Error sending reply" << std::endl;
+    return false;
+  }
+  return true;
 }
 
 void PSSparseServerTask::gradient_f() {
@@ -332,112 +654,16 @@ void PSSparseServerTask::gradient_f() {
               << operation_to_name[operation] << std::endl;
 #endif
 
-    if (operation == REGISTER_TASK) {
-      // read the task id
-      uint32_t task_id = 0;
-      if (read_all(sock, &task_id, sizeof(uint32_t)) == 0) {
-        handle_failed_read(&req.poll_fd);
-        continue;
-      }
-      // check if this task has already been registered
-      uint32_t task_reg =
-          (registered_tasks.find(task_id) != registered_tasks.end());
-
-      if (task_reg == 0) {
-        registered_tasks.insert(task_id);
-      }
-      send_all(sock, &task_reg, sizeof(uint32_t));
-      continue;
-    } else if (operation == SEND_LR_GRADIENT || operation == SEND_MF_GRADIENT ||
-               operation == GET_LR_SPARSE_MODEL ||
-               operation == GET_MF_SPARSE_MODEL) {
-      // read 4 bytes of the size of the remaining message
-      uint32_t incoming_size = 0;
-      if (read_all(sock, &incoming_size, sizeof(uint32_t)) == 0) {
-        handle_failed_read(&req.poll_fd);
-        continue;
-      }
-      req.incoming_size = incoming_size;
+    if (operation_to_f.find(operation) == operation_to_f.end()) {
+      throw std::runtime_error("Unknown operation");
     }
 
-    if (operation == SEND_LR_GRADIENT) {
-      if (!process_send_lr_gradient(req, thread_buffer)) {
-        break;
-      }
-    } else if (operation == SEND_MF_GRADIENT) {
-      if (!process_send_mf_gradient(req, thread_buffer)) {
-        break;
-      }
-    } else if (operation == GET_LR_SPARSE_MODEL) {
-#ifdef DEBUG
-      std::cout << "process_get_lr_sparse_model" << std::endl;
-      auto before = get_time_us();
-#endif
-      if (!process_get_lr_sparse_model(req, thread_buffer)) {
-        break;
-      }
-#ifdef DEBUG
-      auto elapsed = get_time_us() - before;
-      std::cout << "GET_LR_SPARSE_MODEL Elapsed(us): " << elapsed << std::endl;
-#endif
-    } else if (operation == GET_MF_SPARSE_MODEL) {
-      if (!process_get_mf_sparse_model(req, thread_buffer, thread_number)) {
-        break;
-      }
-    } else if (operation == GET_LR_FULL_MODEL) {
-      if (!process_get_lr_full_model(req, thread_buffer))
-        break;
-    } else if (operation == GET_MF_FULL_MODEL) {
-      if (!process_get_mf_full_model(req, thread_buffer))
-        break;
-    } else if (operation == GET_TASK_STATUS) {
-      uint32_t task_id;
-      if (read_all(sock, &task_id, sizeof (uint32_t)) == 0) {
-        break;
-      }
-#ifdef DEBUG
-      std::cout << "Get status task id: " << task_id << std::endl;
-#endif
-      assert(task_id < 10000);
-      if (task_to_status.find(task_id) == task_to_status.end() ||
-          task_to_status[task_id] == false) {
-        uint32_t status = 0;
-        send_all(sock, &status, sizeof (uint32_t));
-      } else {
-        uint32_t status = 1;
-        send_all(sock, &status, sizeof (uint32_t));
-      }
-    
-    } else if (operation == SET_TASK_STATUS) {
-    
-      uint32_t data[2] = {0}; // id + status
-      if (read_all(sock, data, sizeof (uint32_t) * 2) == 0) {
-        handle_failed_read(&req.poll_fd);
-        continue;
-      }
-#ifdef DEBUG
-      std::cout << "Set status task id: " << data[0] << " status: " << data[1]
-                << std::endl;
-#endif
-      task_to_status[data[0]] = data[1];
-
-    } else if (operation == GET_NUM_CONNS) {
-      // NOTE: Consider changing this to flatbuffer serialization?
-      std::cout << "Retrieve info: " << num_connections << std::endl;
-      if (send(sock, &num_connections, sizeof(uint32_t), 0) < 0) {
-        throw std::runtime_error("Error sending number of connections");
-      }
-    } else if (operation == GET_NUM_UPDATES) {
-      std::cout << "Retrieve info: " << num_updates << std::endl;
-      if (send(sock, &num_updates, sizeof(uint32_t), 0) < 0) {
-        throw std::runtime_error("Error sending number of connections");
-      }
-    } else if (operation == KILL_SIGNAL) {
+    if (operation == KILL_SIGNAL) {
       std::cout << "Received kill signal!" << std::endl;
       kill_server();
       break;
     } else {
-      throw std::runtime_error("gradient_f: Unknown operation");
+      operation_to_f[operation](sock, req, thread_buffer, thread_number);
     }
 
     // We reactivate events from the client socket here
@@ -576,7 +802,7 @@ void PSSparseServerTask::loop(int poll_id) {
   struct sockaddr_in cli_addr;
   socklen_t clilen = sizeof(cli_addr);
 
-  buffer.resize(10 * 1024 * 1024); // reserve 10MB upfront
+  // buffer.resize(10 * 1024 * 1024); // reserve 10MB upfront
 
   std::cout << "Starting loop for id: " << poll_id << std::endl;
   while (!kill_signal) {
@@ -673,6 +899,26 @@ void sig_handler(int) {
   //std::cout << "Sig handler" << std::endl;
 }
 
+void PSSparseServerTask::check_tasks_lifetime() {
+  auto now = std::chrono::steady_clock::now();
+
+  for (const auto& task : task_to_starttime) {
+    uint32_t task_id = task.first;
+    auto start_time = task.second;
+
+    auto elapsed_sec =
+        std::chrono::duration_cast<std::chrono::seconds>(now - start_time)
+            .count();
+
+    std::cout << "id " << task_id << " elapsed_sec " << elapsed_sec
+              << std::endl;
+
+    if (elapsed_sec > task_to_remaining_time[task_id] + TIMEOUT_THRESHOLD_SEC) {
+      declare_task_dead(task_id);
+    }
+  }
+}
+
 /**
  * This is the task that runs the parameter server
  * This task is responsible for
@@ -730,11 +976,15 @@ void PSSparseServerTask::run(const Configuration& config) {
     if (elapsed_us > 1000000) {
       last_tick = now;
       std::cout << "Events in the last sec: "
-        << 1.0 * gradientUpdatesCount / elapsed_us * 1000 * 1000
-        << " since (sec): " << since_start_sec
-        << " #conns: " << num_connections
-        << std::endl;
+                << 1.0 * gradientUpdatesCount / elapsed_us * 1000 * 1000
+                << " since (sec): " << since_start_sec
+                << " #conns: " << num_connections << " #tasks: " << num_tasks
+                << std::endl;
       gradientUpdatesCount = 0;
+
+      register_lock.lock();
+      check_tasks_lifetime();
+      register_lock.unlock();
     }
     sleep(1);
   }
@@ -755,15 +1005,15 @@ void PSSparseServerTask::run(const Configuration& config) {
 }
 
 void PSSparseServerTask::checkpoint_model_loop() {
-    if (task_config.get_checkpoint_frequency() == 0) {
-        // checkpoint disabled
-        return;
-    }
+  if (task_config.get_checkpoint_frequency() == 0) {
+    // checkpoint disabled
+    return;
+  }
 
-    while (!kill_signal) {
-      sleep(task_config.get_checkpoint_frequency());
-      // checkpoint to s3
-    }
+  while (!kill_signal) {
+    sleep(task_config.get_checkpoint_frequency());
+    // checkpoint to s3
+  }
 }
 
 void PSSparseServerTask::checkpoint_model_file(

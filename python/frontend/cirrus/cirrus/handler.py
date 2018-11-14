@@ -18,6 +18,9 @@ EXIT_POLL_INTERVAL = 0.01
 # A message to the parameter server that requests worker registration.
 REGISTER_TASK_MSG = b'\x08\x00\x00\x00'
 
+# A message to the parameter server that requests worker deregistration.
+DEREGISTER_TASK_MSG = b'\x0f\x00\x00\x00'
+
 # The timeout for an attempt to connect to a parameter server, in seconds.
 PS_CONNECTION_TIMEOUT = 5
 
@@ -26,7 +29,7 @@ PS_CONNECTION_TIMEOUT = 5
 WORKER_OUTPUT_BUFFER = 100
 
 
-def register_task_id(ps_ip, ps_port, task_id, time_left):
+def register(ps_ip, ps_port, task_id, time_left):
     """Attempt to register a worker with a parameter server.
 
     Args:
@@ -49,6 +52,35 @@ def register_task_id(ps_ip, ps_port, task_id, time_left):
     sock.send(REGISTER_TASK_MSG)
     time_left_secs = time_left() // 1000
     sock.send(struct.pack("II", task_id, time_left_secs))
+
+    # Check result.
+    response = sock.recv(32)
+    sock.close()
+    result = struct.unpack("I", response)[0]
+    # A result of 0 indicates success.
+    return result == 0
+
+
+def deregister(ps_ip, ps_port, task_id):
+    """Attempt to deregister a worker with a parameter server.
+
+    Args:
+        ps_ip (str): The public IP address of the parameter server.
+        ps_port (int): The port of the parameter server.
+        task_id (int): The ID number of the task this worker is running.
+
+    Returns:
+        bool: Whether deregistration succeeded, according to the parameter
+            server.
+    """
+    # Set up the connection.
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(PS_CONNECTION_TIMEOUT)
+    sock.connect((ps_ip, ps_port))
+
+    # Request deregistration.
+    sock.send(DEREGISTER_TASK_MSG)
+    sock.send(struct.pack("I", task_id))
 
     # Check result.
     response = sock.recv(32)
@@ -82,28 +114,28 @@ def run(event, context):
     log = logging.getLogger("cirrus.handler.run")
 
     # Attempt to catch any errors that arise, to enable better logging.
+    log.debug("This is an invocation of %s, version %s."
+              % (context.function_name, context.function_version))
+    log.debug("Logging to stream `%s`." % context.log_stream_name)
+    log.debug("Logging to group `%s`." % context.log_group_name)
+    log.debug("The request ID is %s." % context.aws_request_id)
+    log.debug("The memory limit is %sMB." % context.memory_limit_in_mb)
+    log.debug("The time remaining is %dms."
+              % context.get_remaining_time_in_millis())
+
+    task_id = event["task_id"]
+    num_workers = event["num_workers"]
+    ps_ip = event["ps_ip"]
+    ps_port = event["ps_port"]
+
     try:
-        log.debug("This is an invocation of %s, version %s."
-                  % (context.function_name, context.function_version))
-        log.debug("Logging to stream `%s`." % context.log_stream_name)
-        log.debug("Logging to group `%s`." % context.log_group_name)
-        log.debug("The request ID is %s." % context.aws_request_id)
-        log.debug("The memory limit is %sMB." % context.memory_limit_in_mb)
-        log.debug("The time remaining is %dms."
-                  % context.get_remaining_time_in_millis())
-
-        task_id = event["task_id"]
-        num_workers = event["num_workers"]
-        ps_ip = event["ps_ip"]
-        ps_port = event["ps_port"]
-
         log.debug("This is Task %d, interfacing with %s:%d."
                   % (task_id, ps_ip, ps_port))
 
         # Attempt to register with the parameter server; abort if a duplicate
         #   invocation with the same worker ID has already won the race.
         log.debug("Attempting registration.")
-        registration_succeeded = register_task_id(
+        registration_succeeded = register(
             ps_ip,
             ps_port,
             task_id,
@@ -153,10 +185,14 @@ def run(event, context):
             log.error(msg)
             raise RuntimeError(msg)
 
+        if not deregister(ps_ip, ps_port, task_id):
+            log.error("Deregistration failed.")
         return {
             "statusCode": 200,
             "body": "Success."
         }
     except:
         log.error("The handler threw an error.")
+        if not deregister(ps_ip, ps_port, task_id):
+            log.error("Deregistration failed.")
         raise

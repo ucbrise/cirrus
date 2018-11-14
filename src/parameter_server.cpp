@@ -21,10 +21,13 @@ DEFINE_bool(testing, false, "testing mode");
 static const uint64_t GB = (1024*1024*1024);
 static const uint32_t SIZE = 1;
 
-void run_tasks(int rank, int nworkers,
-    int batch_size, const cirrus::Configuration& config,
-    const std::string& ps_ip,
-    uint64_t ps_port, bool testing) {
+void run_tasks(int rank,
+               int nworkers,
+               int batch_size,
+               const cirrus::Configuration& config,
+               const std::string& ps_ip,
+               uint64_t ps_port,
+               bool testing) {
 
   std::cout << "Run tasks rank: " << rank << std::endl;
   int features_per_sample = config.get_num_features();
@@ -155,7 +158,8 @@ int main(int argc, char** argv) {
   // call the right task for this process
   std::cout << "Running task" << std::endl;
   cirrus::s3_initialize_aws();
-  run_tasks(rank, nworkers, batch_size, config, FLAGS_ps_ip, FLAGS_ps_port, FLAGS_testing);
+  run_tasks(rank, nworkers, batch_size, config, FLAGS_ps_ip, FLAGS_ps_port,
+            FLAGS_testing);
 
   std::cout << "Test successful" << std::endl;
 

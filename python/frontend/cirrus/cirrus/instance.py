@@ -270,7 +270,7 @@ class Instance(object):
 
 
     def __init__(self, name, disk_size, typ, username, ami_id=None,
-                 ami_name=None, ami_public=False, spot_bid=None):
+                 ami_owner_name=None, spot_bid=None):
         """Define an EC2 instance.
 
         Args:
@@ -280,8 +280,12 @@ class Instance(object):
             typ (str): Type for the instance.
             username (str): SSH username for the AMI.
             ami_id (str): ID of the AMI for the instance. If omitted or None, `ami_name` must be provided.
-            ami_name (str): Name of the AMI for the instance. Only used if `ami_id` is not provided. The first AMI with
-                the name `ami_name` owned by the AWS account is used.
+            ami_owner_name (tuple[str, str]): The owner and name of the AMI for
+                the instance. Only used if `ami_id` is not provided. The first
+                AMI found with the name `ami_owner_name[1]` owned by
+                `ami_owner_name[0]` is used. Valid choices for
+                `ami_owner_name[0]` are `"self"` to indicate the current
+                account, `"amazon"` to indicate AWS itself, or any account ID.
             spot_bid (str): The spot instance bid to make, as a dollar amount
 +                per hour. If omitted or None, the instance will not be spot.
         """
@@ -297,13 +301,28 @@ class Instance(object):
         self._ec2 = boto3.resource("ec2", configuration.config()["aws"]["region"])
 
         if self._ami_id is None:
-            self._log.debug("__init__: Resolving AMI name to AMI ID.")
+            assert ami_owner_name is not None, \
+                "When ami_id is not specified, ami_owner_name must be."
+
+            self._log.debug("__init__: Resolving AMI owner/name to AMI ID.")
+            owner, name = ami_owner_name
+            filter = {
+                "Name": "name",
+                "Values": [name]
+            }
             response = self._ec2.meta.client.describe_images(
-                Filters=[{"Name": "name", "Values": [ami_name]}], Owners=["self"])
+                Filters=[filter],
+                Owners=[owner]
+            )
+
             if len(response["Images"]) > 0:
                 self._ami_id = response["Images"][0]["ImageId"]
             else:
-                raise RuntimeError("No AMIs with the given name were found.")
+                raise RuntimeError("No AMIs with the given owner/name were "
+                                   "found.")
+        else:
+            assert ami_owner_name is None, \
+                "When ami_id is specified, ami_owner_name should not be."
 
         self._instance_profile = None
         self.instance = None

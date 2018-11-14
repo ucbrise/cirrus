@@ -521,7 +521,7 @@ def make_ubuntu_build_image(name):
     instance.cleanup()
 
 
-def make_executables(path, image_name, username):
+def make_executables(path, image_owner_name, username):
     """Compile Cirrus and publish its executables.
 
     Overwrites any existing S3 objects with the same name. The resulting S3
@@ -530,14 +530,15 @@ def make_executables(path, image_name, username):
     Args:
         path (str): A S3 path to a "directory" in which to publish the
             executables.
-        image_name (str): The name of the AMI to compile on.
+        image_owner_name (tuple[str, str]): The owner and name of the AMI to
+            compile on. As for `Instance.__init__`.
         username (str): The SSH username to use with the AMI.
     """
     log = logging.getLogger("cirrus.automate.make_executables")
 
     log.debug("make_executables: Launching an instance.")
     instance = Instance("cirrus_make_executables",
-                        ami_name=image_name,
+                        ami_owner_name=image_owner_name,
                         disk_size=BUILD_INSTANCE_SIZE,
                         typ=BUILD_INSTANCE_TYPE,
                         username=username)

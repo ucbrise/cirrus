@@ -28,7 +28,6 @@ void run_tasks(int rank,
                const std::string& ps_ip,
                uint64_t ps_port,
                bool testing) {
-
   std::cout << "Run tasks rank: " << rank << std::endl;
   int features_per_sample = config.get_num_features();
   int samples_per_batch = config.get_minibatch_size();

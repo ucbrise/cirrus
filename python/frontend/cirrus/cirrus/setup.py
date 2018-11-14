@@ -30,6 +30,9 @@ LAMBDA_NAME = "cirrus_worker"
 
 def run_interactive_setup():
     """Run an interactive command-line setup process.
+
+    If passed the flag "--instance-resources-only", only sets up the AWS
+        credentials and instance resources.
     """
     configuration.config(False)["aws"] = {}
 
@@ -37,11 +40,15 @@ def run_interactive_setup():
 
     _set_up_region()
 
+    _set_up_instance_resources()
+
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "--instance-resources-only":
+            return
+
     _set_up_bucket()
 
     _make_lambda()
-
-    _set_up_instance_resources()
 
     _save_config()
 

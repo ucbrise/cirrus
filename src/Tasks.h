@@ -157,7 +157,7 @@ class ErrorSparseTask : public MLTask {
                    const std::string& ps_ip,
                    uint64_t ps_port);
 
-   void run(const Configuration& config);
+   void run(const Configuration& config, bool testing);
    void error_response();
 
   private:

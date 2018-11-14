@@ -16,6 +16,7 @@ DEFINE_int64(rank, -1, "rank");
 DEFINE_string(config, "", "config");
 DEFINE_string(ps_ip, PS_IP, "parameter server ip");
 DEFINE_int64(ps_port, PS_PORT, "parameter server port");
+DEFINE_bool(testing, false, "testing mode");
 
 static const uint64_t GB = (1024*1024*1024);
 static const uint32_t SIZE = 1;
@@ -23,7 +24,7 @@ static const uint32_t SIZE = 1;
 void run_tasks(int rank, int nworkers,
     int batch_size, const cirrus::Configuration& config,
     const std::string& ps_ip,
-    uint64_t ps_port) {
+    uint64_t ps_port, bool testing) {
 
   std::cout << "Run tasks rank: " << rank << std::endl;
   int features_per_sample = config.get_num_features();
@@ -60,7 +61,7 @@ void run_tasks(int rank, int nworkers,
     cirrus::ErrorSparseTask et((1 << config.get_model_bits()),
         batch_size, samples_per_batch, features_per_sample,
         nworkers, rank, ps_ip, ps_port);
-    et.run(config);
+    et.run(config, testing);
     cirrus::sleep_forever();
   } else if (rank == LOADING_SPARSE_TASK_RANK) {
     if (config.get_model_type() == cirrus::Configuration::LOGISTICREGRESSION) {
@@ -154,7 +155,7 @@ int main(int argc, char** argv) {
   // call the right task for this process
   std::cout << "Running task" << std::endl;
   cirrus::s3_initialize_aws();
-  run_tasks(rank, nworkers, batch_size, config, FLAGS_ps_ip, FLAGS_ps_port);
+  run_tasks(rank, nworkers, batch_size, config, FLAGS_ps_ip, FLAGS_ps_port, FLAGS_testing);
 
   std::cout << "Test successful" << std::endl;
 

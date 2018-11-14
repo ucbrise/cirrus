@@ -23,7 +23,7 @@ BUILD_INSTANCE = {
 }
 
 # The type of instance to use for compilation.
-BUILD_INSTANCE_TYPE = "c5.4xlarge"
+BUILD_INSTANCE_TYPE = "c4.4xlarge"
 
 # The disk size, in GB, to use for compilation.
 BUILD_INSTANCE_SIZE = 32

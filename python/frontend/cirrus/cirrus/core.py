@@ -301,7 +301,7 @@ class BaseTask(object):
         if self.is_dead():
             return
 
-        out = messenger.get_last_time_error(self.ps_ip_public, self.ps_ip_port + 1)
+        out = messenger.get_last_time_error(self.ps)
         if out is None:
             return
 

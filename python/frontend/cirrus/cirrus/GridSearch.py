@@ -18,7 +18,15 @@ logging.basicConfig(filename="cirrusbundle.log", level=logging.WARNING)
 
 bundle_zip_location="/home/camus/code/cirrus-1/python/frontend/cirrus/cirrus/bundle.zip"
 
-class GridSearch:
+class GridSearch(object):
+    # All searches that are currently running.
+    _running_searches = []
+
+
+    @classmethod
+    def kill_all_searches(cls):
+        for search in list(cls._running_searches):
+            search.kill_all()
 
 
     # TODO: Add some sort of optional argument checking
@@ -31,7 +39,6 @@ class GridSearch:
                  num_jobs=1,
                  timeout=-1,
                  ):
-
         # Private Variables
         self.cirrus_objs = [] # Stores each singular experiment
         self.infos = []       # Stores metadata associated with each experiment
@@ -203,6 +210,9 @@ class GridSearch:
 
     # Start threads to maintain all experiments
     def run(self, UI=False):
+        # Add this grid search to the list of running grid searches.
+        self._running_searches.append(self)
+
         automate.clear_lambda_logs(setup.LAMBDA_NAME)
 
         self.start_queue_threads()
@@ -217,6 +227,9 @@ class GridSearch:
 
     # Stop all experiments
     def kill_all(self):
+        # Remove this grid search from the list of running grid searches.
+        self._running_searches.remove(self)
+
         total_workers = sum(c.n_workers for c in self.cirrus_objs)
         # I add one extra concurrent execution per experiment. I haven't
         #   observed anything that leads me to believe this is necessary - it's

@@ -10,6 +10,10 @@ from CostModel import CostModel
 from . import automate
 from . import setup
 
+# The amount of time, in seconds, that passes between a parameter server being
+#   killed and its workers dying due to loss of contact with it.
+PS_KILL_TO_LAMBDA_DEATH = 5
+
 
 # Code shared by all Cirrus experiments
 # Contains all data for a single experiment
@@ -217,6 +221,10 @@ class BaseTask(object):
         #    time.
         self.ps.stop()
         self.stop_event.set()
+        # Any currently-running Lambdas will probably die during this wait. This
+        #   way, their return statuses get printed by the threads maintaining
+        #   them before this method returns, which feels nicer.
+        time.sleep(PS_KILL_TO_LAMBDA_DEATH)
 
     def is_dead(self):
         return self.dead

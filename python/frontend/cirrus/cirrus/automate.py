@@ -107,6 +107,14 @@ class ClientManager(object):
 
         Clients will not yet be initialized.
         """
+        # These mutexes synchronize reading/writing of the respective client
+        #   attributes.
+        self._lamb_mutex = threading.Lock()
+        self._iam_mutex = threading.Lock()
+        self._ec2_mutex = threading.Lock()
+        self._cloudwatch_logs_mutex = threading.Lock()
+        self._s3_mutex = threading.Lock()
+
         self.clear_cache()
         self._log = logging.getLogger("cirrus.automate.ClientManager")
 
@@ -121,12 +129,13 @@ class ClientManager(object):
         Returns:
             botocore.client.BaseClient: The client.
         """
-        if self._lamb is None:
-            self._log.debug("ClientManager: Initializing Lambda client.")
-            self._lamb = boto3.client(
-                "lambda",
-                configuration.config()["aws"]["region"]
-            )
+        with self._lamb_mutex:
+            if self._lamb is None:
+                self._log.debug("ClientManager: Initializing Lambda client.")
+                self._lamb = boto3.client(
+                    "lambda",
+                    configuration.config()["aws"]["region"]
+                )
         return self._lamb
 
 
@@ -139,12 +148,13 @@ class ClientManager(object):
         Returns:
             boto3.resources.base.ServiceResource: The resource.
         """
-        if self._iam is None:
-            self._log.debug("ClientManager: Initializing IAM resource.")
-            self._iam = boto3.resource(
-                "iam",
-                configuration.config()["aws"]["region"]
-            )
+        with self._iam_mutex:
+            if self._iam is None:
+                self._log.debug("ClientManager: Initializing IAM resource.")
+                self._iam = boto3.resource(
+                    "iam",
+                    configuration.config()["aws"]["region"]
+                )
         return self._iam
 
 
@@ -157,12 +167,13 @@ class ClientManager(object):
         Returns:
             botocore.client.BaseClient: The client.
         """
-        if self._ec2 is None:
-            self._log.debug("ClientManager: Initializing EC2 client.")
-            self._ec2 = boto3.client(
-                "ec2",
-                configuration.config()["aws"]["region"]
-            )
+        with self._ec2_mutex:
+            if self._ec2 is None:
+                self._log.debug("ClientManager: Initializing EC2 client.")
+                self._ec2 = boto3.client(
+                    "ec2",
+                    configuration.config()["aws"]["region"]
+                )
         return self._ec2
 
 
@@ -175,13 +186,14 @@ class ClientManager(object):
         Returns:
             botocore.client.BaseClient: The client.
         """
-        if self._cloudwatch_logs is None:
-            self._log.debug("ClientManager: Initializing Cloudwatch Logs "
-                            "client.")
-            self._cloudwatch_logs = boto3.client(
-                "logs",
-                configuration.config()["aws"]["region"]
-            )
+        with self._cloudwatch_logs_mutex:
+            if self._cloudwatch_logs is None:
+                self._log.debug("ClientManager: Initializing Cloudwatch Logs "
+                                "client.")
+                self._cloudwatch_logs = boto3.client(
+                    "logs",
+                    configuration.config()["aws"]["region"]
+                )
         return self._cloudwatch_logs
 
 
@@ -193,21 +205,31 @@ class ClientManager(object):
 
         Returns:
             boto3.resources.base.ServiceResource: The resource."""
-        if self._s3 is None:
-            self._log.debug("ClientManager: Initializing S3 resource.")
-            self._s3 = boto3.resource(
-                "s3", configuration.config()["aws"]["region"])
+        with self._s3_mutex:
+            if self._s3 is None:
+                self._log.debug("ClientManager: Initializing S3 resource.")
+                self._s3 = boto3.resource(
+                    "s3", configuration.config()["aws"]["region"])
         return self._s3
 
 
     def clear_cache(self):
         """Clear any cached clients.
         """
-        self._lamb = None
-        self._iam = None
-        self._ec2 = None
-        self._cloudwatch_logs = None
-        self._s3 = None
+        with self._lamb_mutex:
+            self._lamb = None
+
+        with self._iam_mutex:
+            self._iam = None
+
+        with self._ec2_mutex:
+            self._ec2 = None
+
+        with self._cloudwatch_logs_mutex:
+            self._cloudwatch_logs = None
+
+        with self._s3_mutex:
+            self._s3 = None
 
 
 # Cached AWS clients to be used throughout this module.

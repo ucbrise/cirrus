@@ -19,7 +19,7 @@ class Instance(object):
     """An EC2 instance."""
 
     # The interval at which to poll for an AMI becoming available, in seconds.
-    IMAGE_POLL_INTERVAL = 10
+    IMAGE_POLL_INTERVAL = 5
 
     # The maximum number of times to poll for an AMI becoming available.
     IMAGE_POLL_MAX = (5 * 60) // IMAGE_POLL_INTERVAL
@@ -601,7 +601,7 @@ class Instance(object):
         self._log.debug("_start_and_wait: Done.")
 
 
-    def _connect_ssh(self, timeout=10, attempts=10):
+    def _connect_ssh(self, timeout=5, attempts=20):
         self._log.debug("_connect_ssh: Configuring.")
 
         with open(os.path.expanduser(self.PRIVATE_KEY_PATH), "r") as f:

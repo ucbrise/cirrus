@@ -143,6 +143,7 @@ class MFModel : public CirrusModel {
     uint64_t size() const;
 
  private:
+    void initialize_reg_params();
     void initialize_data(uint64_t, uint64_t, uint64_t);
     
     // predict rating that userId gives to itemId
@@ -160,11 +161,8 @@ class MFModel : public CirrusModel {
     FEATURE_TYPE& get_user_bias(uint64_t userId);
     FEATURE_TYPE& get_item_bias(uint64_t itemId);
 
-    // between vector and shared_ptr, which one to use?
     std::vector<FEATURE_TYPE> user_weights_;
     std::vector<FEATURE_TYPE> item_weights_;
-    //std::shared_ptr<FEATURE_TYPE> user_weights_;
-    //std::shared_ptr<FEATURE_TYPE> item_weights_;
 
     std::vector<FEATURE_TYPE> user_bias_;
     std::vector<FEATURE_TYPE> item_bias_;

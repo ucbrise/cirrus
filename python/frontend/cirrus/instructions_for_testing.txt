@@ -1,8 +1,0 @@
-1. Run the setup script using `python -m cirrus.setup --instance-resources-only"
-2. Use the AWS console to create an S3 bucket named cirrus-public-<yourname> in region us-west-2. You need your own bucket because only Joao's account can access the actual cirrus-public bucket.
-3. In build.ipynb, replace cirrus-public with cirrus-public-<yourname> in all cells. Run build.ipynb.
-4. Download the file https://bit.ly/2QD84pr to your local machine and name it "Parameter Server 18-11-13".
-5. Navigation to the directory into which you downloaded the file from Step 4. Run the command `aws s3 cp "Parameter Server 18-11-13" s3://cirrus-public-<yourname>/executables/amazon/parameter_server`. Then, wait for 30s because S3 is eventually consistent.
-6. In publish.ipynb, replace cirrus-public with cirrus-public-<yourname> in all cells. Run publish.ipynb, replacing cirrus-public with cirrus-public-<yourname> in all cells.
-7. Run the setup script, selecting region us-west-2 and replacing cirrus-public with cirrus-public-<yourname> in the constant LAMBDA_PACKAGE_URL.
-8. Run logistic_regression.ipynb.

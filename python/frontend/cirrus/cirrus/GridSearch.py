@@ -3,6 +3,8 @@ import logging
 import os
 import threading
 import time
+import boto3
+import math
 
 import graph
 from utils import *
@@ -11,11 +13,24 @@ from . import setup
 
 logging.basicConfig(filename="cirrusbundle.log", level=logging.WARNING)
 
+# NOTE: This is a temporary measure. Ideally this zip would be on the cloud.
+# Due to constant updates to bundle.zip, its more convienient to have it local
+
+bundle_zip_location="/home/camus/code/cirrus-1/python/frontend/cirrus/cirrus/bundle.zip"
+
 class GridSearch:
 
 
     # TODO: Add some sort of optional argument checking
-    def __init__(self, task=None, param_base=None, hyper_vars=[], hyper_params=[], instances=[], num_jobs=1, timeout=-1):
+    def __init__(self,
+                 task=None,
+                 param_base=None,
+                 hyper_vars=[],
+                 hyper_params=[],
+                 instances=[],
+                 num_jobs=1,
+                 timeout=-1,
+                 ):
 
         # Private Variables
         self.cirrus_objs = [] # Stores each singular experiment
@@ -72,6 +87,7 @@ class GridSearch:
             self.loss_lst.append({})
             self.param_lst.append(modified_config)
 
+
     # Fetches custom metadata from experiment i
     def get_info_for(self, i):
         string = ""
@@ -97,15 +113,8 @@ class GridSearch:
         return sum([c.get_num_lambdas(fetch=False) for c in self.cirrus_objs])
 
     # Gets x-axis values of specified metric from experiment i 
-    def get_xs_for(self, i, metric="LOSS"):
-        if metric == "LOSS":
-            lst = self.loss_lst[i]
-        elif metric == "UPS":
-            lst = self.cirrus_objs[i].get_updates_per_second(fetch=False)
-        elif metric == "CPS":
-            lst = self.cirrus_objs[i].get_cost_per_second()
-        else:
-            raise Exception('Metric not available')
+    def get_xs_for(self, i, metric):
+        lst = self.cirrus_objs[i].fetch_metric(metric)
         return [item[0] for item in lst]
 
     # Helper method that collapses a list of commands into a single one
@@ -116,15 +125,8 @@ class GridSearch:
         return ' '.join(cmd_lst)
 
     # TODO: Fix duplicate methods
-    def get_ys_for(self, i, metric="LOSS"):
-        if metric == "LOSS":
-            lst = self.loss_lst[i]
-        elif metric == "UPS":
-            lst = self.cirrus_objs[i].get_updates_per_second(fetch=False)
-        elif metric == "CPS":
-            lst = self.cirrus_objs[i].get_cost_per_second()
-        else:
-            raise Exception('Metric not available')
+    def get_ys_for(self, i, metric):
+        lst = self.cirrus_objs[i].fetch_metric(metric)
         return [item[1] for item in lst]
 
     def start_queue_threads(self):
@@ -141,15 +143,19 @@ class GridSearch:
                 loss = cirrus_obj.get_time_loss()
                 self.loss_lst[index] = loss
 
-                print("Thread", thread_id, "exp", index, "loss", self.loss_lst[index])
+                logging.info("Thread", thread_id, "exp", index, "loss", self.loss_lst[index])
 
+
+                round_loss_lst = [(round(a, 3), round(float(b), 4))
+                        for (a,b) in self.loss_lst[index]]
+                logging.debug("Thread", thread_id, "exp", index,
+                        "loss", round_loss_lst)
+                
                 index += num_jobs
                 if index >= len(cirrus_objs):
                     index = thread_id
 
-                    # Dampener to prevent too many calls at once
-                    if time.time() - start_time < 3:
-                        time.sleep(3 - time.time() + start_time)
+                    time.sleep(0.5)
                     start_time = time.time()
 
 
@@ -190,7 +196,7 @@ class GridSearch:
         return len(self.cirrus_objs)
 
     def set_threads(self, n):
-        self.num_jobs = n
+        self.num_jobs = min(n, self.get_number_experiments())
 
         self.adjust_num_threads()
 

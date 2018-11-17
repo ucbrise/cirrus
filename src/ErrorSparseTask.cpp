@@ -163,10 +163,10 @@ void ErrorSparseTask::run(const Configuration& config, bool testing) {
   FEATURE_TYPE total_accuracy = 0;
   while (1) {
     usleep(ERROR_INTERVAL_USEC);
-    if (iterations >= 100 && testing) {
+    if (iterations >= 5 && testing) {
       exit(EXIT_FAILURE);
     }
-    if ((total_accuracy / minibatches_vec.size()) >= 0.7 && testing) {
+    if ((total_accuracy / minibatches_vec.size()) >= 1 && testing) {
       exit(EXIT_SUCCESS);
     }
     try {

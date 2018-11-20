@@ -64,7 +64,7 @@ def LogisticRegression(
             ):
     return LogisticRegressionTask(
             n_workers=n_workers,
-            n_ps=1,
+            n_ps=n_ps,
             dataset=dataset,
             learning_rate=learning_rate,
             epsilon=epsilon,

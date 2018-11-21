@@ -45,15 +45,13 @@ def run_interactive_setup():
 
     _set_up_instance_resources()
 
-    if len(sys.argv) > 1:
-        if sys.argv[1] == "--instance-resources-only":
-            return
+    if len(sys.argv) <= 1 or sys.argv[1] != "--instance-resources-only":
 
-    _set_up_bucket()
+        _set_up_bucket()
 
-    _make_lambda()
+        _make_lambda()
 
-    _make_server_image()
+        _make_server_image()
 
     _save_config()
 

@@ -40,6 +40,10 @@ class Instance(object):
     # The name of the instance profile used by Instances.
     INSTANCE_PROFILE_NAME = "cirrus_instance_profile"
 
+    # The number of authentication failures that are allowed to occur while
+    #   connecting to an instance.
+    _AUTHENTICATION_FAILURES = 5
+
 
     @staticmethod
     def images_exist(name):
@@ -609,6 +613,7 @@ class Instance(object):
         self._ssh_client = paramiko.SSHClient()
         self._ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
+        authentication_failures = 0
         for i in range(attempts):
             try:
                 self._log.debug("_connect_ssh: Making connection attempt " \
@@ -617,7 +622,11 @@ class Instance(object):
                     hostname=self.instance.public_ip_address,
                     username=self._username,
                     pkey=key,
-                    timeout=timeout
+                    timeout=timeout,
+                    # allow_agent=False and look_for_keys=False ensure that
+                    #   Paramiko doesn't go looking for other keys.
+                    allow_agent=False,
+                    look_for_keys=False
                 )
                 self._ssh_client.get_transport().window_size = 2147483647
             except socket.timeout:
@@ -629,6 +638,17 @@ class Instance(object):
                                 "Sleeping for %ds." % timeout)
                 time.sleep(timeout)
                 pass
+            except paramiko.ssh_exception.AuthenticationException:
+                # If we attempt to connect while systemd happens to be starting
+                #   up, then our request will be purposely blocked. Try again,
+                #   but not too many times, since there may be an actual
+                #   authentication issue.
+                authentication_failures += 1
+                if authentication_failures <= self._AUTHENTICATION_FAILURES:
+                    time.sleep(timeout)
+                    pass
+                else:
+                    raise
             else:
                 break
         else:

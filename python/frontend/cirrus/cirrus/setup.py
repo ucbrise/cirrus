@@ -19,13 +19,16 @@ from . import automate
 AWS_CREDENTIALS_PATH = "~/.aws/credentials"
 
 
-# An S3 URL where a worker Lambda package has been published by the maintainers
-#   of Cirrus.
-LAMBDA_PACKAGE_URL = "s3://cirrus-public/lambda_package"
+# An S3 URL at which the maintainers have published a Cirrus build.
+PUBLISHED_BUILD = "s3://cirrus-public-sheacirrus"
 
 
 # The name to give to the worker Lambda.
 LAMBDA_NAME = "cirrus_worker"
+
+
+# The name to give to the server AMI.
+SERVER_IMAGE_NAME = "cirrus_server_image"
 
 
 def run_interactive_setup():
@@ -49,6 +52,8 @@ def run_interactive_setup():
     _set_up_bucket()
 
     _make_lambda()
+
+    _make_server_image()
 
     _save_config()
 
@@ -175,7 +180,29 @@ def _make_lambda():
     concurrency = prompt(explanation, PROMPTS, validator, postprocess)
 
     print("Creating the Lambda function. This may take a minute.")
-    automate.make_lambda(LAMBDA_NAME, LAMBDA_PACKAGE_URL, concurrency)
+    package_url = PUBLISHED_BUILD + "/lambda_package"
+    automate.make_lambda(LAMBDA_NAME, package_url, concurrency)
+
+
+def _make_server_image():
+    """Make the server image, prompting the user for permission.
+    """
+    explanation = ("Can we create an AMI named '%s' in your AWS account?"
+                   % SERVER_IMAGE_NAME)
+    PROMPTS = ("y/n",)
+    validator = lambda c: c in ("y", "n")
+    postprocess = lambda c: c == "y"
+    if not prompt(explanation, PROMPTS, validator, postprocess):
+        print("Exiting. Cirrus will not be usable. Re-run the setup script to "
+              "complete setup.")
+        return
+
+    print("Creating the server image. This may take a few minutes. This will "
+          "involve launching an EC2 instance. If any error should occur, "
+          "please use the AWS console to manually terminate the instance and "
+          "avoid ongoing charges for it.")
+    executables_url = PUBLISHED_BUILD + "/executables"
+    automate.make_server_image(SERVER_IMAGE_NAME, executables_url)
 
 
 def _set_up_instance_resources():

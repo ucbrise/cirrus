@@ -20,7 +20,7 @@ AWS_CREDENTIALS_PATH = "~/.aws/credentials"
 
 
 # An S3 URL at which the maintainers have published a Cirrus build.
-PUBLISHED_BUILD = "s3://cirrus-public-sheacirrus"
+PUBLISHED_BUILD = "s3://cirrus-public"
 
 
 # The name to give to the worker Lambda.

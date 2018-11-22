@@ -100,6 +100,11 @@ MAX_LAMBDA_GENERATIONS = 10000
 MAX_WORKERS_PER_EXPERIMENT = 1000
 
 
+# The minimum number of concurrent executions that AWS requires an account to
+#   keep unreserved. Current as of 11/21/18.
+_MINIMUM_UNRESERVED_CONCURRENCY = 100
+
+
 class ClientManager(object):
     """A manager of cached AWS clients.
     """
@@ -727,6 +732,19 @@ def set_up_bucket():
         Bucket=bucket_name,
         CreateBucketConfiguration=bucket_config
     )
+
+
+def get_available_concurrency():
+    """Get the number of unreserved concurrent executions available in the
+        current AWS account.
+
+    Returns:
+        int: The number of executions.
+    """
+    response = clients.lamb.get_account_settings()
+    unreserved = response["AccountLimit"]["UnreservedConcurrentExecutions"]
+    available = unreserved - _MINIMUM_UNRESERVED_CONCURRENCY
+    return available
 
 
 def set_up_lambda_role(name):

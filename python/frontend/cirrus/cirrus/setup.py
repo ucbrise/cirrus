@@ -35,11 +35,6 @@ LAMBDA_ROLE_NAME = "cirrus_worker_role"
 LAMBDA_NAME_PREFIX = "cirrus_worker"
 
 
-# The minimum number of concurrent executions that AWS requires an account to
-#   keep unreserved. Current as of 11/21/18.
-_MINIMUM_UNRESERVED_CONCURRENCY = 100
-
-
 def run_interactive_setup():
     """Run an interactive command-line setup process.
 
@@ -247,9 +242,7 @@ def _set_up_lambda_concurrency():
     """Prompt the user for their preferred Lambda concurrency limit and add it
         to the configuration.
     """
-    response = automate.clients.lamb.get_account_settings()
-    unreserved = response["AccountLimit"]["UnreservedConcurrentExecutions"]
-    available = unreserved - _MINIMUM_UNRESERVED_CONCURRENCY
+    available = automate.get_available_concurrency()
 
     EXPLANATION = ("How many workers per model should Cirrus limit itself to? "
                    "The desired number workers is chosen each time a model is "

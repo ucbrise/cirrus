@@ -9,7 +9,7 @@ import math
 import graph
 from utils import *
 from . import automate
-from . import setup
+from . import configuration
 
 logging.basicConfig(filename="cirrusbundle.log", level=logging.WARNING)
 
@@ -210,6 +210,29 @@ class GridSearch(object):
 
     # Start threads to maintain all experiments
     def run(self, UI=False):
+        # Check that the AWS account has enough reserved concurrent executions
+        #   available to create a Lambda with capacity_each reserved concurrent
+        #   executions for each of the len(self.cirrus_objs) tasks.
+        capacity_each = \
+            int(configuration.config()["aws"]["lambda_concurrency_limit"])
+        capacity_total = capacity_each * len(self.cirrus_objs)
+        capacity_available = automate.get_available_concurrency()
+        print(capacity_total, capacity_available)
+        if capacity_total > capacity_available:
+            raise RuntimeError("This grid search consists of %d tasks and "
+                "Cirrus was configured to reserve %d worker capacity for each "
+                "task using the setup script. This means that this grid search "
+                "would require %d*%d=%d reserved worker capacity, however the "
+                "AWS account only has %d worker capacity available. Please "
+                "resolve this issue by (1) decreasing the number of tasks in "
+                "this grid search by decreasing the number of hyperparameter "
+                "combinations, (2) decreasing the reserved worker capacity per "
+                "task by re-running the setup script, (3) deleting any "
+                "existing Lambda functions in this AWS account, or (4) "
+                "requesting an increased limit from AWS." %
+                (len(self.cirrus_objs), capacity_each, len(self.cirrus_objs),
+                 capacity_each, capacity_total, capacity_available))
+
         # Add this grid search to the list of running grid searches.
         self._running_searches.append(self)
 

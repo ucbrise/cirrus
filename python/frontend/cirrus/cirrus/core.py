@@ -195,17 +195,13 @@ class BaseTask(object):
 
         Starts a parameter server and launches a fleet of workers.
         """
-        if delete_logs:
-            automate.clear_lambda_logs(setup.LAMBDA_NAME)
-
         self.ps.start(self.define_config())
         self.stop_event.clear()
 
         def wait_then_maintain_workers():
             self.ps.wait_until_started()
-            automate.maintain_workers(self.n_workers, setup.LAMBDA_NAME,
-                self.define_config(), self.ps, self.stop_event,
-                self.experiment_id)
+            automate.maintain_workers(self.n_workers, self.define_config(),
+                self.ps, self.stop_event, self.experiment_id)
 
         threading.Thread(target=wait_then_maintain_workers).start()
 
@@ -225,6 +221,7 @@ class BaseTask(object):
         #   way, their return statuses get printed by the threads maintaining
         #   them before this method returns, which feels nicer.
         time.sleep(PS_KILL_TO_LAMBDA_DEATH)
+
 
     def is_dead(self):
         return self.dead

@@ -213,8 +213,6 @@ class GridSearch(object):
         # Add this grid search to the list of running grid searches.
         self._running_searches.append(self)
 
-        automate.clear_lambda_logs(setup.LAMBDA_NAME)
-
         self.start_queue_threads()
 
         if UI:
@@ -229,15 +227,6 @@ class GridSearch(object):
     def kill_all(self):
         # Remove this grid search from the list of running grid searches.
         self._running_searches.remove(self)
-
-        total_workers = sum(c.n_workers for c in self.cirrus_objs)
-        # I add one extra concurrent execution per experiment. I haven't
-        #   observed anything that leads me to believe this is necessary - it's
-        #   just in case.
-        min_concurrency = total_workers + len(self.cirrus_objs)
-        if automate.concurrency_limit(setup.LAMBDA_NAME) < min_concurrency:
-            raise RuntimeError("The concurrency limit is set too low to run "
-                               "these experiments in parallel.")
 
         for cirrus_ob in self.cirrus_objs:
             cirrus_ob.kill()

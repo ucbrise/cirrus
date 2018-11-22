@@ -23,12 +23,21 @@ AWS_CREDENTIALS_PATH = "~/.aws/credentials"
 PUBLISHED_BUILD = "s3://cirrus-public"
 
 
-# The name to give to the worker Lambda.
-LAMBDA_NAME = "cirrus_worker"
-
-
 # The name to give to the server AMI.
 SERVER_IMAGE_NAME = "cirrus_server_image"
+
+
+# The name to give the IAM role for worker Lambdas.
+LAMBDA_ROLE_NAME = "cirrus_worker_role"
+
+
+# The prefix of the name to give worker Lambdas.
+LAMBDA_NAME_PREFIX = "cirrus_worker"
+
+
+# The minimum number of concurrent executions that AWS requires an account to
+#   keep unreserved. Current as of 11/21/18.
+_MINIMUM_UNRESERVED_CONCURRENCY = 100
 
 
 def run_interactive_setup():
@@ -49,7 +58,9 @@ def run_interactive_setup():
 
         _set_up_bucket()
 
-        _make_lambda()
+        _set_up_lambda_role()
+
+        _set_up_lambda_concurrency()
 
         _make_server_image()
 
@@ -148,40 +159,6 @@ def _set_up_region():
     automate.clients.clear_cache()
 
 
-def _make_lambda():
-    """Make the worker Lambda, prompting the user for permission.
-    """
-    explanation = ("Can we create a Lambda function named '%s' in your AWS" 
-                   " account?") % LAMBDA_NAME
-    PROMPTS = ("y/n",)
-    validator = lambda c: c in ("y", "n")
-    postprocess = lambda c: c == "y"
-    if not prompt(explanation, PROMPTS, validator, postprocess):
-        print("Exiting. Cirrus will not be usable. Re-run the setup script to "
-              "complete setup.")
-        return
-
-    explanation = "How many concurrent executions, at maximum, should the " \
-                  "Lambda function be limited to? Your AWS account must have " \
-                  "at least this many unreserved concurrent executions " \
-                  "available in the %s region." \
-                  % configuration.config(False)["aws"]["region"]
-    PROMPTS = ("Executions",)
-    # TODO: Actually check that the chosen number is valid. It should be less
-    #   than the account's limit - 100.
-    def validator(s):
-        try:
-            return int(s) > 0
-        except ValueError:
-            return False
-    postprocess = lambda s: int(s)
-    concurrency = prompt(explanation, PROMPTS, validator, postprocess)
-
-    print("Creating the Lambda function. This may take a minute.")
-    package_url = PUBLISHED_BUILD + "/lambda_package"
-    automate.make_lambda(LAMBDA_NAME, package_url, concurrency)
-
-
 def _make_server_image():
     """Make the server image, prompting the user for permission.
     """
@@ -249,6 +226,45 @@ def _set_up_instance_resources():
               "complete setup.")
         return
     automate.Instance.set_up_instance_profile()
+
+
+def _set_up_lambda_role():
+    """Set up a role for the Lambda.
+    """
+    explanation = ("Can we create an IAM role named '%s' in your AWS account?"
+                   % LAMBDA_ROLE_NAME)
+    PROMPTS = ("y/n",)
+    validator = lambda c: c in ("y", "n")
+    postprocess = lambda c: c == "y"
+    if not prompt(explanation, PROMPTS, validator, postprocess):
+        print("Exiting. Cirrus will not be usable. Re-run the setup script to "
+              "complete setup.")
+        return
+    automate.set_up_lambda_role(LAMBDA_ROLE_NAME)
+
+
+def _set_up_lambda_concurrency():
+    """Prompt the user for their preferred Lambda concurrency limit and add it
+        to the configuration.
+    """
+    response = automate.clients.lamb.get_account_settings()
+    unreserved = response["AccountLimit"]["UnreservedConcurrentExecutions"]
+    available = unreserved - _MINIMUM_UNRESERVED_CONCURRENCY
+
+    EXPLANATION = ("How many workers per model should Cirrus limit itself to? "
+                   "The desired number workers is chosen each time a model is "
+                   "trained, but this sets a hard limit for increased safety.")
+    PROMPTS = ("Limit",)
+    def validator(val):
+        try:
+            val = int(val)
+        except ValueError:
+            return False
+        return 0 < val <= available
+
+    limit = prompt(EXPLANATION, PROMPTS, validator)
+
+    configuration.config(False)["aws"]["lambda_concurrency_limit"] = limit
 
 
 def _set_up_bucket():

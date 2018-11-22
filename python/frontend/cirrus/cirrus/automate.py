@@ -8,6 +8,8 @@ import pipes
 import json
 import threading
 import inspect
+import random
+import datetime
 
 import boto3
 
@@ -727,46 +729,30 @@ def set_up_bucket():
     )
 
 
-def make_lambda(name, lambda_package_path, concurrency=-1):
-    """Make a worker Lambda function.
+def set_up_lambda_role(name):
+    """Set up the IAM role for the worker Lambda function.
 
-    Replaces any existing Lambda function with the same name.
+    Deletes any existing role with the same name. This role gives read access to
+        S3 and full access to Cloudwatch Logs.
 
     Args:
-        name (str): The name to give the Lambda.
-        lambda_package_path (str): An S3 path to a Lambda ZIP package produced
-            by `make_lambda_package`.
-        concurrency (int): The number of reserved concurrent executions to
-            allocate to the Lambda. If omitted or -1, the Lambda will use the
-            account's unreserved concurrent executions in the region.
+        name (str): The name to give the role.
     """
-    assert isinstance(concurrency, (int, long))
-    assert concurrency >= -1
+    log = logging.getLogger("cirrus.automate.set_up_lambda_role")
 
-    log = logging.getLogger("cirrus.automate.make_lambda")
-
-    log.debug("make_lambda: Initializing Lambda and IAM.")
-
-    log.debug("make_lambda: Deleting any existing Lambda.")
-    try:
-        clients.lamb.delete_function(FunctionName=name)
-    except Exception:
-        # This is a hack. An error may be caused by something other than the
-        #   Lambda not existing.
-        pass
-
-    log.debug("make_lambda: Deleting any existing IAM role.")
+    log.debug("set_up_lambda_role: Checking for an already-existing role.")
     try:
         role = clients.iam.Role(name)
         for policy in role.attached_policies.all():
             role.detach_policy(PolicyArn=policy.arn)
         role.delete()
+        log.info("set_up_lambda_role: There was an already-existing role.")
     except Exception:
-        # This is a hack. An error may be caused by something other than the
-        #   Lambda not existing.
-        pass
+        # FIXME: This is a hack. An error may be caused by something other than
+        #   the role not existing. We should catch only that specific error.
+        log.info("set_up_lambda_role: There was not an already-existing role.")
 
-    log.debug("make_lambda: Creating IAM role")
+    log.debug("set_up_lambda_role: Creating role.")
     role = clients.iam.create_role(
         RoleName=name,
         AssumeRolePolicyDocument=\
@@ -786,11 +772,36 @@ def make_lambda(name, lambda_package_path, concurrency=-1):
     role.attach_policy(PolicyArn=S3_READ_ONLY_ARN)
     role.attach_policy(PolicyArn=CLOUDWATCH_WRITE_ARN)
 
-    log.debug("make_lambda: Waiting for changes to propogate.")
-    # HACK: IAM is eventually consistent, so we sleep and hope that the role
-    #   changes take effect in the meantime. But the delay distribtuion is
-    #   heavy-tailed, so we actually need a retry mechanism.
-    time.sleep(IAM_CONSISTENCY_DELAY)
+    log.debug("set_up_lambda_role: Done.")
+
+
+def make_lambda(name, lambda_package_path, concurrency=-1):
+    """Make a worker Lambda function.
+
+    Replaces any existing Lambda function with the same name.
+
+    Args:
+        name (str): The name to give the Lambda.
+        lambda_package_path (str): An S3 path to a Lambda ZIP package produced
+            by `make_lambda_package`.
+        concurrency (int): The number of reserved concurrent executions to
+            allocate to the Lambda. If omitted or -1, the Lambda will use the
+            account's unreserved concurrent executions in the region.
+    """
+    from . import setup
+
+    assert isinstance(concurrency, (int, long))
+    assert concurrency >= -1
+
+    log = logging.getLogger("cirrus.automate.make_lambda")
+
+    log.debug("make_lambda: Deleting any existing Lambda.")
+    try:
+        clients.lamb.delete_function(FunctionName=name)
+    except Exception:
+        # This is a hack. An error may be caused by something other than the
+        #   Lambda not existing.
+        pass
 
     log.debug("make_lambda: Copying package to user's bucket.")
     bucket_name = get_bucket_name()
@@ -800,10 +811,11 @@ def make_lambda(name, lambda_package_path, concurrency=-1):
     bucket.copy(src, src_key)
 
     log.debug("make_lambda: Creating Lambda.")
+    role_arn = clients.iam.Role(setup.LAMBDA_ROLE_NAME).arn
     clients.lamb.create_function(
         FunctionName=name,
         Runtime=LAMBDA_RUNTIME,
-        Role=role.arn,
+        Role=role_arn,
         Handler=LAMBDA_HANDLER_FQID,
         Code={
             "S3Bucket": bucket_name,
@@ -824,23 +836,13 @@ def make_lambda(name, lambda_package_path, concurrency=-1):
     log.debug("make_lambda: Done.")
 
 
-def concurrency_limit(lambda_name):
-    """Get the concurrency limit of a Lambda.
+def delete_lambda(name):
+    """Delete a Lambda function.
 
-    This is the number of reserved concurrent executions allocated to the
-        Lambda, or the number of unreserved concurrent executions available in
-        the region if none are allocated to it.
-
-    Returns:
-        int: The concurrency limit.
+    Args:
+        name (str): The name of the Lambda function.
     """
-    log = logging.getLogger("cirrus.automate.concurrency_limit")
-
-    log.debug("concurrency_limit: Querying the Lambda's concurrency limit.")
-    response = clients.lamb.get_function(FunctionName=lambda_name)
-
-    # TODO: This does not properly handle the case where there is no limit.
-    return response["Concurrency"]["ReservedConcurrentExecutions"]
+    clients.lamb.delete_function(FunctionName=name)
 
 
 def clear_lambda_logs(lambda_name):
@@ -905,20 +907,37 @@ def launch_worker(lambda_name, task_id, config, num_workers, ps):
         raise RuntimeError(message)
 
 
-def maintain_workers(n, lambda_name, config, ps, stop_event, experiment_id):
+def maintain_workers(n, config, ps, stop_event, experiment_id):
     """Maintain a fixed-size fleet of workers.
 
     Args:
         n (int): The number of workers.
-        lambda_name (str): As for `launch_worker`.
         config (str): As for `launch_worker`.
-        parameter_server (ParameterServer): As for `launch_worker`.
+        ps (ParameterServer): As for `launch_worker`.
         stop_event (threading.Event): An event indicating that no new
             generations of the workers in the fleet should be launched.
         experiment_id (int): The ID number of the experiment that these workers
             will work on.
     """
+    from . import setup
+
     assert n <= MAX_WORKERS_PER_EXPERIMENT
+
+    now = datetime.datetime.now()
+    lambda_id = "%d_%d-%d-%d_%d-%d-%d-%d" % (
+        experiment_id,
+        now.year,
+        now.month,
+        now.day,
+        now.hour,
+        now.minute,
+        now.second,
+        now.microsecond
+    )
+    lambda_name = setup.LAMBDA_NAME_PREFIX + "_" + lambda_id
+    lambda_package_path = setup.PUBLISHED_BUILD + "/lambda_package"
+    concurrency = int(configuration.config()["aws"]["lambda_concurrency_limit"])
+    make_lambda(lambda_name, lambda_package_path, concurrency)
 
     def maintain_one(worker_id):
         """Maintain a single worker.
@@ -949,6 +968,8 @@ def maintain_workers(n, lambda_name, config, ps, stop_event, experiment_id):
             generation += 1
 
             elapsed_sec = time.time() - start
+
+        delete_lambda(lambda_name)
 
     base_id = experiment_id * MAX_WORKERS_PER_EXPERIMENT
     threads = []

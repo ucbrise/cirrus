@@ -9,6 +9,7 @@ import messenger
 from CostModel import CostModel
 from . import automate
 from . import setup
+from . import configuration
 
 # The amount of time, in seconds, that passes between a parameter server being
 #   killed and its workers dying due to loss of contact with it.
@@ -195,6 +196,17 @@ class BaseTask(object):
 
         Starts a parameter server and launches a fleet of workers.
         """
+        limit = int(configuration.config()["aws"]["lambda_concurrency_limit"])
+        if self.n_workers > limit:
+            raise RuntimeError("%d workers were requested for this task, but "
+                               "the maximum number of workers per task "
+                               "was configured to be %d using the setup "
+                               "script. Please either (1) decrease the "
+                               "n_workers configuration value for this task to "
+                               "no more than %d or (2) re-run the setup "
+                               "script, setting the limit to at least %d." %
+                               (self.n_workers, limit, limit, self.n_workers))
+
         self.ps.start(self.define_config())
         self.stop_event.clear()
 
@@ -217,6 +229,7 @@ class BaseTask(object):
         #    time.
         self.ps.stop()
         self.stop_event.set()
+
         # Any currently-running Lambdas will probably die during this wait. This
         #   way, their return statuses get printed by the threads maintaining
         #   them before this method returns, which feels nicer.

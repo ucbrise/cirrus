@@ -462,6 +462,12 @@ def make_amazon_build_image(name):
         "glibc-static openssl-static.x86_64 zlib-static.x86_64 libcurl-devel")
     instance.run_command("yes | sudo yum groupinstall \"Development Tools\"")
 
+    # Install some useful tools.
+    instance.run_command("yes | sudo yum install gdb")
+    instance.run_command("yes | sudo yum install htop")
+    instance.run_command("yes | sudo yum install mosh")
+
+
     # The above installed a recent version of gcc, but an old version of g++.
     #   Install a newer version of g++.
     instance.run_command("yes | sudo yum remove gcc48-c++")
@@ -541,6 +547,11 @@ def make_ubuntu_build_image(name):
                           automake zlib1g-dev libssl-dev libcurl4-nss-dev \
                           bison libldap2-dev libkrb5-dev")
     instance.run_command("yes | sudo apt-get install awscli")
+
+    # Install some useful tools.
+    instance.run_command("yes | sudo apt-get install gdb")
+    instance.run_command("yes | sudo apt-get install htop")
+    instance.run_command("yes | sudo apt-get install mosh")
 
     log.debug("make_ubuntu_build_image: Saving the image.")
     instance.save_image(name)
@@ -670,6 +681,11 @@ def make_server_image(name, executables_path):
     instance.run_command("sudo apt update")
     instance.run_command("sudo apt update")
     instance.run_command("yes | sudo apt install awscli")
+
+    # Install some useful tools.
+    instance.run_command("yes | sudo apt-get install gdb")
+    instance.run_command("yes | sudo apt-get install htop")
+    instance.run_command("yes | sudo apt-get install mosh")
 
     log.debug("make_server_image: Putting parameter_server executable on instance.")
     instance.download_s3(executables_path + "/ubuntu/parameter_server",

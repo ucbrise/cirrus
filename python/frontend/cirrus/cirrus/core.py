@@ -47,7 +47,8 @@ class BaseTask(object):
             timeout,
             threshold_loss,
             progress_callback,
-            experiment_id=0
+            experiment_id=0,
+            lambda_size=128
             ):
         self.thread = threading.Thread(target=self.run)
         self.n_workers = n_workers
@@ -68,6 +69,7 @@ class BaseTask(object):
         self.threshold_loss=threshold_loss
         self.progress_callback=progress_callback
         self.experiment_id=experiment_id
+        self.lambda_size = lambda_size
         self.dead = False
         self.cost_model = None
         self.total_cost = 0
@@ -81,7 +83,7 @@ class BaseTask(object):
                     self.n_ps,
                     0,
                     self.n_workers,
-                    automate.LAMBDA_SIZE)
+                    self.lambda_size)
 
         self.start_time = time.time()
 
@@ -213,7 +215,7 @@ class BaseTask(object):
         def wait_then_maintain_workers():
             self.ps.wait_until_started()
             automate.maintain_workers(self.n_workers, self.define_config(),
-                self.ps, self.stop_event, self.experiment_id)
+                self.ps, self.stop_event, self.experiment_id, self.lambda_size)
 
         threading.Thread(target=wait_then_maintain_workers).start()
 

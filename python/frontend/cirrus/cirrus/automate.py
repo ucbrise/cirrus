@@ -86,9 +86,6 @@ LAMBDA_HANDLER_FQID = "handler.run"
 # The maximum execution time to give the worker Lambda, in seconds. Capped by AWS at 5 minutes.
 LAMBDA_TIMEOUT = 5 * 60
 
-# The amount of memory (and in proportion, CPU/network) to give to the worker Lambda, in megabytes.
-LAMBDA_SIZE = 3008
-
 # The level of logs that the worker Lambda should write to CloudWatch.
 LAMBDA_LOG_LEVEL = "DEBUG"
 
@@ -800,7 +797,7 @@ def set_up_lambda_role(name):
     log.debug("set_up_lambda_role: Done.")
 
 
-def make_lambda(name, lambda_package_path, concurrency=-1):
+def make_lambda(name, lambda_package_path, lambda_size, concurrency=-1):
     """Make a worker Lambda function.
 
     Replaces any existing Lambda function with the same name.
@@ -809,10 +806,18 @@ def make_lambda(name, lambda_package_path, concurrency=-1):
         name (str): The name to give the Lambda.
         lambda_package_path (str): An S3 path to a Lambda ZIP package produced
             by `make_lambda_package`.
+        lambda_size (int): The amount of memory (in MB) to give to the Lambda
+            function. Must be a size supported by AWS. As of 11/24/18, the
+            supported sizes are multiples of 64 in [128, 3008].
         concurrency (int): The number of reserved concurrent executions to
             allocate to the Lambda. If omitted or -1, the Lambda will use the
             account's unreserved concurrent executions in the region.
     """
+    assert 128 <= lambda_size <= 3008, \
+        "lambda_size %d is not in [128, 3008]." % lambda_size
+    assert lambda_size % 64 == 0, \
+        "lambda_size %d is not divisible by 64." % lambda_size
+
     from . import setup
 
     assert isinstance(concurrency, (int, long))
@@ -847,7 +852,7 @@ def make_lambda(name, lambda_package_path, concurrency=-1):
             "S3Key": src_key
         },
         Timeout=LAMBDA_TIMEOUT,
-        MemorySize=LAMBDA_SIZE
+        MemorySize=lambda_size
     )
 
     if concurrency != -1:
@@ -916,8 +921,10 @@ def launch_worker(lambda_name, task_id, config, num_workers, ps):
         raise RuntimeError(message)
 
 
-def maintain_workers(n, config, ps, stop_event, experiment_id):
+def maintain_workers(n, config, ps, stop_event, experiment_id, lambda_size):
     """Maintain a fixed-size fleet of workers.
+
+    Creates a worker Lambda function to invoke.
 
     Args:
         n (int): The number of workers.
@@ -927,6 +934,7 @@ def maintain_workers(n, config, ps, stop_event, experiment_id):
             generations of the workers in the fleet should be launched.
         experiment_id (int): The ID number of the experiment that these workers
             will work on.
+        lambda_size (int): As for `make_lambda`.
     """
     # Imported here to prevent a circular dependency issue.
     from . import setup
@@ -942,7 +950,7 @@ def maintain_workers(n, config, ps, stop_event, experiment_id):
     lambda_name = setup.LAMBDA_NAME_PREFIX + "_" + lambda_id
     lambda_package_path = setup.PUBLISHED_BUILD + "/lambda_package"
     concurrency = int(configuration.config()["aws"]["lambda_concurrency_limit"])
-    make_lambda(lambda_name, lambda_package_path, concurrency)
+    make_lambda(lambda_name, lambda_package_path, lambda_size, concurrency)
 
     # This counts the number of `maintain_one` threads still running. When the
     #   `maintain_one` threads are shut down by the activation of `stop_event`,

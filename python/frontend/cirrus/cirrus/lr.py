@@ -60,7 +60,8 @@ def LogisticRegression(
             grad_threshold=0.001,
             timeout=60,
             threshold_loss=0,
-            experiment_id=0
+            experiment_id=0,
+            lambda_size=128
             ):
     return LogisticRegressionTask(
             n_workers=n_workers,
@@ -80,7 +81,8 @@ def LogisticRegression(
             timeout=timeout,
             threshold_loss=threshold_loss,
             progress_callback=progress_callback,
-            experiment_id=experiment_id
+            experiment_id=experiment_id,
+            lambda_size=lambda_size
            )
 
 

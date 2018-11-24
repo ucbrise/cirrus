@@ -952,13 +952,15 @@ def maintain_workers(n, config, ps, stop_event, experiment_id, lambda_size):
     concurrency = int(configuration.config()["aws"]["lambda_concurrency_limit"])
     make_lambda(lambda_name, lambda_package_path, lambda_size, concurrency)
 
-    # This counts the number of `maintain_one` threads still running. When the
-    #   `maintain_one` threads are shut down by the activation of `stop_event`,
-    #   the last thread will notice that `maintainers_running` is 0 and delete
-    #   the worker Lambda function that was created. `maintainers_running` is a
-    #   list so that it can be decremented from `maintain_one`.
-    maintainers_running_mutex = threading.Lock()
-    maintainers_running = [n]
+
+    def clean_up():
+        """Clean up after the run.
+
+        Deletes the Lambda that was created.
+        """
+        stop_event.wait()
+        delete_lambda(lambda_name)
+
 
     def maintain_one(worker_id):
         """Maintain a single worker.
@@ -990,10 +992,11 @@ def maintain_workers(n, config, ps, stop_event, experiment_id, lambda_size):
 
             elapsed_sec = time.time() - start
 
-        with maintainers_running_mutex:
-            maintainers_running[0] -= 1
-            if maintainers_running[0] == 0:
-                delete_lambda(lambda_name)
+
+    # Start the `clean_up` thread. Return immediately.
+    thread_name = "Experiment #%d, Cleanup" % experiment_id
+    thread = threading.Thread(target=clean_up, name=thread_name)
+    thread.start()
 
     # Start one `maintain_one` thread per worker desired. Return immediately.
     base_id = experiment_id * MAX_WORKERS_PER_EXPERIMENT

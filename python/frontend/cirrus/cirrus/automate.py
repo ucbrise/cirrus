@@ -873,25 +873,6 @@ def delete_lambda(name):
     clients.lamb.delete_function(FunctionName=name)
 
 
-def clear_lambda_logs(lambda_name):
-    """Clear the Cloudwatch logs for a given Lambda function.
-
-    Args:
-        lambda_name (str): The name of the Lambda function.
-    """
-    log = logging.getLogger("cirrus.automate.clear_lambda_logs")
-
-    log.debug("clear_lambda_logs: Listing log groups.")
-    name = "/aws/lambda/%s" % lambda_name
-    response = clients.cloudwatch_logs.describe_log_groups(
-        logGroupNamePrefix=name)
-
-    log.debug("clear_lambda_logs: Deleting matching log groups.")
-    for group_info in response["logGroups"]:
-        clients.cloudwatch_logs.delete_log_group(
-            logGroupName=group_info["logGroupName"])
-
-
 def launch_worker(lambda_name, task_id, config, num_workers, ps):
     """Launch a worker.
 

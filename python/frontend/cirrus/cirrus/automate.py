@@ -16,6 +16,7 @@ import boto3
 from . import handler
 from . import configuration
 from .instance import Instance
+from . import utilities
 
 # A configuration to use for EC2 instances that will be used to build Cirrus.
 BUILD_INSTANCE = {
@@ -894,6 +895,7 @@ def delete_lambda(name):
     clients.lamb.delete_function(FunctionName=name)
 
 
+@utilities.jittery_exponential_backoff(("TooManyRequestsException",), 2, 2, 6)
 def launch_worker(lambda_name, task_id, config, num_workers, ps):
     """Launch a worker.
 

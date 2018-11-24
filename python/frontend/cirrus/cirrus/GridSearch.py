@@ -217,7 +217,6 @@ class GridSearch(object):
             int(configuration.config()["aws"]["lambda_concurrency_limit"])
         capacity_total = capacity_each * len(self.cirrus_objs)
         capacity_available = automate.get_available_concurrency()
-        print(capacity_total, capacity_available)
         if capacity_total > capacity_available:
             raise RuntimeError("This grid search consists of %d tasks and "
                 "Cirrus was configured to reserve %d worker capacity for each "

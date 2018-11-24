@@ -223,12 +223,11 @@ class BaseTask(object):
 
         Stops the parameter server and the fleet of workers.
         """
-        # The order of these is significant. By stopping the parameter server
-        #   first, we ensure that the remaining workers will error when they try
-        #    to contact the parameter server, and so exit in a short amount of
-        #    time.
-        self.ps.stop()
+        # The order of these is significant. By stopping the spawning of new
+        #   workers, then ensuring any running workers die by killing the
+        #   parameter server, we ensure that all workers are killed.
         self.stop_event.set()
+        self.ps.stop()
 
         # Any currently-running Lambdas will probably die during this wait. This
         #   way, their return statuses get printed by the threads maintaining

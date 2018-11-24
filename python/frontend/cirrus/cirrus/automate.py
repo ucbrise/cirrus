@@ -96,7 +96,9 @@ LAMBDA_LOG_LEVEL = "DEBUG"
 #   as the worker with a given ID.
 MAX_LAMBDA_GENERATIONS = 10000
 
-# The maximum number of workers that may work on a given experiment.
+# The maximum number of workers that may work on a given experiment. This is
+#   1000 because the worker ID is given 3 digits in the task ID that workers use
+#   to register.
 MAX_WORKERS_PER_EXPERIMENT = 1000
 
 
@@ -741,9 +743,14 @@ def get_available_concurrency():
     Returns:
         int: The number of executions.
     """
+    log = logging.getLogger("cirrus.automate.get_available_concurrency")
+
+    log.debug("get_available_concurrency: Getting account settings.")
     response = clients.lamb.get_account_settings()
     unreserved = response["AccountLimit"]["UnreservedConcurrentExecutions"]
     available = unreserved - _MINIMUM_UNRESERVED_CONCURRENCY
+
+    log.debug("get_available_concurrency: Done.")
     return available
 
 
@@ -860,6 +867,9 @@ def delete_lambda(name):
     Args:
         name (str): The name of the Lambda function.
     """
+    log = logging.getLogger("cirrus.automate.delete_lambda")
+
+    log.debug("delete_lambda: Deleting Lambda function %s." % name)
     clients.lamb.delete_function(FunctionName=name)
 
 
@@ -937,25 +947,29 @@ def maintain_workers(n, config, ps, stop_event, experiment_id):
         experiment_id (int): The ID number of the experiment that these workers
             will work on.
     """
+    # Imported here to prevent a circular dependency issue.
     from . import setup
 
+    # See the documentation for the constant.
     assert n <= MAX_WORKERS_PER_EXPERIMENT
 
+    # Creates a Lambda function to invoke. Names it uniquely with the
+    #   `experiment_id`, current date, and current time.
     now = datetime.datetime.now()
-    lambda_id = "%d_%d-%d-%d_%d-%d-%d-%d" % (
-        experiment_id,
-        now.year,
-        now.month,
-        now.day,
-        now.hour,
-        now.minute,
-        now.second,
-        now.microsecond
-    )
+    lambda_id = "%d_%d-%d-%d_%d-%d-%d-%d" % (experiment_id, now.year, now.month,
+        now.day, now.hour, now.minute, now.second, now.microsecond)
     lambda_name = setup.LAMBDA_NAME_PREFIX + "_" + lambda_id
     lambda_package_path = setup.PUBLISHED_BUILD + "/lambda_package"
     concurrency = int(configuration.config()["aws"]["lambda_concurrency_limit"])
     make_lambda(lambda_name, lambda_package_path, concurrency)
+
+    # This counts the number of `maintain_one` threads still running. When the
+    #   `maintain_one` threads are shut down by the activation of `stop_event`,
+    #   the last thread will notice that `maintainers_running` is 0 and delete
+    #   the worker Lambda function that was created. `maintainers_running` is a
+    #   list so that it can be decremented from `maintain_one`.
+    maintainers_running_mutex = threading.Lock()
+    maintainers_running = [n]
 
     def maintain_one(worker_id):
         """Maintain a single worker.
@@ -987,17 +1001,17 @@ def maintain_workers(n, config, ps, stop_event, experiment_id):
 
             elapsed_sec = time.time() - start
 
-        delete_lambda(lambda_name)
+        with maintainers_running_mutex:
+            maintainers_running[0] -= 1
+            if maintainers_running[0] == 0:
+                delete_lambda(lambda_name)
 
+    # Start one `maintain_one` thread per worker desired. Return immediately.
     base_id = experiment_id * MAX_WORKERS_PER_EXPERIMENT
-    threads = []
     for worker_id in range(base_id, base_id + n):
-        thread = threading.Thread(
-            target=maintain_one,
-            name="Worker %d" % worker_id,
-            args=(worker_id,)
-        )
-        threads.append(thread)
+        thread_name = "Experiment #%d, Worker #%d" % (experiment_id, worker_id)
+        thread = threading.Thread(target=maintain_one, name=thread_name,
+                                  args=(worker_id,))
         thread.start()
 
 

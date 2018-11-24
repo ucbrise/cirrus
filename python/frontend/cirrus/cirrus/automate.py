@@ -12,6 +12,7 @@ import random
 import datetime
 
 import boto3
+import botocore
 
 from . import handler
 from . import configuration
@@ -117,6 +118,7 @@ class ClientManager(object):
         # These mutexes synchronize reading/writing of the respective client
         #   attributes.
         self._lamb_mutex = threading.Lock()
+        self._lamb_no_retries_mutex = threading.Lock()
         self._iam_mutex = threading.Lock()
         self._ec2_mutex = threading.Lock()
         self._cloudwatch_logs_mutex = threading.Lock()
@@ -144,6 +146,25 @@ class ClientManager(object):
                     configuration.config()["aws"]["region"]
                 )
         return self._lamb
+
+    @property
+    def lamb_no_retries(self):
+        """Get a Lambda client that doesn't retry requests.
+
+        Initializes one if none is cached.
+
+        Returns:
+            botocore.client.BaseClient: The client.
+        """
+        with self._lamb_no_retries_mutex:
+            if self._lamb_no_retries is None:
+                self._log.debug("ClientManager: Initializing no-retries Lambda "
+                                "client.")
+                region = configuration.config()["aws"]["region"]
+                config = botocore.config.Config(retries={"max_attempts": 1})
+                self._lamb_no_retries = boto3.client("lambda", region,
+                                                     config=config)
+        return self._lamb_no_retries
 
 
     @property
@@ -225,6 +246,9 @@ class ClientManager(object):
         """
         with self._lamb_mutex:
             self._lamb = None
+
+        with self._lamb_no_retries_mutex:
+            self._lamb_no_retries = None
 
         with self._iam_mutex:
             self._iam = None
@@ -923,7 +947,7 @@ def launch_worker(lambda_name, task_id, config, num_workers, ps):
         "task_id": task_id,
         "log_level": LAMBDA_LOG_LEVEL
     }
-    response = clients.lamb.invoke(
+    response = clients.lamb_no_retries.invoke(
         FunctionName=lambda_name,
         InvocationType="RequestResponse",
         LogType="Tail",

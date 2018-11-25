@@ -100,6 +100,9 @@ MAX_LAMBDA_GENERATIONS = 10000
 #   to register.
 MAX_WORKERS_PER_EXPERIMENT = 1000
 
+# The minimum number of seconds that must pass between two Lambda invocations
+#   for a worker.
+MIN_GENERATION_TIME = 10
 
 # The minimum number of concurrent executions that AWS requires an account to
 #   keep unreserved. Current as of 11/21/18.
@@ -1015,24 +1018,18 @@ def maintain_workers(n, config, ps, stop_event, experiment_id, lambda_size):
         """
         generation = 0
 
-        elapsed_sec = 0
         while not stop_event.is_set():
             assert generation < MAX_LAMBDA_GENERATIONS
 
-            # the 2nd time onwards we sleep until we complete 5mins
-            if elapsed_sec > 0 and elapsed_sec < 1 * 60:
-                time_to_wait = 2 * 60 - elapsed_sec
-                print("Sleeping for {}".format(time_to_wait))
-                time.sleep(time_to_wait)
-
-            start = time.time()
-
             task_id = worker_id * MAX_LAMBDA_GENERATIONS + generation
+            start = time.time()
             launch_worker(lambda_name, task_id, config, n, ps)
 
-            generation += 1
+            duration = time.time() - start
+            if duration < MIN_GENERATION_TIME:
+                time.sleep(MIN_GENERATION_TIME - duration)
 
-            elapsed_sec = time.time() - start
+            generation += 1
 
 
     # Start the `clean_up` thread. Return immediately.

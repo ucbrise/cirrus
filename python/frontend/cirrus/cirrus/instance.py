@@ -372,11 +372,13 @@ class Instance(object):
         return self._private_key
 
 
-    def run_command(self, command):
+    def run_command(self, command, check=True):
         """Run a command on this instance.
 
         Args:
             command (str): The command to run.
+            check (bool): Whether to raise an error if the exit code of the
+                command is nonzero.
 
         Returns:
             tuple[int, bytes, bytes]: The exit code, stdout, and stderr,
@@ -403,6 +405,9 @@ class Instance(object):
 
         status = stdout.channel.recv_exit_status()
         self._log.debug("run_command: Exit code was %d." % status)
+        if check and status != 0:
+            raise RuntimeError("`%s` returned nonzero exit code %d."
+                               % (command, status))
 
         self._log.debug("run_command: Done.")
         return status, stdout_data, stderr_data

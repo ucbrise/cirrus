@@ -570,7 +570,7 @@ def make_ubuntu_build_image(name):
     # Why twice? Sometimes it doesn't work the first time. It might also just be
     #   a timing thing.
     instance.run_command("sudo apt-get update")
-    instance.run_command("sudo apt-get update")
+    instance.run_command("sudo apt-get update", False)
     instance.run_command("yes | sudo apt-get install build-essential cmake \
                           automake zlib1g-dev libssl-dev libcurl4-nss-dev \
                           bison libldap2-dev libkrb5-dev")

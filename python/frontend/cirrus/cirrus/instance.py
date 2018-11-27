@@ -332,7 +332,6 @@ class Instance(object):
             assert ami_owner_name is None, \
                 "When ami_id is specified, ami_owner_name should not be."
 
-        self._instance_profile = None
         self.instance = None
         self._ssh_client = None
         self._sftp_client = None
@@ -519,11 +518,6 @@ class Instance(object):
                 self._log.debug("cleanup: Waiting for instance to terminate.")
                 self.instance.wait_until_terminated()
                 self.instance = None
-            if self._instance_profile is not None:
-                self._log.debug("cleanup: Deleting instance profile.")
-                self._instance_profile.remove_role(RoleName=self.ROLE_NAME)
-                self._instance_profile.delete()
-                self._instance_profile = None
             self._log.debug("cleanup: Done.")
         except:
             MESSAGE = "An error occured during cleanup. Some EC2 resources " \

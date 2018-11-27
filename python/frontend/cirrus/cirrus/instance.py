@@ -364,15 +364,21 @@ class Instance(object):
 
 
     def public_ip(self):
+        """Get the public IP address of this instance.
+
+        Returns:
+            str: The IP address.
+        """
         return self.instance.public_ip_address
 
 
     def private_ip(self):
+        """Get the private IP address of this instance.
+
+        Returns:
+            str: The IP address.
+        """
         return self.instance.private_ip_address
-
-
-    def private_key(self):
-        return self._private_key
 
 
     def run_command(self, command, check=True):
@@ -417,6 +423,18 @@ class Instance(object):
 
 
     def buffer_commands(self, flag):
+        """Enable or disable command buffering for this instance.
+
+        When command buffering is enabled, calls to `run_command` do not
+            immediately run commands on the instance. Instead, commands are
+            collected in a queue. The queue of commands is run all at once when
+            `buffer_commands` is used to disable command buffering. This is
+            useful for batching commands, which increases efficiency.
+
+        Args:
+           flag (bool): If True, command buffering will be enabled. If False,
+            command buffering will be disabled.
+        """
         if flag == False and self._buffering_commands == True:
             concat_command = "\n".join(self._buffered_commands)
             self._buffered_commands = []
@@ -469,6 +487,12 @@ class Instance(object):
 
 
     def upload(self, content, dest):
+        """Upload a file to the instance.
+
+        Args:
+            content (str): The content of the file.
+            dest (str): The path on the instance to upload to.
+        """
         if self._sftp_client is None:
             self._connect_sftp()
         fo = io.StringIO(content)

@@ -112,7 +112,8 @@ class Instance(object):
             automate.clients.ec2.delete_key_pair(KeyName=cls.KEY_PAIR_NAME)
 
         log.debug("set_up_key_pair: Creating key pair.")
-        response = automate.clients.ec2.create_key_pair(KeyName=cls.KEY_PAIR_NAME)
+        response = automate.clients.ec2.create_key_pair(
+            KeyName=cls.KEY_PAIR_NAME)
 
         log.debug("set_up_key_pair: Saving private key.")
         path = os.path.expanduser(cls.PRIVATE_KEY_PATH)
@@ -137,7 +138,8 @@ class Instance(object):
         log.debug("set_up_security_group: Checking for existing security "
                   "groups.")
         filter = {"Name": "group-name", "Values": [cls.SECURITY_GROUP_NAME]}
-        response = automate.clients.ec2.describe_security_groups(Filters=[filter])
+        response = automate.clients.ec2.describe_security_groups(
+            Filters=[filter])
         for group_info in response["SecurityGroups"]:
             log.debug("set_up_security_group: Deleting an existing security "
                       "group.")
@@ -283,7 +285,8 @@ class Instance(object):
             disk_size (int): Disk space for the instance, in GB.
             typ (str): Type for the instance.
             username (str): SSH username for the AMI.
-            ami_id (str): ID of the AMI for the instance. If omitted or None, `ami_name` must be provided.
+            ami_id (str): ID of the AMI for the instance. If omitted or None,
+                `ami_name` must be provided.
             ami_owner_name (tuple[str, str]): The owner and name of the AMI for
                 the instance. Only used if `ami_id` is not provided. The first
                 AMI found with the name `ami_owner_name[1]` owned by
@@ -302,7 +305,8 @@ class Instance(object):
         self._log = logging.getLogger("cirrus.automate.Instance")
 
         self._log.debug("__init__: Initializing EC2.")
-        self._ec2 = boto3.resource("ec2", configuration.config()["aws"]["region"])
+        region = configuration.config()["aws"]["region"]
+        self._ec2 = boto3.resource("ec2", region)
 
         if self._ami_id is None:
             assert ami_owner_name is not None, \

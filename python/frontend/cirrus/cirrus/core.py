@@ -3,12 +3,9 @@ import threading
 import time
 from abc import ABCMeta, abstractmethod
 
-import boto3
-
 import messenger
 from CostModel import CostModel
 from . import automate
-from . import setup
 from . import configuration
 
 # The amount of time, in seconds, that passes between a parameter server being
@@ -189,14 +186,15 @@ class BaseTask(object):
         else:
             return self.time_loss_lst
 
+
     def run(self, delete_logs=True):
         """Run this task.
+
+        Starts the parameter server and launches a fleet of workers.
 
         Args:
             delete_logs (bool): Whether to delete the worker Lambda function's
                 Cloudwatch logs before starting the experiment.
-
-        Starts a parameter server and launches a fleet of workers.
         """
         limit = int(configuration.config()["aws"]["lambda_concurrency_limit"])
         if self.n_workers > limit:
@@ -231,9 +229,9 @@ class BaseTask(object):
         self.stop_event.set()
         self.ps.stop()
 
-        # Any currently-running Lambdas will probably die during this wait. This
-        #   way, their return statuses get printed by the threads maintaining
-        #   them before this method returns, which feels nicer.
+        # Any currently-running Lambdas will probably die during this wait. As a
+        #   result, their return statuses will get printed by the threads
+        #   maintaining them before this method returns, which feels nicer.
         time.sleep(PS_KILL_TO_LAMBDA_DEATH)
 
 
@@ -244,38 +242,6 @@ class BaseTask(object):
     @abstractmethod
     def define_config(self, fetch=False):
         pass
-
-    # This function is responsible for relaunching the lambdas as they die off. 
-    # It will poll the parameter server to determine how many lambdas are currently running
-    # and relaunch self.n_workers - num_lambdas number of lambdas
-    def relaunch_lambdas(self):
-        if self.is_dead():
-            return
-
-        num_lambdas = self.get_num_lambdas()
-        self.get_updates_per_second()
-        self.get_cost_per_second()
-        num_task = 3
-
-        if num_lambdas == None:
-            return
-
-        if num_lambdas < self.n_workers:
-            shortage = self.n_workers - num_lambdas
-
-            payload = '{"num_task": %d, "num_workers": %d, "ps_ip": \"%s\", "ps_port": %d}' \
-                        % (num_task, self.n_workers, self.ps_ip_private, self.ps_ip_port)
-            for i in range(shortage):
-                try:
-                    response = lambda_client.invoke(
-                        FunctionName=lambda_name,
-                        InvocationType='Event',
-                        LogType='Tail',
-                        Payload=payload)
-                except Exception as e:
-                    print "client.invoke exception caught"
-                    print str(e)
-
 
 
     def get_cost_per_second(self):

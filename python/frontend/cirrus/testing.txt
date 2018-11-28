@@ -1,4 +1,5 @@
-1. Run the setup script, selecting region us-west-2, using `python -m cirrus.setup --instance-resources-only".
+1. Run the command `pip install -e .` in /python/frontend/cirrus.
+1. Run the setup script, selecting region us-west-2, using the already-installed `cirrus_setup` command.
 2. Use the AWS console to create an S3 bucket named "cirrus-public-<yourname>" in region "us-west-2".
 3. Change setup.PUBLISHED_BUILD to "s3://cirrus-public-<yourname>".
 3. Run build.ipynb.

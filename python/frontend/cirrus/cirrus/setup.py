@@ -1,6 +1,6 @@
 """Utilities for setting up an installation of Cirrus.
 
-Run this using `python -m cirrus.setup`! It uses relative imports.
+Used mainly by `/scripts/cirrus_setup`.
 """
 
 import textwrap

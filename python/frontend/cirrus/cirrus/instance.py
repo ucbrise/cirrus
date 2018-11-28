@@ -66,7 +66,7 @@ class Instance(object):
         Returns:
             bool: Whether any exists.
         """
-        log = logging.getLogger("cirrus.automate.Instance")
+        log = logging.getLogger("cirrus.instance.Instance")
 
         log.debug("images_exist: Describing images.")
         response = clients.ec2.describe_images(
@@ -85,7 +85,7 @@ class Instance(object):
         Args:
             name (str): The name.
         """
-        log = logging.getLogger("cirrus.automate.Instance")
+        log = logging.getLogger("cirrus.instance.Instance")
 
         log.debug("delete_images: Describing images.")
         response = clients.ec2.describe_images(
@@ -108,7 +108,7 @@ class Instance(object):
         """
         from . import automate
 
-        log = logging.getLogger("automate.Instance.set_up_key_pair")
+        log = logging.getLogger("cirrus.instance.Instance.set_up_key_pair")
 
         log.debug("set_up_key_pair: Checking for an existing key pair.")
         filter = {"Name": "key-name", "Values": [cls.KEY_PAIR_NAME]}
@@ -138,7 +138,8 @@ class Instance(object):
         """
         from . import automate
 
-        log = logging.getLogger("automate.Instance.set_up_security_group")
+        log = logging.getLogger(
+            "cirrus.instance.Instance.set_up_security_group")
 
         log.debug("set_up_security_group: Checking for existing security "
                   "groups.")
@@ -177,7 +178,7 @@ class Instance(object):
         """
         from . import automate
 
-        log = logging.getLogger("automate.instance.set_up_role")
+        log = logging.getLogger("cirrus.instance.Instance.set_up_role")
 
         log.debug("set_up_role: Checking for an existing role.")
         iam_client = clients.iam.meta.client
@@ -241,7 +242,8 @@ class Instance(object):
         """
         from . import automate
 
-        log = logging.getLogger("automate.instance.set_up_instance_profile")
+        log = logging.getLogger(
+            "cirrus.instance.Instance.set_up_instance_profile")
 
         log.debug("set_up_instance_profile: Checking for an existing instance "
                   "profile.")
@@ -305,7 +307,7 @@ class Instance(object):
         self._type = typ
         self._username = username
         self._spot_bid = spot_bid
-        self._log = logging.getLogger("cirrus.automate.Instance")
+        self._log = logging.getLogger("cirrus.instance.Instance")
 
         if self._ami_id is None:
             assert ami_owner_name is not None, \

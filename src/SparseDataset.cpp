@@ -31,7 +31,6 @@ SparseDataset::SparseDataset(
     : data_(std::move(samples)), labels_(std::move(labels)) {}
 
 SparseDataset::SparseDataset(const char* data, uint64_t n_samples, bool has_labels) {
-  //throw std::runtime_error("Is this used");
   const char* data_begin = data;
 
   data_.reserve(n_samples);
@@ -302,15 +301,12 @@ void SparseDataset::normalize(uint64_t hash_size) {
     for (auto& v : w) {
       int index = v.first;
 
-      if (max_val_feature[index] == min_val_feature[index]) {
-        // this happens if feature has always the same value
-        // in the dataset
-        // In this case don't normalize this feature
-        continue;
+      // only normalize if there are different values
+      // in the same column
+      if (max_val_feature[index] != min_val_feature[index]) {
+        v.second = (v.second - min_val_feature[index]) /
+                   (max_val_feature[index] - min_val_feature[index]);
       }
-
-      v.second = (v.second - min_val_feature[index]) / 
-        (max_val_feature[index] - min_val_feature[index]);
     }
   }
 }

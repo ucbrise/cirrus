@@ -42,17 +42,14 @@ void check_error(auto model, auto dataset) {
 }
 
 int main() {
-  InputReader input;
-  Dataset dataset = input.read_input_csv(
-      INPUT_PATH,
-      "\t", 1,
-      10000,
-      14, true); // normalize=true
+  cirrus::InputReader input;
+  cirrus::Dataset dataset = input.read_input_csv(INPUT_PATH, "\t", 1, 10000, 14,
+                                                 true);  // normalize=true
   dataset.check();
   dataset.print_info();
 
   uint64_t num_cols = 13;
-  LRModel model(num_cols);
+  cirrus::LRModel model(num_cols);
 
   double epsilon = 0.00001;
   double learning_rate = 0.0000001;

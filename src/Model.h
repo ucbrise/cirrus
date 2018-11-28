@@ -1,13 +1,14 @@
 #ifndef _MODEL_H_
 #define _MODEL_H_
 
-#include <utility>
-#include <memory>
-#include <vector>
-#include <map>
-#include <ModelGradient.h>
+#include <Configuration.h>
 #include <Dataset.h>
+#include <ModelGradient.h>
 #include <SparseDataset.h>
+#include <map>
+#include <memory>
+#include <utility>
+#include <vector>
 
 namespace cirrus {
 
@@ -106,8 +107,10 @@ class CirrusModel {
         uint64_t /*labels_size*/,
         double /*epsilon*/) const  { throw std::runtime_error("not implemented"); }
     virtual std::unique_ptr<ModelGradient> minibatch_grad(
-        const SparseDataset& ,
-        double ) const { throw std::runtime_error("not implemented"); }
+        const SparseDataset&,
+        const Configuration&) const {
+      throw std::runtime_error("not implemented");
+    }
 
     /**
      * Compute the checksum of this model's weights

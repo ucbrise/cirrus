@@ -10,26 +10,24 @@ cirrus::SparseDataset read_dataset(
   cirrus::InputReader input;
 
   std::string delimiter;
-  if (config.get_input_type() == "csv_space") {
+  if (config.get_load_input_type() == "csv_space") {
     delimiter = "";
-  } else if (config.get_input_type() == "csv_tab") {
+  } else if (config.get_load_input_type() == "csv_tab") {
     delimiter = "\t";
-  } else if (config.get_input_type() == "csv") {
+  } else if (config.get_load_input_type() == "csv") {
     delimiter = ",";
   } else {
     throw std::runtime_error("unknown input type");
   }
 
   // READ the kaggle criteo dataset
-  return input.read_input_criteo_kaggle_sparse(
-      config.get_input_path(),
-      delimiter,
-      config);
+  return input.read_input_criteo_kaggle_sparse(config.get_load_input_path(),
+                                               delimiter, config);
 }
 
 /**
-input_path: /mnt/efs/criteo_kaggle/train.csv
-input_type: csv # for the criteo kaggle train.csv
+load_input_path: /mnt/efs/criteo_kaggle/train.csv
+load_input_type: csv # for the criteo kaggle train.csv
 minibatch_size: 20
 s3_size: 50000
 learning_rate: 0.01
@@ -59,8 +57,8 @@ int main() {
   std::cout << "Reading criteo input..." << std::endl;
 
   cirrus::Configuration config;
-  config.input_path = "/mnt/efs/criteo_kaggle/train.csv";
-  config.input_type = "csv";
+  config.load_input_path = "/mnt/efs/criteo_kaggle/train.csv";
+  config.load_input_type = "csv";
   config.s3_bucket_name = "--";
   config.limit_samples = 50000000;
   config.model_bits = 19;

@@ -1,12 +1,14 @@
-#include <Utils.h>
 #include <Configuration.h>
+#include <S3.h>
 #include <Tasks.h>
+#include <Utils.h>
 #include <config.h>
 
 #include <stdlib.h>
 #include <cstdint>
 #include <string>
 
+#include <S3.h>
 #include <gflags/gflags.h>
 
 DEFINE_int64(nworkers, -1, "number of workers");
@@ -27,13 +29,7 @@ void run_tasks(int rank, int nworkers,
   int features_per_sample = config.get_num_features();
   int samples_per_batch = config.get_minibatch_size();
 
-  if (rank == PERFORMANCE_LAMBDA_RANK) {
-    cirrus::PerformanceLambdaTask lt(features_per_sample,
-        batch_size, samples_per_batch, features_per_sample,
-        nworkers, rank, ps_ip, ps_port);
-    lt.run(config);
-    cirrus::sleep_forever();
-  } else if (rank == PS_SPARSE_SERVER_TASK_RANK) {
+  if (rank == PS_SPARSE_SERVER_TASK_RANK) {
     cirrus::PSSparseServerTask st((1 << config.get_model_bits()) + 1,
         batch_size, samples_per_batch, features_per_sample,
         nworkers, rank, ps_ip, ps_port);
@@ -157,6 +153,7 @@ int main(int argc, char** argv) {
 
   // call the right task for this process
   std::cout << "Running task" << std::endl;
+  cirrus::s3_initialize_aws();
   run_tasks(rank, nworkers, batch_size, config, FLAGS_ps_ip, FLAGS_ps_port);
 
   std::cout << "Test successful" << std::endl;

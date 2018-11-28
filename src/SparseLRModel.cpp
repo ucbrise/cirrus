@@ -79,7 +79,6 @@ void SparseLRModel::loadSerialized(const void* data) {
 #endif
   assert(num_weights > 0 && num_weights < 10000000);
 
-  //int size = num_weights * sizeof(FEATURE_TYPE) + sizeof(int);
   char* data_begin = (char*)data;
 
   weights_.resize(num_weights);
@@ -174,6 +173,8 @@ double SparseLRModel::dot_product(
     int index = feat.first;
     FEATURE_TYPE value = feat.second;
     if ((uint64_t)index >= weights_.size()) {
+      std::cerr << "index: " << index << " weights.size: " << weights_.size()
+                << std::endl;
       throw std::runtime_error("Index too high");
     }
     assert(index >= 0 && (uint64_t)index < weights_.size());
@@ -192,8 +193,8 @@ double SparseLRModel::dot_product(
 }
 
 std::unique_ptr<ModelGradient> SparseLRModel::minibatch_grad(
-        const SparseDataset& dataset,
-        double epsilon) const {
+    const SparseDataset& dataset,
+    const Configuration& config) const {
   if (is_sparse_) {
     throw std::runtime_error("This model is sparse");
   }
@@ -244,8 +245,8 @@ std::unique_ptr<ModelGradient> SparseLRModel::minibatch_grad(
     for (const auto& v : part3) {
       uint64_t index = v.first;
       FEATURE_TYPE value = v.second;
-      res.push_back(std::make_pair(index, value + weights_[index] * 2 * epsilon));
-      //res[index] = res[index] * 2 * epsilon + value;
+      res.push_back(std::make_pair(
+          index, value + weights_[index] * 2 * config.get_epsilon()));
     }
 #ifdef DEBUG
     auto after_3 = get_time_us();
@@ -376,13 +377,11 @@ void SparseLRModel::check() const {
 }
 
 void SparseLRModel::loadSerializedSparse(const FEATURE_TYPE* weights,
-    const uint32_t* weight_indices,
-    uint64_t num_weights,
-    const Configuration& config) {
+                                         const uint32_t* weight_indices,
+                                         uint64_t num_weights,
+                                         const Configuration& config) {
   is_sparse_ = true;
-  
   assert(num_weights > 0 && num_weights < 10000000);
-
   weights_sparse_.reserve((1 << config.get_model_bits()));
   for (uint64_t i = 0; i < num_weights; ++i) {
     uint32_t index = load_value<uint32_t>(weight_indices);
@@ -405,16 +404,14 @@ void SparseLRModel::ensure_preallocated_vectors(const Configuration& config) con
   
   // value needs to be less than number of samples in minibatch
   if (part2.capacity() == 0) {
-    part2.resize(500);
+    part2.resize(config.get_minibatch_size());
   }
 }
 
 std::unique_ptr<ModelGradient> SparseLRModel::minibatch_grad_sparse(
         const SparseDataset& dataset,
         const Configuration& config) const {
-  if (!is_sparse_) {
-    throw std::runtime_error("This model is not sparse");
-  }
+  // this method should work regardless of whether model is sparse
 
   ensure_preallocated_vectors(config);
 

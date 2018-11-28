@@ -6,7 +6,7 @@
 #include "Checksum.h"
 #include "Constants.h"
 
-//#define DEBUG
+#undef DEBUG
 
 #define MAX_MSG_SIZE (1024*1024)
 
@@ -101,12 +101,10 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace(const SparseDataset& d
 #ifdef DEBUG
   std::cout << "Sending operation and size" << std::endl;
 #endif
-  // 1. Send operation
   uint32_t operation = GET_LR_SPARSE_MODEL;
   if (send_all(sock, &operation, sizeof(uint32_t)) == -1) {
     throw std::runtime_error("Error getting sparse lr model");
   }
-  // 2. Send msg size
   uint32_t msg_size = sizeof(uint32_t) + sizeof(uint32_t) * num_weights;
 #ifdef DEBUG
   std::cout << "msg_size: " << msg_size
@@ -114,14 +112,10 @@ void PSSparseServerInterface::get_lr_sparse_model_inplace(const SparseDataset& d
     << std::endl;
 #endif
   send_all(sock, &msg_size, sizeof(uint32_t));
-  // 3. Send num_weights + weights
   if (send_all(sock, msg_begin, msg_size) == -1) {
     throw std::runtime_error("Error getting sparse lr model");
   }
-  
-  //4. receive weights from PS
   uint32_t to_receive_size = sizeof(FEATURE_TYPE) * num_weights;
-  //std::cout << "Model sent. Receiving: " << num_weights << " weights" << std::endl;
 
 #ifdef DEBUG
   std::cout << "Receiving " << to_receive_size << " bytes" << std::endl;
@@ -153,13 +147,10 @@ std::unique_ptr<CirrusModel> PSSparseServerInterface::get_full_model(
   std::cout << "Getting full model isCollaborative: " << isCollaborative << std::endl;
 #endif
   if (isCollaborative) {
-    // 1. Send operation
     uint32_t operation = GET_MF_FULL_MODEL;
     send_all(sock, &operation, sizeof(uint32_t));
-
     uint32_t to_receive_size;
     read_all(sock, &to_receive_size, sizeof(uint32_t));
-    std::cout << "Request sent. Receiving: " << to_receive_size << " bytes" << std::endl;
 
     char* buffer = new char[to_receive_size];
     read_all(sock, buffer, to_receive_size);
@@ -174,10 +165,8 @@ std::unique_ptr<CirrusModel> PSSparseServerInterface::get_full_model(
     delete[] buffer;
     return model;
   } else {
-    // 1. Send operation
     uint32_t operation = GET_LR_FULL_MODEL;
     send_all(sock, &operation, sizeof(uint32_t));
-    //2. receive size from PS
     int model_size;
     if (read_all(sock, &model_size, sizeof(int)) == 0) {
       throw std::runtime_error("Error talking to PS");
@@ -212,7 +201,6 @@ SparseMFModel PSSparseServerInterface::get_sparse_mf_model(
     const SparseDataset& ds, uint32_t user_base, uint32_t minibatch_size) {
   char* msg = new char[MAX_MSG_SIZE];
   char* msg_begin = msg; // need to keep this pointer to delete later
- 
   uint32_t item_ids_count = 0;
   store_value<uint32_t>(msg, 0); // we will write this value later
   store_value<uint32_t>(msg, user_base);
@@ -222,40 +210,24 @@ SparseMFModel PSSparseServerInterface::get_sparse_mf_model(
   for (const auto& sample : ds.data_) {
     for (const auto& w : sample) {
       uint32_t movieId = w.first;
-      //std::cout << "movieId: " << movieId << "\n";
-
       if (seen[movieId])
           continue;
       store_value<uint32_t>(msg, movieId);
       seen[movieId] = true;
-      //store_value<uint32_t>(msg, movieId); // encode the index
       item_ids_count++;
     }
   }
   msg = msg_begin;
   store_value<uint32_t>(msg, item_ids_count); // store correct value here
-
-  // 1. Send operation
   uint32_t operation = GET_MF_SPARSE_MODEL;
   send_all(sock, &operation, sizeof(uint32_t));
-  // 2. Send msg size
   uint32_t msg_size = sizeof(uint32_t) * 4 + sizeof(uint32_t) * item_ids_count;
   send_all(sock, &msg_size, sizeof(uint32_t));
-  // 3. Send request message
   if (send_all(sock, msg_begin, msg_size) == -1) {
     throw std::runtime_error("Error getting sparse mf model");
   }
-  
-  // 4. receive user vectors and item vectors
-  // FORMAT here is
-  // minibatch_size * user vectors. Each vector is user_id + user_bias + NUM_FACTORS * FEATURE_TYPE
-  // num_item_ids * item vectors. Each vector is item_id + item_bias + NUM_FACTORS * FEATURE_TYPE
   uint32_t to_receive_size;
   read_all(sock, &to_receive_size, sizeof(uint32_t));
-  //minibatch_size * (sizeof(uint32_t) + (NUM_FACTORS + 1) * sizeof(FEATURE_TYPE)) +
-  //item_ids_count * (sizeof(uint32_t) + (NUM_FACTORS + 1) * sizeof(FEATURE_TYPE));
-
-  std::cout << "Request sent. Receiving: " << to_receive_size << " bytes" << std::endl;
 
   char* buffer = new char[to_receive_size];
   if (read_all(sock, buffer, to_receive_size) == 0) {
@@ -271,9 +243,6 @@ SparseMFModel PSSparseServerInterface::get_sparse_mf_model(
   return std::move(model);
 }
 
-// 1. send operation (uint32_t)
-// 2. send gradient size (uint32_t)
-// 3. send gradient data
 void PSSparseServerInterface::send_mf_gradient(const MFSparseGradient& gradient) {
   uint32_t operation = SEND_MF_GRADIENT;
   if (send(sock, &operation, sizeof(uint32_t), 0) == -1) {
@@ -292,7 +261,46 @@ void PSSparseServerInterface::send_mf_gradient(const MFSparseGradient& gradient)
   }
   delete[] data;
 }
-  
+
+uint32_t PSSparseServerInterface::register_task(uint32_t id,
+                                                uint32_t remaining_time_sec) {
+#ifdef DEBUG
+  std::cout << "Registering task id: " << id
+            << " remaining_time_sec: " << remaining_time_sec << std::endl;
+#endif
+
+  uint32_t data[3] = {REGISTER_TASK, id, remaining_time_sec};
+  if (send_all(sock, data, sizeof(uint32_t) * 3) == -1) {
+    throw std::runtime_error("Error registering task");
+  }
+
+  uint32_t status;
+  if (read_all(sock, &status, sizeof(uint32_t)) == 0) {
+    throw std::runtime_error("Error getting task register return");
+  }
+  return status;
+}
+
+uint32_t PSSparseServerInterface::deregister_task(uint32_t id) {
+#ifdef DEBUG
+  std::cout << "Deregistering task id: " << id << std::endl;
+#endif
+
+  uint32_t data[2] = {DEREGISTER_TASK, id};
+  if (send_all(sock, data, sizeof(uint32_t) * 2) == -1) {
+    throw std::runtime_error("Error registering task");
+  }
+
+#ifdef DEBUG
+  std::cout << "Deregistering reading reply: " << std::endl;
+#endif
+  uint32_t status;
+  if (read_all(sock, &status, sizeof(uint32_t)) == 0) {
+    throw std::runtime_error("Error getting task register return");
+  }
+  return status;
+}
+
 void PSSparseServerInterface::set_status(uint32_t id, uint32_t status) {
   std::cout << "Setting status id: " << id << " status: " << status << std::endl;
   uint32_t data[3] = {SET_TASK_STATUS, id, status};
@@ -311,6 +319,63 @@ uint32_t PSSparseServerInterface::get_status(uint32_t id) {
     throw std::runtime_error("Error getting task status");
   }
   return status;
+}
+
+void PSSparseServerInterface::set_value(const std::string& key,
+                                        char* data,
+                                        uint32_t size) {
+  assert(key.size() <= KEY_SIZE);
+
+  char key_char[KEY_SIZE] = {0};
+  std::copy(key.data(), key.data() + key.size(), key_char);
+
+  uint32_t operation = SET_VALUE;
+  if (send_all(sock, &operation, sizeof(operation)) != sizeof(operation)) {
+    throw std::runtime_error("Error sending operation");
+  }
+  if (send_all(sock, key_char, KEY_SIZE) != KEY_SIZE) {
+    throw std::runtime_error("Error sending key name");
+  }
+  if (send_all(sock, &size, sizeof(uint32_t)) != sizeof(uint32_t)) {
+    throw std::runtime_error("Error sending value size");
+  }
+  if (send_all(sock, data, size) != size) {
+    throw std::runtime_error("Error sending value data");
+  }
+}
+
+std::pair<std::shared_ptr<char>, uint32_t> PSSparseServerInterface::get_value(
+    const std::string& key) {
+  char key_char[KEY_SIZE] = {0};
+  std::copy(key.data(), key.data() + key.size(), key_char);
+
+  uint32_t operation = GET_VALUE;
+  if (send_all(sock, &operation, sizeof(operation)) != sizeof(operation)) {
+    throw std::runtime_error("Error sending operation");
+  }
+
+  if (send_all(sock, key_char, KEY_SIZE) != KEY_SIZE) {
+    throw std::runtime_error("Error sending key name");
+  }
+
+  uint32_t size = 0;
+  if (read_all(sock, &size, sizeof(uint32_t)) != sizeof(uint32_t)) {
+    throw std::runtime_error("Error reading key value");
+  }
+
+  if (size == 0) {
+    // object not found
+    return std::make_pair(std::shared_ptr<char>(nullptr), 0);
+  }
+
+  std::shared_ptr<char> value_data =
+      std::shared_ptr<char>(new char[size], std::default_delete<char[]>());
+
+  if (read_all(sock, value_data.get(), size) != size) {
+    throw std::runtime_error("Error receiving value data");
+  }
+
+  return std::make_pair(value_data, size);
 }
 
 } // namespace cirrus

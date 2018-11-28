@@ -11,15 +11,18 @@
 #include "S3SparseIterator.h"
 #include "OptimizationMethod.h"
 
-#include <string>
-#include <vector>
+#include <chrono>
 #include <map>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
-#include <poll.h>
-#include <sys/socket.h>
-#include <sys/types.h>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
+#include <poll.h>
+#include <pthread.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 namespace cirrus {
@@ -82,6 +85,7 @@ class LogisticSparseTaskS3 : public MLTask {
         SparseModelGet(const std::string& ps_ip, int ps_port) :
           ps_ip(ps_ip), ps_port(ps_port) {
             psi = std::make_unique<PSSparseServerInterface>(ps_ip, ps_port);
+            psi->connect();
         }
 
         SparseLRModel get_new_model(const SparseDataset& ds,
@@ -100,9 +104,8 @@ class LogisticSparseTaskS3 : public MLTask {
         int ps_port;
     };
 
-    bool get_dataset_minibatch(
-        std::unique_ptr<SparseDataset>& dataset,
-        S3SparseIterator& s3_iter);
+    bool get_dataset_minibatch(std::shared_ptr<SparseDataset>& dataset,
+                               S3SparseIterator& s3_iter);
     void push_gradient(LRSparseGradient*);
 
     std::mutex redis_lock;
@@ -162,6 +165,7 @@ class ErrorSparseTask : public MLTask {
    double last_time = 0.0;
    double last_error = 0.0;
    std::atomic<double> curr_error;
+   std::atomic<double> total_loss;
 };
 
 class PerformanceLambdaTask : public MLTask {
@@ -269,6 +273,8 @@ class PSSparseServerTask : public MLTask {
   void loop(int id);                         //< listen for requests
   bool process(struct pollfd&, int id);      //< process a request
 
+  void set_operation_maps();  //< set maps related to requests
+
   /**
     * Model/ML related methods
     */
@@ -284,19 +290,37 @@ class PSSparseServerTask : public MLTask {
   void gradient_f();
 
   // message handling
-  bool process_get_lr_sparse_model(const Request& req, std::vector<char>&);
-  bool process_send_lr_gradient(const Request& req, std::vector<char>&);
-  bool process_get_mf_sparse_model(const Request& req,
+  bool process_get_lr_sparse_model(int,
+                                   const Request&,
                                    std::vector<char>&,
-                                   int tn);
-  bool process_get_lr_full_model(const Request& req,
-                                 std::vector<char>& thread_buffer);
-  bool process_send_mf_gradient(const Request& req,
-                                std::vector<char>& thread_buffer);
-  bool process_get_mf_full_model(const Request& req,
-                                 std::vector<char>& thread_buffer);
+                                   int);
+  bool process_get_mf_sparse_model(int,
+                                   const Request&,
+                                   std::vector<char>&,
+                                   int);
+  bool process_send_lr_gradient(int, const Request&, std::vector<char>&, int);
+  bool process_send_mf_gradient(int, const Request&, std::vector<char>&, int);
+  bool process_get_lr_full_model(int, const Request&, std::vector<char>&, int);
+  bool process_get_mf_full_model(int, const Request&, std::vector<char>&, int);
+  bool process_get_task_status(int, const Request&, std::vector<char>&, int);
+  bool process_set_task_status(int, const Request&, std::vector<char>&, int);
+  bool process_get_num_conns(int, const Request&, std::vector<char>&, int);
+  bool process_get_num_updates(int, const Request&, std::vector<char>&, int);
+  bool process_get_last_time_error(int,
+                                   const Request&,
+                                   std::vector<char>&,
+                                   int);
+  bool process_get_value(int, const Request&, std::vector<char>&, int);
+  bool process_set_value(int, const Request&, std::vector<char>&, int);
+  bool process_register_task(int, const Request&, std::vector<char>&, int);
+  bool process_deregister_task(int, const Request&, std::vector<char>&, int);
 
   void kill_server();
+
+  static void destroy_pthread_barrier(pthread_barrier_t*);
+
+  void check_tasks_lifetime();
+  uint32_t declare_task_dead(uint32_t);
 
   /**
     * Attributes
@@ -312,7 +336,12 @@ class PSSparseServerTask : public MLTask {
   // threads to handle requests
   std::vector<std::unique_ptr<std::thread>> gradient_thread;
 
-  std::set<uint64_t> registered_tasks;  //< which tasks have registered
+  std::set<uint64_t> registered_tasks;  //< ids of registered tasks
+  // reamining time (sec) of each registered task
+  std::map<uint64_t, int64_t> task_to_remaining_time;
+  std::map<uint64_t, std::chrono::time_point<std::chrono::steady_clock>>
+      task_to_starttime;
+  std::mutex register_lock;  //< to coordinate access to reg. datastructures
 
   // thread to checkpoint model
   std::vector<std::unique_ptr<std::thread>> checkpoint_thread;
@@ -326,7 +355,7 @@ class PSSparseServerTask : public MLTask {
   int pipefds[NUM_POLL_THREADS][2] = {{0}};
 
   int server_sock_ = 0;           //< server used to receive connections
-  const uint64_t max_fds = 1000;  //< max number of connections supported
+  const uint64_t max_fds = 2000;  //< max number of connections supported
   int timeout = 1;                //< 1 ms
 
   // file descriptors for connections
@@ -340,16 +369,30 @@ class PSSparseServerTask : public MLTask {
   std::unique_ptr<SparseLRModel> lr_model;  //< last computed model
   std::unique_ptr<MFModel> mf_model;        //< last computed model
   Configuration task_config;                //< config for parameter server
-  uint32_t num_connections = 0;             //< number of current connections
+  uint32_t num_connections = 0;             //< num of current connections
+  uint32_t num_tasks = 0;                   //< num of currently reg. tasks
 
   std::map<int, bool> task_to_status;            //< keep track of task status
   std::map<int, std::string> operation_to_name;  //< request id to name
 
-  char* thread_msg_buffer[NUM_PS_WORK_THREADS];  // per-thread buffer
+  // per-thread buffer
+  std::shared_ptr<char[]> thread_msg_buffer[NUM_PS_WORK_THREADS];
   std::atomic<int> thread_count;  //< keep track of each thread's id
 
-  uint32_t num_updates = 0;       // Last measured num updates
-  std::atomic<bool> kill_signal;  // Used to coordinate thread kills
+  uint32_t num_updates = 0;       //< Last measured num updates
+  std::atomic<bool> kill_signal;  //< Used to coordinate thread kills
+
+  // barrier to synchronize threads init
+  std::unique_ptr<pthread_barrier_t, void (*)(pthread_barrier_t*)>
+      threads_barrier;
+
+  std::unordered_map<
+      uint32_t,
+      std::function<bool(int, const Request&, std::vector<char>&, int)>>
+      operation_to_f;
+
+  std::unordered_map<std::string, std::pair<uint32_t, std::shared_ptr<char>>>
+      key_value_map;
 };
 
 class MFNetflixTask : public MLTask {
@@ -376,6 +419,7 @@ class MFNetflixTask : public MLTask {
         MFModelGet(const std::string& ps_ip, int ps_port) :
           ps_ip(ps_ip), ps_port(ps_port) {
             psi = std::make_unique<PSSparseServerInterface>(ps_ip, ps_port);
+            psi->connect();
         }
 
         SparseMFModel get_new_model(const SparseDataset& ds,
@@ -391,13 +435,12 @@ class MFNetflixTask : public MLTask {
     };
 
   private:
-    bool get_dataset_minibatch(
-        std::unique_ptr<SparseDataset>& dataset,
-        S3SparseIterator& s3_iter);
-    void push_gradient(MFSparseGradient&);
+   bool get_dataset_minibatch(std::shared_ptr<SparseDataset>& dataset,
+                              S3SparseIterator& s3_iter);
+   void push_gradient(MFSparseGradient&);
 
-    std::unique_ptr<MFModelGet> mf_model_get;
-    std::unique_ptr<PSSparseServerInterface> psint;
+   std::unique_ptr<MFModelGet> mf_model_get;
+   std::unique_ptr<PSSparseServerInterface> psint;
 };
 
 }

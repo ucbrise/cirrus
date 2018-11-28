@@ -14,7 +14,6 @@
 #endif
 
 #define LOADING_TASK_RANK -100000
-#define PERFORMANCE_LAMBDA_RANK (-100000)
 
 #define WORKER_SPARSE_TASK_RANK (3)
 #define ERROR_SPARSE_TASK_RANK (2)
@@ -31,13 +30,14 @@ using FEATURE_TYPE = float;
 
 #define LIMIT_NUMBER_PASSES 3
 
-#define SYNC_N_STEPS (100)
-
 // number of factors for neflix workload
 #define NUM_FACTORS 10
 
 // define the number of poll threads
-#define NUM_POLL_THREADS 2
+#define NUM_POLL_THREADS 3
 
 // define number of parameter server working threads
-# define NUM_PS_WORK_THREADS 4
+#define NUM_PS_WORK_THREADS 4
+
+// fixed size number of characters for key name
+#define KEY_SIZE (10)

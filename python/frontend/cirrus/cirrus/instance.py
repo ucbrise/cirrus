@@ -5,15 +5,24 @@ import os
 import socket
 import io
 import sys
+import threading
 
 import paramiko
-import boto3
 
-from . import configuration
 from .clients import clients
 
 # The ARN of an IAM policy that allows full access to S3.
 S3_FULL_ACCESS_ARN = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+
+# The URL to GET from within an instance in order to check the instance's
+#   "instance-action" metadata attribute.
+INSTANCE_ACTION_URL = "http://169.254.169.254/latest/meta-data/spot/" \
+                      "instance-action"
+
+# The interval, in seconds, to wait between checks of an instance's
+#   "instance-action" metadata attribute. Per https://docs.aws.amazon.com/
+#   AWSEC2/latest/UserGuide/spot-interruptions.html.
+TERMINATION_MONITORING_INTERVAL = 5
 
 
 class Instance(object):
@@ -329,6 +338,8 @@ class Instance(object):
         self._buffering_commands = False
         self._buffered_commands = []
 
+        self._should_stop_monitoring = None
+
         self._log.debug("__init__: Done.")
 
 
@@ -344,13 +355,25 @@ class Instance(object):
         """
         atexit.register(self.cleanup)
 
-        self._log.debug("start: Checking if an instance with the same name is "
-                        + "already running.")
         if not self._exists():
-            self._log.debug("start: Calling _start_and_wait.")
             self._start_and_wait()
+            if self._spot_bid is not None:
+                self._start_termination_monitoring()
+        else:
+            # If the instance already exists, assume it's a spot instance, just
+            #   to be safe.
+            self._start_termination_monitoring()
 
         self._log.debug("start: Done.")
+
+
+    def __str__(self):
+        """Return a string representation of this instance.
+
+        Returns:
+            str: The representation.
+        """
+        return "Instance[name=%s]" % self._name
 
 
     def public_ip(self):
@@ -518,6 +541,8 @@ class Instance(object):
         """Terminate the instance and clean up all associated resources.
         """
         try:
+            if self._should_stop_monitoring is not None:
+                self._should_stop_monitoring.set()
             if self._sftp_client is not None:
                 self._log.debug("cleanup: Closing SFTP client.")
                 self._sftp_client.close()
@@ -543,8 +568,6 @@ class Instance(object):
 
 
     def _exists(self):
-        from . import automate
-
         self._log.debug("_exists: Listing instances.")
         name_filter = {
             "Name": "tag:Name",
@@ -620,6 +643,31 @@ class Instance(object):
         self.instance.load()
 
         self._log.debug("_start_and_wait: Done.")
+
+
+    def _start_termination_monitoring(self):
+        def is_marked_for_termination():
+            self._log.debug("is_marked_for_termination: Checking whether "
+                            "marked for termination.")
+            command = "curl -s -o /dev/null -w \"%%{http_code}\" %s" \
+                      % INSTANCE_ACTION_URL
+            status, out, _ = self.run_command(command, False)
+            return out != "404"
+
+        def monitor_forever():
+            self._log.debug("monitor_forever: Beginning termination "
+                            "monitoring.")
+            while not self._should_stop_monitoring.is_set():
+                if is_marked_for_termination():
+                    raise RuntimeError("%s is marked for termination by the "
+                                       "AWS spot service!" % self)
+                time.sleep(TERMINATION_MONITORING_INTERVAL)
+
+        self._should_stop_monitoring = threading.Event()
+
+        thread_name = "%s Termination Monitor" % self
+        thread = threading.Thread(target=monitor_forever, name=thread_name)
+        thread.start()
 
 
     def _connect_ssh(self, timeout=5, attempts=20):

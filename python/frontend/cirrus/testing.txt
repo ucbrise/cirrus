@@ -1,9 +1,9 @@
 1. Run the setup script, selecting region us-west-2, using `python -m cirrus.setup --instance-resources-only".
-2. Use the AWS console to create an S3 bucket named cirrus-public-<yourname> in region us-west-2.
-3. In build.ipynb, replace cirrus-public with cirrus-public-<yourname> in all cells. Run build.ipynb.
-4. In publish.ipynb, replace cirrus-public with cirrus-public-<yourname> in all cells. Run publish.ipynb.
-5. Re-run the setup script, selecting region us-west-2 and replacing cirrus-public with cirrus-public-<yourname> in
-    the PUBLISHED_BUILD constant.
+2. Use the AWS console to create an S3 bucket named "cirrus-public-<yourname>" in region "us-west-2".
+3. Change setup.PUBLISHED_BUILD to "s3://cirrus-public-<yourname>".
+3. Run build.ipynb.
+4. Run publish.ipynb.
+5. Re-run the setup script, selecting region us-west-2.
 6. Run logistic_regression.ipynb, ensuring that the cell which prints the error output shows increasing accuracy.
 7. Run hyperparameter_optimization.ipynb, ensuring that the cell which prints the error output shows increasing
     accuracy for I=0, I=1, and so on.

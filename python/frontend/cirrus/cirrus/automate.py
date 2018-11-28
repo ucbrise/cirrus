@@ -185,6 +185,7 @@ class ParameterServer(object):
 
         self._log.debug("start: Starting parameter server.")
         ps_start_command = " ".join((
+            "ulimit -c unlimited;",
             "nohup",
             "./parameter_server",
             "--config", config_filename,
@@ -216,6 +217,7 @@ class ParameterServer(object):
 
         self._log.debug("start: Starting error task.")
         error_start_command = " ".join((
+            "ulimit -c unlimited;",
             "nohup",
             "./parameter_server",
             "--config", config_filename,

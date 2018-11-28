@@ -143,7 +143,15 @@ def _set_up_region():
     EXPLANATION = "What AWS region do you want Cirrus to use?"
     PROMPTS = ("Region",)
     regions = boto3.session.Session().get_available_regions("lambda")
-    validator = lambda region: region in regions
+
+    def validator(region):
+        if region not in regions:
+            return False
+        if region not in automate.AMAZON_BASE_IMAGES:
+            return False
+        if region not in automate.UBUNTU_BASE_IMAGES:
+            return False
+        return True
 
     region = prompt(EXPLANATION, PROMPTS, validator)
 

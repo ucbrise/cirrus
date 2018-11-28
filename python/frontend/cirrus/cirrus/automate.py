@@ -30,11 +30,14 @@ SERVER_INSTANCE_TYPE = "m5a.2xlarge"
 # The disk size, in GB, to use for parameter servers.
 SERVER_INSTANCE_SIZE = 32
 
+
 # The base AMI to use for making the Amazon Linux build image. Gives the AMI ID
 #   for each supported region. This is "amzn-ami-hvm-2017.03.1.20170812
 #   -x86_64-gp2", which is recommended by AWS as of Sep 27, 2018 for compiling
 #   executables for Lambda.
 AMAZON_BASE_IMAGES = {
+    "us-east-1": "ami-4fffc834",
+    "us-east-2": "ami-ea87a78f",
     "us-west-1": "ami-3a674d5a",
     "us-west-2": "ami-aa5ebdd2"
 }
@@ -43,6 +46,8 @@ AMAZON_BASE_IMAGES = {
 #   each supported region. This is "Ubuntu Server 18.04 LTS (HVM), SSD Volume
 #   Type", found in the AWS console.
 UBUNTU_BASE_IMAGES = {
+    "us-east-1": "ami-0ac019f4fcb7cb7e6",
+    "us-east-2": "ami-0f65671a86f061fcd",
     "us-west-1": "ami-063aa838bd7631e0b",
     "us-west-2": "ami-0bbe6b35405ecebdb"
 }

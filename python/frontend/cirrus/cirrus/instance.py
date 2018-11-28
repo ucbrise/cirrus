@@ -25,6 +25,11 @@ INSTANCE_ACTION_URL = "http://169.254.169.254/latest/meta-data/spot/" \
 TERMINATION_MONITORING_INTERVAL = 5
 
 
+# The SSH keepalive interval to use for SSH connections to instances, in
+#   seconds.
+SSH_KEEPALIVE = 15
+
+
 class Instance(object):
     """An EC2 instance."""
 
@@ -696,6 +701,7 @@ class Instance(object):
                     look_for_keys=False
                 )
                 self._ssh_client.get_transport().window_size = 2147483647
+                self._ssh_client.get_transport().set_keepalive(SSH_KEEPALIVE)
             except socket.timeout:
                 self._log.debug("_connect_ssh: Connection attempt timed out " \
                                 "after %ds." % timeout)

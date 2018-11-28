@@ -934,14 +934,14 @@ def maintain_workers(n, config, ps, stop_event, experiment_id, lambda_size):
 
 
     # Start the `clean_up` thread. Return immediately.
-    thread_name = "Experiment #%d, Cleanup" % experiment_id
+    thread_name = "Exp #%02d Cleanup" % experiment_id
     thread = threading.Thread(target=clean_up, name=thread_name)
     thread.start()
 
     # Start one `maintain_one` thread per worker desired. Return immediately.
     base_id = experiment_id * MAX_WORKERS_PER_EXPERIMENT
     for worker_id in range(base_id, base_id + n):
-        thread_name = "Experiment #%d, Worker #%d" % (experiment_id, worker_id)
+        thread_name = "Exp #%02d Wkr #%02d" % (experiment_id, worker_id)
         thread = threading.Thread(target=maintain_one, name=thread_name,
                                   args=(worker_id,))
         thread.start()

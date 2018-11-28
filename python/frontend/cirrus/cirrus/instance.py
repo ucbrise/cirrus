@@ -380,7 +380,7 @@ class Instance(object):
         Returns:
             str: The representation.
         """
-        return "Instance[name=%s]" % self._name
+        return "Inst[%s]" % self._name
 
 
     def public_ip(self):
@@ -672,7 +672,7 @@ class Instance(object):
 
         self._should_stop_monitoring = threading.Event()
 
-        thread_name = "%s Termination Monitor" % self
+        thread_name = "%s Monitor" % self
         thread = threading.Thread(target=monitor_forever, name=thread_name)
         thread.start()
 

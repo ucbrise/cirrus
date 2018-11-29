@@ -607,7 +607,7 @@ def make_server_image(name, executables_path):
     # Why twice? Sometimes it didn't know about the awscli package unless I
     #   updated twice. It might just be due to timing.
     instance.run_command("sudo apt update")
-    instance.run_command("sudo apt update")
+    instance.run_command("sudo apt update", False)
     instance.run_command("yes | sudo apt install awscli")
 
     # Install some useful tools.

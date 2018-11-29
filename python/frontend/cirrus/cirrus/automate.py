@@ -86,6 +86,10 @@ LAMBDA_HANDLER_FQID = "handler.run"
 # The maximum execution time to give the worker Lambda, in seconds.
 LAMBDA_TIMEOUT = 5 * 60
 
+# The maximum amount of time that we will wait after invoking a Lambda in order
+#   to read its output, in seconds.
+LAMBDA_READ_TIMEOUT = LAMBDA_TIMEOUT + 30
+
 # The level of logs that the worker Lambda should write to CloudWatch.
 LAMBDA_LOG_LEVEL = "DEBUG"
 
@@ -851,7 +855,7 @@ def launch_worker(lambda_name, task_id, config, num_workers, ps):
         "task_id": task_id,
         "log_level": LAMBDA_LOG_LEVEL
     }
-    response = clients.lamb_low_retries.invoke(
+    response = clients.lamb_no_retries.invoke(
         FunctionName=lambda_name,
         InvocationType="RequestResponse",
         LogType="Tail",

@@ -21,7 +21,7 @@ class ClientManager(object):
         # These mutexes synchronize reading/writing of the respective client
         #   attributes.
         self._lamb_mutex = threading.Lock()
-        self._lamb_low_retries_mutex = threading.Lock()
+        self._lamb_no_retries_mutex = threading.Lock()
         self._iam_mutex = threading.Lock()
         self._ec2_mutex = threading.Lock()
         self._cloudwatch_logs_mutex = threading.Lock()
@@ -52,23 +52,27 @@ class ClientManager(object):
         return self._lamb
 
     @property
-    def lamb_low_retries(self):
-        """Get a Lambda client that only retries requests once.
+    def lamb_no_retries(self):
+        """Get a Lambda client that does not retry requests.
 
         Initializes one if none is cached.
 
         Returns:
             botocore.client.BaseClient: The client.
         """
-        with self._lamb_low_retries_mutex:
-            if self._lamb_low_retries is None:
+        from . import automate
+        with self._lamb_no_retries_mutex:
+            if self._lamb_no_retries is None:
                 self._log.debug("ClientManager: Initializing no-retries Lambda "
                                 "client.")
                 region = configuration.config()["aws"]["region"]
-                config = botocore.config.Config(retries={"max_attempts": 1})
-                self._lamb_low_retries = boto3.client("lambda", region,
+                config = botocore.config.Config(
+                    read_timeout=automate.LAMBDA_READ_TIMEOUT,
+                    retries={"max_attempts": 0}
+                )
+                self._lamb_no_retries = boto3.client("lambda", region,
                                                       config=config)
-        return self._lamb_low_retries
+        return self._lamb_no_retries
 
 
     @property
@@ -179,8 +183,8 @@ class ClientManager(object):
         with self._lamb_mutex:
             self._lamb = None
 
-        with self._lamb_low_retries_mutex:
-            self._lamb_low_retries = None
+        with self._lamb_no_retries_mutex:
+            self._lamb_no_retries = None
 
         with self._iam_mutex:
             self._iam = None

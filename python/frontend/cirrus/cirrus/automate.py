@@ -9,14 +9,11 @@ import threading
 import inspect
 import datetime
 
-import boto3
-import botocore
-
 from . import handler
 from . import configuration
 from .instance import Instance
 from . import utilities
-from .clients import clients
+from .resources import resources
 
 # The type of instance to use for compilation.
 BUILD_INSTANCE_TYPE = "c4.4xlarge"
@@ -539,7 +536,7 @@ def make_lambda_package(path, executables_path):
         log.debug("make_lambda_package: Downloading executable.")
         executables_path += "/amazon/parameter_server"
         bucket, key = _split_s3_url(executables_path)
-        clients.s3.meta.client.download_fileobj(bucket, key, executable)
+        resources.s3_client.download_fileobj(bucket, key, executable)
 
         log.debug("make_lambda_package: Writing executable.")
         info = zipfile.ZipInfo("parameter_server")
@@ -550,8 +547,8 @@ def make_lambda_package(path, executables_path):
     log.debug("make_lambda_package: Uploading package.")
     file.seek(0)
     bucket, key = _split_s3_url(path)
-    clients.s3.meta.client.upload_fileobj(file, bucket, key,
-                                          ExtraArgs={"ACL": "public-read"})
+    resources.s3_client.upload_fileobj(file, bucket, key,
+                                            ExtraArgs={"ACL": "public-read"})
 
     log.debug("make_lambda_package: Waiting for changes to take effect.")
     # Waits for S3's eventual consistency to catch up. Ideally, something more
@@ -625,7 +622,7 @@ def get_bucket_name():
     log = logging.getLogger("cirrus.automate.get_bucket_name")
 
     log.debug("get_bucket_name: Retreiving account ID.")
-    account_id = clients.sts.get_caller_identity().get("Account")
+    account_id = resources.sts_client.get_caller_identity().get("Account")
 
     return BUCKET_BASE_NAME + "-" + account_id
 
@@ -636,7 +633,7 @@ def set_up_bucket():
     log = logging.getLogger("cirrus.automate.set_up_bucket")
 
     log.debug("set_up_bucket: Checking for existing bucket.")
-    response = clients.s3.meta.client.list_buckets()
+    response = resources.s3_client.list_buckets()
     exists = False
     bucket_name = get_bucket_name()
     for bucket_info in response["Buckets"]:
@@ -646,7 +643,7 @@ def set_up_bucket():
 
     if exists:
         log.debug("set_up_bucket: Deleting contents of existing bucket.")
-        bucket = clients.s3.Bucket(bucket_name)
+        bucket = resources.s3_resource.Bucket(bucket_name)
         for obj in bucket.objects.all():
             obj.delete()
         log.debug("set_up_bucket: Deleting existing bucket.")
@@ -656,7 +653,7 @@ def set_up_bucket():
     bucket_config = {
         "LocationConstraint": configuration.config()["aws"]["region"]
     }
-    clients.s3.create_bucket(
+    resources.s3_resource.create_bucket(
         Bucket=bucket_name,
         CreateBucketConfiguration=bucket_config
     )
@@ -672,7 +669,7 @@ def get_available_concurrency():
     log = logging.getLogger("cirrus.automate.get_available_concurrency")
 
     log.debug("get_available_concurrency: Getting account settings.")
-    response = clients.lamb.get_account_settings()
+    response = resources.lambda_client.get_account_settings()
     unreserved = response["AccountLimit"]["UnreservedConcurrentExecutions"]
     available = unreserved - _MINIMUM_UNRESERVED_CONCURRENCY
 
@@ -693,7 +690,7 @@ def set_up_lambda_role(name):
 
     log.debug("set_up_lambda_role: Checking for an already-existing role.")
     try:
-        role = clients.iam.Role(name)
+        role = resources.iam_resource.Role(name)
         for policy in role.attached_policies.all():
             role.detach_policy(PolicyArn=policy.arn)
         role.delete()
@@ -704,7 +701,7 @@ def set_up_lambda_role(name):
         log.info("set_up_lambda_role: There was not an already-existing role.")
 
     log.debug("set_up_lambda_role: Creating role.")
-    role = clients.iam.create_role(
+    role = resources.iam_resource.create_role(
         RoleName=name,
         AssumeRolePolicyDocument=\
         """{
@@ -756,7 +753,7 @@ def make_lambda(name, lambda_package_path, lambda_size, concurrency=-1):
 
     log.debug("make_lambda: Deleting any existing Lambda.")
     try:
-        clients.lamb.delete_function(FunctionName=name)
+        resources.lambda_client.delete_function(FunctionName=name)
     except Exception:
         # This is a hack. An error may be caused by something other than the
         #   Lambda not existing.
@@ -764,14 +761,14 @@ def make_lambda(name, lambda_package_path, lambda_size, concurrency=-1):
 
     log.debug("make_lambda: Copying package to user's bucket.")
     bucket_name = get_bucket_name()
-    bucket = clients.s3.Bucket(bucket_name)
+    bucket = resources.s3_resource.Bucket(bucket_name)
     src_bucket, src_key = _split_s3_url(lambda_package_path)
     src = {"Bucket": src_bucket, "Key": src_key}
     bucket.copy(src, src_key)
 
     log.debug("make_lambda: Creating Lambda.")
-    role_arn = clients.iam.Role(setup.LAMBDA_ROLE_NAME).arn
-    clients.lamb.create_function(
+    role_arn = resources.iam_resource.Role(setup.LAMBDA_ROLE_NAME).arn
+    resources.lambda_client.create_function(
         FunctionName=name,
         Runtime=LAMBDA_RUNTIME,
         Role=role_arn,
@@ -787,7 +784,7 @@ def make_lambda(name, lambda_package_path, lambda_size, concurrency=-1):
     if concurrency != -1:
         log.debug("make_lambda: Allocating reserved concurrent executions to "
                   "the Lambda.")
-        clients.lamb.put_function_concurrency(
+        resources.lambda_client.put_function_concurrency(
             FunctionName=name,
             ReservedConcurrentExecutions=concurrency
         )
@@ -804,7 +801,7 @@ def delete_lambda(name):
     log = logging.getLogger("cirrus.automate.delete_lambda")
 
     log.debug("delete_lambda: Deleting Lambda function %s." % name)
-    clients.lamb.delete_function(FunctionName=name)
+    resources.lambda_client.delete_function(FunctionName=name)
 
 
 @utilities.jittery_exponential_backoff(("TooManyRequestsException",), 2, 4, 3)
@@ -835,7 +832,7 @@ def launch_worker(lambda_name, task_id, config, num_workers, ps):
         "task_id": task_id,
         "log_level": LAMBDA_LOG_LEVEL
     }
-    response = clients.lamb_no_retries.invoke(
+    response = resources.lambda_client_no_retries.invoke(
         FunctionName=lambda_name,
         InvocationType="RequestResponse",
         LogType="Tail",

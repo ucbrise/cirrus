@@ -157,9 +157,9 @@ def _set_up_region():
 
     configuration.config(False)["aws"]["region"] = region
 
-    # Refresh cached AWS clients, so that clients are bound to the updated
-    #   region.
-    automate.clients.clear_cache()
+    # Clear any cached AWS resources, which may point to the wrong region.
+    from . import resources
+    resources.resources = resources.ResourceManager()
 
 
 def _make_server_image():

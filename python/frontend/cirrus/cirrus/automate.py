@@ -202,7 +202,8 @@ class ParameterServer(object):
             "--rank", "1",
             "--ps_port", str(self._ps_port),
             "&>", "ps_out_%d" % self._ps_port,
-            "&"
+            "&",
+            "echo $! > ps_%d.pid" % self._ps_port
         ))
         status, _, stderr = self._instance.run_command(ps_start_command)
         if status != 0:
@@ -211,17 +212,6 @@ class ParameterServer(object):
             print(stderr)
             raise RuntimeError("An error occurred while starting the parameter"
                                " server.")
-
-
-        self._log.debug("start: Retreiving parameter server PID.")
-        status, _, stderr = self._instance.run_command(
-            "echo $! > ps_%d.pid" % self._ps_port)
-        if status != 0:
-            print("An error occurred while getting the PID of the parameter"
-                  " server. The exit code was %d and the stderr was:" % status)
-            print(stderr)
-            raise RuntimeError("An error occurred while getting the PID of the"
-                               " parameter server.")
 
 
         self._log.debug("start: Starting error task.")
@@ -235,7 +225,8 @@ class ParameterServer(object):
             "--ps_ip", self._instance.private_ip(),
             "--ps_port", str(self.ps_port()),
             "&> error_out_%d" % self.ps_port(),
-            "&"
+            "&",
+            "echo $! > error_%d.pid" % self.ps_port()
         ))
         status, _, stderr = self._instance.run_command(error_start_command)
         if status != 0:
@@ -244,17 +235,6 @@ class ParameterServer(object):
             print(stderr)
             raise RuntimeError("An error occurred while starting the error"
                                " task.")
-
-
-        self._log.debug("start: Retreiving error task PID.")
-        status, _, stderr = self._instance.run_command(
-            "echo $! > error_%d.pid" % self.ps_port())
-        if status != 0:
-            print("An error occurred while getting the PID of the error task. "
-                  " The exit code was %d and the stderr was:" % status)
-            print(stderr)
-            raise RuntimeError("An error occurred while getting the PID of the"
-                               " error task.")
 
 
     def wait_until_started(self):

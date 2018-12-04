@@ -18,7 +18,9 @@ DEFINE_string(ps_ip, PS_IP, "parameter server ip");
 DEFINE_int64(ps_port, PS_PORT, "parameter server port");
 DEFINE_bool(testing, false, "testing mode");
 DEFINE_int64(test_iters, -1, "iterations to test for convergence");
-DEFINE_double(test_threshold, -0.1, "accuracy threshold for a passing convergence test");
+DEFINE_double(test_threshold,
+              -0.1,
+              "accuracy threshold for a passing convergence test");
 
 static const uint64_t GB = (1024*1024*1024);
 static const uint32_t SIZE = 1;
@@ -162,7 +164,8 @@ int main(int argc, char** argv) {
   std::cout << "Running task" << std::endl;
   cirrus::s3_initialize_aws();
   if (FLAGS_test_iters <= 0 && FLAGS_testing) {
-    throw std::runtime_error("Please specify a valid number of test iterations");
+    throw std::runtime_error(
+        "Please specify a valid number of test iterations");
   }
   if (FLAGS_test_threshold <= 0 && FLAGS_testing) {
     throw std::runtime_error("Please specify a valid test accuracy threshold");

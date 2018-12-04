@@ -107,7 +107,7 @@ void ErrorSparseTask::error_response() {
   }
 }
 
-void ErrorSparseTask::run(const Configuration& config, bool testing) {
+void ErrorSparseTask::run(const Configuration& config, bool testing, int iters, double test_threshold) {
   std::cout << "Creating error response thread" << std::endl;
   std::thread error_thread(std::bind(&ErrorSparseTask::error_response, this));
 
@@ -163,10 +163,10 @@ void ErrorSparseTask::run(const Configuration& config, bool testing) {
   FEATURE_TYPE total_accuracy = 0;
   while (1) {
     usleep(ERROR_INTERVAL_USEC);
-    if (iterations >= 5 && testing) {
+    if (iterations >= iters && testing) {
       exit(EXIT_FAILURE);
     }
-    if ((total_accuracy / minibatches_vec.size()) >= 0.71 && testing) {
+    if ((total_accuracy / minibatches_vec.size()) >= test_threshold && testing) {
       exit(EXIT_SUCCESS);
     }
     try {

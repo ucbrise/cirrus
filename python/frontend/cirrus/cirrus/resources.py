@@ -29,7 +29,7 @@ class ResourceManager(object):
         self._log = logging.getLogger("cirrus.automate.ResourceManager")
 
         t = threading.Thread(target=self._initialize,
-                             name="ResourceManager#_initialize")
+                             name="ResourceManager")
         t.start()
 
 
@@ -149,13 +149,12 @@ class ResourceManager(object):
         region = configuration.config()["aws"]["region"]
 
         # Lambda client
-        self._log.debug("ResourceManager: Initializing Lambda client.")
+        self._log.debug("Initializing Lambda client.")
         self._lambda_client = boto3.client("lambda", region)
         self._lambda_client_ready.set()
 
         # Lambda client with no retries
-        self._log.debug("ResourceManager: Initializing no-retries Lambda "
-                        "client.")
+        self._log.debug("Initializing no-retries Lambda client.")
         config = botocore.config.Config(
             read_timeout=automate.LAMBDA_READ_TIMEOUT,
             retries={"max_attempts": 0}
@@ -165,27 +164,27 @@ class ResourceManager(object):
         self._lambda_client_no_retries_ready.set()
 
         # IAM resource
-        self._log.debug("ResourceManager: Initializing IAM resource.")
+        self._log.debug("Initializing IAM resource.")
         self._iam_resource = boto3.resource( "iam", region)
         self._iam_resource_ready.set()
 
         # EC2 resource
-        self._log.debug("ResourceManager: Initializing EC2 resource.")
+        self._log.debug("Initializing EC2 resource.")
         self._ec2_resource = boto3.resource("ec2", region)
         self._ec2_resource_ready.set()
 
         # CloudWatch Logs client
-        self._log.debug("ResourceManager: Initializing Cloudwatch Logs client.")
+        self._log.debug("Initializing Cloudwatch Logs client.")
         self._cloudwatch_logs_client = boto3.client("logs", region)
         self._cloudwatch_logs_client_ready.set()
 
         # S3 resource
-        self._log.debug("ResourceManager: Initializing S3 resource.")
+        self._log.debug("Initializing S3 resource.")
         self._s3_resource = boto3.resource("s3", region)
         self._s3_resource_ready.set()
 
         # STS client
-        self._log.debug("ResourceManager: Initializing STS client.")
+        self._log.debug("Initializing STS client.")
         self._sts_client = boto3.client("sts", region)
         self._sts_client_ready.set()
 

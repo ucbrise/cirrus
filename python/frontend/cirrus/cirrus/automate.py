@@ -184,12 +184,12 @@ class ParameterServer(object):
         Args:
             config (str): The contents of a parameter server configuration file.
         """
-        self._log.debug("start: Uploading configuration.")
+        self._log.debug("Uploading configuration.")
         config_filename = "config_%d.txt" % self._ps_port
         self._instance.run_command(
             "echo %s > %s" % (pipes.quote(config), config_filename))
 
-        self._log.debug("start: Starting parameter server.")
+        self._log.debug("Starting parameter server.")
         ps_start_command = " ".join((
             "ulimit -c unlimited;",
             "nohup",
@@ -211,7 +211,7 @@ class ParameterServer(object):
                                " server.")
 
 
-        self._log.debug("start: Starting error task.")
+        self._log.debug("Starting error task.")
         error_start_command = " ".join((
             "ulimit -c unlimited;",
             "nohup",
@@ -247,11 +247,11 @@ class ParameterServer(object):
         total_attempts = self.MAX_START_TIME // handler.PS_CONNECTION_TIMEOUT
 
         for attempt in range(1, total_attempts + 1):
-            self._log.debug("start: Making connection attempt #%d to %s."
+            self._log.debug("Making connection attempt #%d to %s."
                             % (attempt, self))
             start = time.time()
             if self.reachable():
-                self._log.debug("start: %s launched." % self)
+                self._log.debug("%s launched." % self)
                 return
             elapsed = time.time() - start
 
@@ -351,11 +351,10 @@ def make_amazon_build_image(name):
     """
     log = logging.getLogger("cirrus.automate.make_amazon_build_image")
 
-    log.debug("make_amazon_build_image: Deleting any existing images with the "
-              "same name.")
+    log.debug("Deleting any existing images with the same name.")
     Instance.delete_images(name)
 
-    log.debug("make_amazon_build_image: Launching an instance.")
+    log.debug("Launching an instance.")
     region = configuration.config()["aws"]["region"]
     instance = Instance("cirrus_make_amazon_build_image",
                         ami_id=AMAZON_BASE_IMAGES[region],
@@ -364,7 +363,7 @@ def make_amazon_build_image(name):
                         username="ec2-user")
     instance.start()
 
-    log.debug("make_amazon_build_image: Setting up the environment.")
+    log.debug("Setting up the environment.")
 
     # Install some necessary packages.
     instance.run_command("yes | sudo yum install git "
@@ -416,10 +415,10 @@ def make_amazon_build_image(name):
                          "/usr/lib64/libpthread.a")
     instance.run_command("sudo cp ~/glibc_build/lib/libc.a /usr/lib64/libc.a")
 
-    log.debug("make_amazon_build_image: Saving the image.")
+    log.debug("Saving the image.")
     instance.save_image(name)
 
-    log.debug("make_amazon_build_image: Terminating the instance.")
+    log.debug("Terminating the instance.")
     instance.cleanup()
 
 
@@ -434,11 +433,10 @@ def make_ubuntu_build_image(name):
     """
     log = logging.getLogger("cirrus.automate.make_ubuntu_build_image")
 
-    log.debug("make_ubuntu_build_image: Deleting any existing images with the "
-              "same name.")
+    log.debug("Deleting any existing images with the same name.")
     Instance.delete_images(name)
 
-    log.debug("make_ubuntu_build_image: Launching an instance.")
+    log.debug("Launching an instance.")
     region = configuration.config()["aws"]["region"]
     instance = Instance("cirrus_make_ubuntu_build_image",
                         ami_id=UBUNTU_BASE_IMAGES[region],
@@ -447,7 +445,7 @@ def make_ubuntu_build_image(name):
                         username="ubuntu")
     instance.start()
 
-    log.debug("make_ubuntu_build_image: Setting up the environment.")
+    log.debug("Setting up the environment.")
     # Why twice? Sometimes it doesn't work the first time. It might also just be
     #   a timing thing.
     instance.run_command("sudo apt-get update")
@@ -462,10 +460,10 @@ def make_ubuntu_build_image(name):
     instance.run_command("yes | sudo apt-get install htop")
     instance.run_command("yes | sudo apt-get install mosh")
 
-    log.debug("make_ubuntu_build_image: Saving the image.")
+    log.debug("Saving the image.")
     instance.save_image(name)
 
-    log.debug("make_ubuntu_build_image: Terminating the instance.")
+    log.debug("Terminating the instance.")
     instance.cleanup()
 
 
@@ -484,7 +482,7 @@ def make_executables(path, image_owner_name, username):
     """
     log = logging.getLogger("cirrus.automate.make_executables")
 
-    log.debug("make_executables: Launching an instance.")
+    log.debug("Launching an instance.")
     instance = Instance("cirrus_make_executables",
                         ami_owner_name=image_owner_name,
                         disk_size=BUILD_INSTANCE_SIZE,
@@ -492,20 +490,20 @@ def make_executables(path, image_owner_name, username):
                         username=username)
     instance.start()
 
-    log.debug("make_executables: Building Cirrus.")
+    log.debug("Building Cirrus.")
     instance.run_command("git clone https://github.com/jcarreira/cirrus.git")
     instance.run_command("cd cirrus; ./bootstrap.sh")
     instance.run_command("cd cirrus; make -j 16")
 
-    log.debug("make_executables: Publishing executables.")
+    log.debug("Publishing executables.")
     for executable in EXECUTABLES:
         instance.upload_s3("~/cirrus/src/%s" % executable,
                            path + "/" + executable, public=True)
 
-    log.debug("make_executables: Terminating the instance.")
+    log.debug("Terminating the instance.")
     instance.cleanup()
 
-    log.debug("make_executables: Done.")
+    log.debug("Done.")
 
 
 def make_lambda_package(path, executables_path):
@@ -521,43 +519,43 @@ def make_lambda_package(path, executables_path):
 
     log = logging.getLogger("cirrus.automate.make_lambda_package")
 
-    log.debug("make_lambda_package: Initializing ZIP file.")
+    log.debug("Initializing ZIP file.")
     file = io.BytesIO()
     with zipfile.ZipFile(file, "w", LAMBDA_COMPRESSION) as zip:
-        log.debug("make_lambda_package: Writing handler.")
+        log.debug("Writing handler.")
         info = zipfile.ZipInfo(LAMBDA_HANDLER_FILENAME)
         info.external_attr = 0o777 << 16  # Gives execute permission.
         handler_source = inspect.getsource(handler)
         zip.writestr(info, handler_source)
 
-        log.debug("make_lambda_package: Initializing S3.")
+        log.debug("Initializing S3.")
         executable = io.BytesIO()
 
-        log.debug("make_lambda_package: Downloading executable.")
+        log.debug("Downloading executable.")
         executables_path += "/amazon/parameter_server"
         bucket, key = _split_s3_url(executables_path)
         resources.s3_client.download_fileobj(bucket, key, executable)
 
-        log.debug("make_lambda_package: Writing executable.")
+        log.debug("Writing executable.")
         info = zipfile.ZipInfo("parameter_server")
         info.external_attr = 0o777 << 16  # Gives execute permission.
         executable.seek(0)
         zip.writestr(info, executable.read())
 
-    log.debug("make_lambda_package: Uploading package.")
+    log.debug("Uploading package.")
     file.seek(0)
     bucket, key = _split_s3_url(path)
     resources.s3_client.upload_fileobj(file, bucket, key,
                                             ExtraArgs={"ACL": "public-read"})
 
-    log.debug("make_lambda_package: Waiting for changes to take effect.")
+    log.debug("Waiting for changes to take effect.")
     # Waits for S3's eventual consistency to catch up. Ideally, something more
     #   sophisticated would be used since the delay distribution is
     #   heavy-tailed. But this should in most cases ensure the package is
     #   visible on S3 upon return.
     time.sleep(S3_CONSISTENCY_DELAY)
 
-    log.debug("make_lambda_package: Done.")
+    log.debug("Done.")
 
 
 def make_server_image(name, executables_path):
@@ -572,10 +570,10 @@ def make_server_image(name, executables_path):
 
     log = logging.getLogger("cirrus.automate.make_server_image")
 
-    log.debug("make_server_image: Checking for already-existent images.")
+    log.debug("Checking for already-existent images.")
     Instance.delete_images(name)
 
-    log.debug("make_server_image: Launching an instance.")
+    log.debug("Launching an instance.")
     region = configuration.config()["aws"]["region"]
     instance = Instance("cirrus_make_server_image",
                         ami_id=UBUNTU_BASE_IMAGES[region],
@@ -584,7 +582,7 @@ def make_server_image(name, executables_path):
                         username="ubuntu")
     instance.start()
 
-    log.debug("make_server_image: Installing the AWS CLI.")
+    log.debug("Installing the AWS CLI.")
     # Why twice? Sometimes it didn't know about the awscli package unless I
     #   updated twice. It might just be due to timing.
     instance.run_command("sudo apt update")
@@ -596,21 +594,20 @@ def make_server_image(name, executables_path):
     instance.run_command("yes | sudo apt-get install htop")
     instance.run_command("yes | sudo apt-get install mosh")
 
-    log.debug("make_server_image: Putting parameter_server executable on "
-              "instance.")
+    log.debug("Putting parameter_server executable on instance.")
     instance.download_s3(executables_path + "/ubuntu/parameter_server",
                          "~/parameter_server")
 
-    log.debug("make_server_image: Setting permissions of executable.")
+    log.debug("Setting permissions of executable.")
     instance.run_command("chmod +x ~/parameter_server")
 
-    log.debug("make_server_image: Creating image from instance.")
+    log.debug("Creating image from instance.")
     instance.save_image(name)
 
-    log.debug("make_server_image: Terminating the instance.")
+    log.debug("Terminating the instance.")
     instance.cleanup()
 
-    log.debug("make_server_image: Done.")
+    log.debug("Done.")
 
 
 def get_bucket_name():
@@ -621,7 +618,7 @@ def get_bucket_name():
     """
     log = logging.getLogger("cirrus.automate.get_bucket_name")
 
-    log.debug("get_bucket_name: Retreiving account ID.")
+    log.debug("Retreiving account ID.")
     account_id = resources.sts_client.get_caller_identity().get("Account")
 
     return BUCKET_BASE_NAME + "-" + account_id
@@ -632,7 +629,7 @@ def set_up_bucket():
     """
     log = logging.getLogger("cirrus.automate.set_up_bucket")
 
-    log.debug("set_up_bucket: Checking for existing bucket.")
+    log.debug("Checking for existing bucket.")
     response = resources.s3_client.list_buckets()
     exists = False
     bucket_name = get_bucket_name()
@@ -642,14 +639,14 @@ def set_up_bucket():
             break
 
     if exists:
-        log.debug("set_up_bucket: Deleting contents of existing bucket.")
+        log.debug("Deleting contents of existing bucket.")
         bucket = resources.s3_resource.Bucket(bucket_name)
         for obj in bucket.objects.all():
             obj.delete()
-        log.debug("set_up_bucket: Deleting existing bucket.")
+        log.debug("Deleting existing bucket.")
         bucket.delete()
 
-    log.debug("set_up_bucket: Creating bucket.")
+    log.debug("Creating bucket.")
     bucket_config = {
         "LocationConstraint": configuration.config()["aws"]["region"]
     }
@@ -668,12 +665,12 @@ def get_available_concurrency():
     """
     log = logging.getLogger("cirrus.automate.get_available_concurrency")
 
-    log.debug("get_available_concurrency: Getting account settings.")
+    log.debug("Getting account settings.")
     response = resources.lambda_client.get_account_settings()
     unreserved = response["AccountLimit"]["UnreservedConcurrentExecutions"]
     available = unreserved - _MINIMUM_UNRESERVED_CONCURRENCY
 
-    log.debug("get_available_concurrency: Done.")
+    log.debug("Done.")
     return available
 
 
@@ -688,19 +685,19 @@ def set_up_lambda_role(name):
     """
     log = logging.getLogger("cirrus.automate.set_up_lambda_role")
 
-    log.debug("set_up_lambda_role: Checking for an already-existing role.")
+    log.debug("Checking for an already-existing role.")
     try:
         role = resources.iam_resource.Role(name)
         for policy in role.attached_policies.all():
             role.detach_policy(PolicyArn=policy.arn)
         role.delete()
-        log.info("set_up_lambda_role: There was an already-existing role.")
+        log.info("There was an already-existing role.")
     except Exception:
         # FIXME: This is a hack. An error may be caused by something other than
         #   the role not existing. We should catch only that specific error.
-        log.info("set_up_lambda_role: There was not an already-existing role.")
+        log.info("There was not an already-existing role.")
 
-    log.debug("set_up_lambda_role: Creating role.")
+    log.debug("Creating role.")
     role = resources.iam_resource.create_role(
         RoleName=name,
         AssumeRolePolicyDocument=\
@@ -720,7 +717,7 @@ def set_up_lambda_role(name):
     role.attach_policy(PolicyArn=S3_READ_ONLY_ARN)
     role.attach_policy(PolicyArn=CLOUDWATCH_WRITE_ARN)
 
-    log.debug("set_up_lambda_role: Done.")
+    log.debug("Done.")
 
 
 def make_lambda(name, lambda_package_path, lambda_size, concurrency=-1):
@@ -751,7 +748,7 @@ def make_lambda(name, lambda_package_path, lambda_size, concurrency=-1):
 
     log = logging.getLogger("cirrus.automate.make_lambda")
 
-    log.debug("make_lambda: Deleting any existing Lambda.")
+    log.debug("Deleting any existing Lambda.")
     try:
         resources.lambda_client.delete_function(FunctionName=name)
     except Exception:
@@ -759,14 +756,14 @@ def make_lambda(name, lambda_package_path, lambda_size, concurrency=-1):
         #   Lambda not existing.
         pass
 
-    log.debug("make_lambda: Copying package to user's bucket.")
+    log.debug("Copying package to user's bucket.")
     bucket_name = get_bucket_name()
     bucket = resources.s3_resource.Bucket(bucket_name)
     src_bucket, src_key = _split_s3_url(lambda_package_path)
     src = {"Bucket": src_bucket, "Key": src_key}
     bucket.copy(src, src_key)
 
-    log.debug("make_lambda: Creating Lambda.")
+    log.debug("Creating Lambda.")
     role_arn = resources.iam_resource.Role(setup.LAMBDA_ROLE_NAME).arn
     resources.lambda_client.create_function(
         FunctionName=name,
@@ -782,14 +779,13 @@ def make_lambda(name, lambda_package_path, lambda_size, concurrency=-1):
     )
 
     if concurrency != -1:
-        log.debug("make_lambda: Allocating reserved concurrent executions to "
-                  "the Lambda.")
+        log.debug("Allocating reserved concurrent executions to the Lambda.")
         resources.lambda_client.put_function_concurrency(
             FunctionName=name,
             ReservedConcurrentExecutions=concurrency
         )
 
-    log.debug("make_lambda: Done.")
+    log.debug("Done.")
 
 
 def delete_lambda(name):
@@ -800,7 +796,7 @@ def delete_lambda(name):
     """
     log = logging.getLogger("cirrus.automate.delete_lambda")
 
-    log.debug("delete_lambda: Deleting Lambda function %s." % name)
+    log.debug("Deleting Lambda function %s." % name)
     resources.lambda_client.delete_function(FunctionName=name)
 
 
@@ -823,7 +819,7 @@ def launch_worker(lambda_name, task_id, config, num_workers, ps):
     """
     log = logging.getLogger("cirrus.automate.launch_worker")
 
-    log.debug("launch_worker: Launching Task %d." % task_id)
+    log.debug("Launching Task %d." % task_id)
     payload = {
         "config": config,
         "num_workers": num_workers,

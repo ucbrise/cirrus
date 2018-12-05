@@ -21,13 +21,13 @@ def config(check_exists=True):
         path = os.path.expanduser(CONFIGURATION_PATH)
 
         if os.path.exists(path):
-            log.debug("config: Configuration loaded.")
+            log.debug("Configuration loaded.")
             cached_config.read([path])
         elif check_exists:
             raise RuntimeError("Cirrus has not been configured. Run Cirrus' "
                                "setup script at %s before attempting to use "
                                "Cirrus." % SETUP_SCRIPT_PATH)
         else:
-            log.debug("config: No configuration found. Ignoring.")
+            log.debug("No configuration found. Ignoring.")
 
     return cached_config

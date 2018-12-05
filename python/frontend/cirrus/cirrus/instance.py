@@ -429,8 +429,8 @@ class Instance(object):
         status = stdout.channel.recv_exit_status()
         self._log.debug("Exit code was %d." % status)
         if check and status != 0:
-            raise RuntimeError("`%s` returned nonzero exit code %d."
-                               % (command, status))
+            raise RuntimeError("`%s` returned nonzero exit code %d. The stderr "
+                               "follows.\n%s" % (command, status, stderr_data))
 
         self._log.debug("Done.")
         return status, stdout_data, stderr_data

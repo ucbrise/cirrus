@@ -6,6 +6,7 @@ Used mainly by `/scripts/cirrus_setup`.
 import textwrap
 import os
 import sys
+import threading
 
 import boto3
 import botocore.exceptions
@@ -47,23 +48,39 @@ def run_interactive_setup():
 
     _set_up_region()
 
-    _set_up_instance_resources()
+    if not _instance_resources_only():
+        make_server_image_thread = _make_server_image()
+        make_server_image_thread.start()
 
-    if len(sys.argv) <= 1 or sys.argv[1] != "--instance-resources-only":
+        set_up_lambda_role_thread = _set_up_lambda_role()
+        set_up_lambda_role_thread.start()
 
-        _set_up_bucket()
-
-        _set_up_lambda_role()
+        set_up_bucket_thread = _set_up_bucket()
+        set_up_bucket_thread.start()
 
         _set_up_lambda_concurrency()
 
-        _make_server_image()
+    instance_resources_thread = _set_up_instance_resources()
+
+    print("Please wait a couple of minutes.")
+
+    if not _instance_resources_only():
+        make_server_image_thread.join()
+        set_up_lambda_role_thread.join()
+        set_up_bucket_thread.join()
+
+    instance_resources_thread.start()
+    instance_resources_thread.join()
 
     _save_config()
 
     print("")
     print("")
     print("Done.")
+
+
+def _instance_resources_only():
+    return len(sys.argv) >= 2 and sys.argv[1] == "--instance-resources-only"
 
 
 def _set_up_aws_credentials():
@@ -159,7 +176,7 @@ def _set_up_region():
 
     # Clear any cached AWS resources, which may point to the wrong region.
     from . import resources
-    resources.resources = resources.ResourceManager()
+    resources.resources = resources.ResourceManager(region)
 
 
 def _make_server_image():
@@ -175,12 +192,24 @@ def _make_server_image():
               "complete setup.")
         return
 
-    print("Creating the server image. This may take a few minutes. This will "
-          "involve launching an EC2 instance. If any error should occur, "
-          "please use the AWS console to manually terminate the instance and "
-          "avoid ongoing charges for it.")
-    executables_url = PUBLISHED_BUILD + "/executables"
-    automate.make_server_image(SERVER_IMAGE_NAME, executables_url)
+    print()
+    explanation = ("Creating the server image. This will involve launching an "
+          "EC2 instance. If any error should occur, please use the AWS console "
+          "to manually terminate the instance and avoid ongoing charges for "
+          "it. Press enter to continue.")
+    PROMPTS = ("Press enter",)
+    validator = lambda c: True
+    postprocess = lambda c: None
+    if not prompt(explanation, PROMPTS, validator, postprocess):
+        pass
+
+    def _do_async():
+        executables_url = PUBLISHED_BUILD + "/executables"
+        automate.make_server_image(SERVER_IMAGE_NAME, executables_url)
+
+    t = threading.Thread(target=_do_async,
+                         name="_make_server_image async portion")
+    return t
 
 
 def _set_up_instance_resources():
@@ -195,7 +224,6 @@ def _set_up_instance_resources():
         print("Exiting. Cirrus will not be usable. Re-run the setup script to "
               "complete setup.")
         return
-    automate.Instance.set_up_role()
 
     explanation = ("Can we create a key pair named '%s' in your AWS account?"
                    % automate.Instance.KEY_PAIR_NAME)
@@ -206,7 +234,6 @@ def _set_up_instance_resources():
         print("Exiting. Cirrus will not be usable. Re-run the setup script to "
               "complete setup.")
         return
-    automate.Instance.set_up_key_pair()
 
     explanation = ("Can we create a security group named '%s' in your AWS "
                    "account?" % automate.Instance.SECURITY_GROUP_NAME)
@@ -217,7 +244,6 @@ def _set_up_instance_resources():
         print("Exiting. Cirrus will not be usable. Re-run the setup script to "
               "complete setup.")
         return
-    automate.Instance.set_up_security_group()
 
     explanation = ("Can we create an instance profile named '%s' in your AWS "
                    "account?" % automate.Instance.INSTANCE_PROFILE_NAME)
@@ -228,7 +254,16 @@ def _set_up_instance_resources():
         print("Exiting. Cirrus will not be usable. Re-run the setup script to "
               "complete setup.")
         return
-    automate.Instance.set_up_instance_profile()
+
+    def _do_async():
+        automate.Instance.set_up_role()
+        automate.Instance.set_up_key_pair()
+        automate.Instance.set_up_security_group()
+        automate.Instance.set_up_instance_profile()
+
+    t = threading.Thread(target=_do_async,
+                         name="_set_up_instance_resources async portion")
+    return t
 
 
 def _set_up_lambda_role():
@@ -243,7 +278,13 @@ def _set_up_lambda_role():
         print("Exiting. Cirrus will not be usable. Re-run the setup script to "
               "complete setup.")
         return
-    automate.set_up_lambda_role(LAMBDA_ROLE_NAME)
+
+    def _do_async():
+        automate.set_up_lambda_role(LAMBDA_ROLE_NAME)
+
+    t = threading.Thread(target=_do_async,
+                         name="_set_up_lambda_role async portion")
+    return t
 
 
 def _set_up_lambda_concurrency():
@@ -280,7 +321,13 @@ def _set_up_bucket():
         print("Exiting. Cirrus will not be usable. Re-run the setup script to "
               "complete setup.")
         return
-    automate.set_up_bucket()
+
+    def _do_async():
+        automate.set_up_bucket()
+
+    t = threading.Thread(target=_do_async,
+                         name="_set_up_bucket async portion")
+    return t
 
 
 def _save_config():

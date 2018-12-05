@@ -13,11 +13,16 @@ class ResourceManager(object):
     """A manager of cached AWS resources.
     """
 
-    def __init__(self):
+    def __init__(self, region):
         """Create a resource manager.
 
         Resources will be initialized asynchronously, in a separate thread.
+
+        Args:
+            region (str): The region that resources be bound to.
         """
+        self._region = region
+
         self._lambda_client_ready = threading.Event()
         self._lambda_client_no_retries_ready = threading.Event()
         self._iam_resource_ready = threading.Event()
@@ -143,11 +148,9 @@ class ResourceManager(object):
     def _initialize(self):
         from . import automate
 
-        region = configuration.config()["aws"]["region"]
-
         # Lambda client
         self._log.debug("Initializing Lambda client.")
-        self._lambda_client = boto3.client("lambda", region)
+        self._lambda_client = boto3.client("lambda", self._region)
         self._lambda_client_ready.set()
 
         # Lambda client with no retries
@@ -156,35 +159,40 @@ class ResourceManager(object):
             read_timeout=automate.LAMBDA_READ_TIMEOUT,
             retries={"max_attempts": 0}
         )
-        self._lambda_client_no_retries = boto3.client("lambda", region,
+        self._lambda_client_no_retries = boto3.client("lambda", self._region,
                                                       config=config)
         self._lambda_client_no_retries_ready.set()
 
         # IAM resource
         self._log.debug("Initializing IAM resource.")
-        self._iam_resource = boto3.resource( "iam", region)
+        self._iam_resource = boto3.resource( "iam", self._region)
         self._iam_resource_ready.set()
 
         # EC2 resource
         self._log.debug("Initializing EC2 resource.")
-        self._ec2_resource = boto3.resource("ec2", region)
+        self._ec2_resource = boto3.resource("ec2", self._region)
         self._ec2_resource_ready.set()
 
         # CloudWatch Logs client
         self._log.debug("Initializing Cloudwatch Logs client.")
-        self._cloudwatch_logs_client = boto3.client("logs", region)
+        self._cloudwatch_logs_client = boto3.client("logs", self._region)
         self._cloudwatch_logs_client_ready.set()
 
         # S3 resource
         self._log.debug("Initializing S3 resource.")
-        self._s3_resource = boto3.resource("s3", region)
+        self._s3_resource = boto3.resource("s3", self._region)
         self._s3_resource_ready.set()
 
         # STS client
         self._log.debug("Initializing STS client.")
-        self._sts_client = boto3.client("sts", region)
+        self._sts_client = boto3.client("sts", self._region)
         self._sts_client_ready.set()
 
 
-if configuration.config(False).has_option("aws", "region"):
-    resources = ResourceManager()
+# If a region is configured, create the resource manager. If not, the setup
+#   script will create it after the region is configured.
+try:
+    region = configuration.config(False)["aws"]["region"]
+    resources = ResourceManager(region)
+except KeyError:
+    pass

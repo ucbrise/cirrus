@@ -143,9 +143,6 @@ class ResourceManager(object):
     def _initialize(self):
         from . import automate
 
-        import time
-        time.sleep(20)
-
         region = configuration.config()["aws"]["region"]
 
         # Lambda client

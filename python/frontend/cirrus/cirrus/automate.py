@@ -23,7 +23,7 @@ BUILD_INSTANCE_SIZE = 32
 SERVER_INSTANCE_TYPE = "m5a.2xlarge"
 
 # The disk size, in GB, to use for parameter servers.
-SERVER_INSTANCE_SIZE = 32
+SERVER_INSTANCE_SIZE = 8
 
 # The base AMI to use for making the Amazon Linux build image. Gives the AMI ID
 #   for each supported region. This is "amzn-ami-hvm-2017.03.1.20170812
@@ -354,11 +354,6 @@ def make_server_image(name, executables_path):
     instance.run_command("sudo apt update", False)
     instance.run_command("yes | sudo apt install awscli")
 
-    # Install some useful tools.
-    instance.run_command("yes | sudo apt-get install gdb")
-    instance.run_command("yes | sudo apt-get install htop")
-    instance.run_command("yes | sudo apt-get install mosh")
-
     log.debug("Putting parameter_server executable on instance.")
     instance.download_s3(executables_path + "/ubuntu/parameter_server",
                          "~/parameter_server")
@@ -367,7 +362,7 @@ def make_server_image(name, executables_path):
     instance.run_command("chmod +x ~/parameter_server")
 
     log.debug("Creating image from instance.")
-    instance.save_image(name)
+    instance.save_image(name, False)
 
     log.debug("Terminating the instance.")
     instance.cleanup()

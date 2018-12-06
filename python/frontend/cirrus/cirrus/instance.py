@@ -513,12 +513,20 @@ class Instance(object):
         self._sftp_client.putfo(fo, dest)
 
 
-    def save_image(self, name):
+    def save_image(self, name, reboot=True):
         """Create an AMI from the current state of this instance.
+
+        Stops the instance in the process.
 
         Args:
             name (str): The name to give the AMI.
+            reboot (bool): Whether to boot the instance after creating the AMI.
+                If False, the instance will be left stopped. If omitted, True.
         """
+        self._log.debug("Stopping instance.")
+        self.instance.stop()
+        self.instance.wait_until_stopped()
+
         self._log.debug("Starting image creation.")
         image = self.instance.create_image(Name=name)
 
@@ -533,6 +541,10 @@ class Instance(object):
         else:
             raise RuntimeError("AMI did not become available within time "
                                "constraints.")
+
+        if reboot:
+            self._log.debug("Starting instance.")
+            self.instance.start()
 
         self._log.debug("Done.")
 

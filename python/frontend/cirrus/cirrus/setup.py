@@ -192,7 +192,6 @@ def _make_server_image():
               "complete setup.")
         return
 
-    print()
     explanation = ("Creating the server image. This will involve launching an "
           "EC2 instance. If any error should occur, please use the AWS console "
           "to manually terminate the instance and avoid ongoing charges for "

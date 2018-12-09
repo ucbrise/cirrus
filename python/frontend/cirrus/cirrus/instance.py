@@ -34,10 +34,18 @@ class Instance(object):
     """An EC2 instance."""
 
     # The interval at which to poll for an AMI becoming available, in seconds.
-    IMAGE_POLL_INTERVAL = 5
+    IMAGE_POLL_INTERVAL = 3
 
     # The maximum number of times to poll for an AMI becoming available.
     IMAGE_POLL_MAX = (5 * 60) // IMAGE_POLL_INTERVAL
+
+    # The interval (in seconds) at which to poll for an instance entering the
+    #   "running" state.
+    _RUNNING_POLL_INTERVAL = 3
+
+    # The maximum amount of time (in seconds) to wait for an instance to enter
+    #    the "running" state.
+    _RUNNING_POLL_TIMEOUT = 3 * 60
 
     # The name of the key pair used by Instances.
     KEY_PAIR_NAME = "cirrus_key_pair"
@@ -527,7 +535,7 @@ class Instance(object):
         """
         self._log.debug("Stopping instance.")
         self.instance.stop()
-        self.instance.wait_until_stopped()
+        self._wait_until_state("stopped")
 
         self._log.debug("Starting image creation.")
         image = self.instance.create_image(Name=name)
@@ -648,7 +656,7 @@ class Instance(object):
         self.instance = instances[0]
 
         self._log.debug("Waiting for instance to enter running state.")
-        self.instance.wait_until_running()
+        self._wait_until_state("running")
 
         self._log.debug("Fetching instance metadata.")
         # Reloads metadata about the instance. In particular, retreives its
@@ -656,6 +664,27 @@ class Instance(object):
         self.instance.load()
 
         self._log.debug("Done.")
+
+
+    def _wait_until_state(self, state):
+        """Wait until this instance enters a given state.
+
+        Args:
+            state (str): The name of the state.
+
+        Raises:
+            RuntimeError: The timeout is reached before the instance enters
+                the given state.
+        """
+        start = time.time()
+        while time.time() - start < self._RUNNING_POLL_TIMEOUT:
+            self.instance.reload()
+            if self.instance.state["Name"] == state:
+                break
+            time.sleep(self._RUNNING_POLL_INTERVAL)
+        else:
+            raise RuntimeError("Timed out waiting for instance to enter "
+                               "\"%s\" state." % state)
 
 
     def _start_termination_monitoring(self):
@@ -681,7 +710,7 @@ class Instance(object):
         thread.start()
 
 
-    def _connect_ssh(self, timeout=5, attempts=20):
+    def _connect_ssh(self, timeout=3, attempts=35):
         self._log.debug("Configuring.")
 
         with open(os.path.expanduser(self.PRIVATE_KEY_PATH), "r") as f:

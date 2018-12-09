@@ -91,7 +91,7 @@ def run_interactive_setup():
 
 
 def _instance_resources_only():
-    return len(sys.argv) >= 2 and sys.argv[1] == "--instance-resources-only"
+    return "--instance-resources-only" in sys.argv
 
 
 def _set_up_aws_credentials():

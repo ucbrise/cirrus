@@ -7,6 +7,7 @@ import textwrap
 import os
 import sys
 import threading
+import logging
 
 import boto3
 import botocore.exceptions
@@ -40,8 +41,18 @@ def run_interactive_setup():
     """Run an interactive command-line setup process.
 
     If passed the flag "--instance-resources-only", only sets up the AWS
-        credentials and instance resources.
+        credentials and instance resources. If passed the flag "--debug", prints
+        Cirrus' debug-level logs.
     """
+    if "--debug" in sys.argv:
+        handler = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter(
+            "%(created)f [%(funcName)16s | %(threadName)15s] %(message)s")
+        handler.setFormatter(formatter)
+        logger = logging.getLogger("cirrus")
+        logger.setLevel(logging.DEBUG)
+        logger.addHandler(handler)
+
     configuration.config(False)["aws"] = {}
 
     _set_up_aws_credentials()

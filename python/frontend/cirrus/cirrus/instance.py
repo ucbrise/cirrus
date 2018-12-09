@@ -463,26 +463,28 @@ class Instance(object):
     def download_s3(self, src, dest):
         """Download a file from S3 to this instance.
 
+        Does not require that the AWS CLI be installed.
+
         Args:
             src (str): A path to a file on S3.
             dest (str): The path at which to save the file on this instance.
                 If relative, then relative to the home folder of this instance's
                 SSH user.
         """
+        from . import automate
+
         assert src.startswith("s3://")
         assert not dest.startswith("s3://")
 
-        self.run_command(" ".join((
-            "aws",
-            "s3",
-            "cp",
-            src,
-            dest
-        )))
+        bucket, key = automate._split_s3_url(src)
+        self.run_command("wget http://%s.s3.amazonaws.com/%s -O %s"
+                         % (bucket, key, dest))
 
 
     def upload_s3(self, src, dest, public):
         """Upload a file from this instance to S3.
+
+        Requires that the AWS CLI be installed.
 
         Args:
             src (str): A path to a file on this instance. If relative, then

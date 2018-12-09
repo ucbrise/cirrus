@@ -23,7 +23,7 @@ BUILD_INSTANCE_SIZE = 32
 SERVER_INSTANCE_TYPE = "m5a.2xlarge"
 
 # The disk size, in GB, to use for parameter servers.
-SERVER_INSTANCE_SIZE = 8
+SERVER_INSTANCE_SIZE = 1
 
 # The base AMI to use for making the Amazon Linux build image. Gives the AMI ID
 #   for each supported region. This is "amzn-ami-hvm-2017.03.1.20170812

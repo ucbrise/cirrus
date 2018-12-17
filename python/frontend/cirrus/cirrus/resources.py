@@ -195,4 +195,4 @@ try:
     region = configuration.config(False)["aws"]["region"]
     resources = ResourceManager(region)
 except KeyError:
-    pass
+    resources = None

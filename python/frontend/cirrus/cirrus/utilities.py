@@ -3,6 +3,7 @@
 import time
 import logging
 import random
+import sys
 
 # The maximum factor by which an exponential backoff wait will be jittered
 #   smaller or larger.
@@ -64,3 +65,14 @@ def jittery_exponential_backoff(exception_names, initial_wait=0.1,
         return new_f
 
     return decorator
+
+
+def set_logging_handler():
+    """Set up a logging handler for Cirrus' logs."""
+    handler = logging.StreamHandler(sys.stdout)
+    formatter = logging.Formatter(
+        "[%(funcName)16s | %(threadName)15s] %(message)s")
+    handler.setFormatter(formatter)
+    logger = logging.getLogger("cirrus")
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(handler)

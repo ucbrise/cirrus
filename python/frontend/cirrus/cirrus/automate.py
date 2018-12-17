@@ -211,10 +211,13 @@ def make_ubuntu_build_image(name):
     instance.start()
 
     log.debug("Setting up the environment.")
-    # Why twice? Sometimes it doesn't work the first time. It might also just be
-    #   a timing thing.
-    instance.run_command("sudo apt-get update")
-    instance.run_command("sudo apt-get update", False)
+
+    # Sometimes `apt-get update` doesn't work, returning exit code 100.
+    while True:
+        status, _, _ = instance.run_command("sudo apt-get update", False)
+        if status == 0:
+            break
+
     instance.run_command("yes | sudo apt-get install build-essential cmake \
                           automake zlib1g-dev libssl-dev libcurl4-nss-dev \
                           bison libldap2-dev libkrb5-dev")

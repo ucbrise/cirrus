@@ -181,7 +181,7 @@ def make_amazon_build_image(name):
     instance.run_command("sudo cp ~/glibc_build/lib/libc.a /usr/lib64/libc.a")
 
     log.debug("Saving the image.")
-    instance.save_image(name)
+    instance.save_image(name, False)
 
     log.debug("Terminating the instance.")
     instance.cleanup()
@@ -226,7 +226,7 @@ def make_ubuntu_build_image(name):
     instance.run_command("yes | sudo apt-get install mosh")
 
     log.debug("Saving the image.")
-    instance.save_image(name)
+    instance.save_image(name, False)
 
     log.debug("Terminating the instance.")
     instance.cleanup()

@@ -403,13 +403,21 @@ def set_up_bucket():
         bucket.delete()
 
     log.debug("Creating bucket.")
+    constraint = configuration.config()["aws"]["region"]
     bucket_config = {
-        "LocationConstraint": configuration.config()["aws"]["region"]
+        "LocationConstraint": constraint
     }
-    resources.s3_resource.create_bucket(
-        Bucket=bucket_name,
-        CreateBucketConfiguration=bucket_config
-    )
+    # Per https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region, no
+    #   constraint should be provided when referring to the us-east-1 region.
+    if constraint == "us-east-1":
+        resources.s3_resource.create_bucket(
+            Bucket=bucket_name
+        )
+    else:
+        resources.s3_resource.create_bucket(
+            Bucket=bucket_name,
+            CreateBucketConfiguration=bucket_config
+        )
 
 
 def get_available_concurrency():

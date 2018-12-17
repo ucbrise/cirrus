@@ -555,6 +555,7 @@ class Instance(object):
         if reboot:
             self._log.debug("Starting instance.")
             self.instance.start()
+            self._wait_until_state("running")
 
         self._log.debug("Done.")
 

@@ -19,8 +19,8 @@ BUILD_INSTANCE_TYPE = "c4.4xlarge"
 # The disk size, in GB, to use for compilation.
 BUILD_INSTANCE_SIZE = 32
 
-# The type of instance to use for parameter servers.
-SERVER_INSTANCE_TYPE = "m5a.2xlarge"
+# The type of instance to use for creating server images.
+SERVER_INSTANCE_TYPE = "m4.2xlarge"
 
 # The disk size, in GB, to use for parameter servers.
 SERVER_INSTANCE_SIZE = 1

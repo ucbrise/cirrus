@@ -14,6 +14,7 @@ import botocore.exceptions
 
 from . import configuration
 from . import automate
+from . import instance
 
 
 # The path at which boto3 expects the user's AWS credentials. Must be passed
@@ -188,6 +189,8 @@ def _set_up_region():
     # Clear any cached AWS resources, which may point to the wrong region.
     from . import resources
     resources.resources = resources.ResourceManager(region)
+    automate.resources = resources.resources
+    instance.resources = resources.resources
 
 
 def _make_server_image():

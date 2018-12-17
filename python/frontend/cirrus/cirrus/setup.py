@@ -60,29 +60,31 @@ def run_interactive_setup():
 
     _set_up_region()
 
+    instance_resources_thread = _set_up_instance_resources()
+    instance_resources_thread.start()
+
     if not _instance_resources_only():
         make_server_image_thread = _make_server_image()
-        make_server_image_thread.start()
 
         set_up_lambda_role_thread = _set_up_lambda_role()
-        set_up_lambda_role_thread.start()
 
         set_up_bucket_thread = _set_up_bucket()
-        set_up_bucket_thread.start()
 
         _set_up_lambda_concurrency()
 
-    instance_resources_thread = _set_up_instance_resources()
-
     print("Please wait a couple of minutes.")
 
+    instance_resources_thread.join()
+
     if not _instance_resources_only():
+        make_server_image_thread.start()
+        set_up_lambda_role_thread.start()
+        set_up_bucket_thread.start()
+
         make_server_image_thread.join()
         set_up_lambda_role_thread.join()
         set_up_bucket_thread.join()
 
-    instance_resources_thread.start()
-    instance_resources_thread.join()
 
     _save_config()
 

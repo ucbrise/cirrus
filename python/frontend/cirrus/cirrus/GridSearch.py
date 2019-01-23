@@ -14,11 +14,6 @@ from . import parameter_server
 
 logging.basicConfig(filename="cirrusbundle.log", level=logging.WARNING)
 
-# NOTE: This is a temporary measure. Ideally this zip would be on the cloud.
-# Due to constant updates to bundle.zip, its more convienient to have it local
-
-bundle_zip_location="/home/camus/code/cirrus-1/python/frontend/cirrus/cirrus/bundle.zip"
-
 class GridSearch(object):
     # All searches that are currently running.
     _running_searches = []

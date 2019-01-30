@@ -79,7 +79,7 @@ class GridSearch(object):
                 modified_config[var_name] = var_value
             modified_config["ps"] = parameter_server.ParameterServer(
                 instances[index], base_port, base_port+1,
-                modified_config["n_workers"] * 2)
+                modified_config["n_workers"])
             index = (index + 1) % num_machines
             base_port += 2
 

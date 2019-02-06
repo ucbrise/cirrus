@@ -52,13 +52,13 @@ void run_tasks(int rank,
       cirrus::LogisticSparseTaskS3 lt(features_per_sample,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, rank, ps_ip, ps_port);
-      lt.run(config, rank - WORKERS_BASE);
+      lt.run(config, rank - WORKERS_BASE, test_iters);
     } else if (config.get_model_type()
             == cirrus::Configuration::COLLABORATIVE_FILTERING) {
       cirrus::MFNetflixTask lt(0,
           batch_size, samples_per_batch, features_per_sample,
           nworkers, rank, ps_ip, ps_port);
-      lt.run(config, rank - WORKERS_BASE);
+      lt.run(config, rank - WORKERS_BASE, test_iters);
     } else {
       exit(-1);
     }

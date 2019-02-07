@@ -168,7 +168,7 @@ void MFNetflixTask::run(const Configuration& config,
       std::cout << "There was an error computing the gradient" << std::endl;
       exit(-1);
     }
-	count++;
+    count++;
     if (test_iters > 0 && test_iters > count) {
       exit(0);
     }

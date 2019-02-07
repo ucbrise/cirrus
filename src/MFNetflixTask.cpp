@@ -169,7 +169,7 @@ void MFNetflixTask::run(const Configuration& config,
       exit(-1);
     }
     count++;
-    if (test_iters > 0 && test_iters > count) {
+    if (test_iters > 0 && count > test_iters) {
       exit(0);
     }
   }

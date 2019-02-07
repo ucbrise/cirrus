@@ -35,7 +35,7 @@ int main() {
       std::make_unique<PSSparseServerInterface>("127.0.0.1", 1338);
   psi->connect();
   int version = 0;
-  while (1) {
+  for (int t = 0; t < 5; t++) {
     for (int i = 0; i < nusers; i += batch_size) {
       int actual_batch_size = batch_size;
       if (i + batch_size >= nusers) {

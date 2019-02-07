@@ -5,7 +5,7 @@ import os
 import signal
 
 ps_command = ["./src/parameter_server", "--nworkers=10", "--rank=1", "--config=configs/criteo_kaggle.cfg", "--ps_ip=127.0.0.1", "--ps_port=1337"]
-worker_command = ["./src/parameter_server", "--nworkers=10" ,"--rank=3", "--config=configs/criteo_kaggle.cfg", "--ps_ip=127.0.0.1" ,"--ps_port=1337", "--test_iters=50000"]
+worker_command = ["./src/parameter_server", "--nworkers=10" ,"--rank=3", "--config=configs/criteo_kaggle.cfg", "--ps_ip=127.0.0.1" ,"--ps_port=1337", "--test_iters=500000"]
 error_command = ["./src/parameter_server" ,"--nworkers=10", "--rank=2" ,"--config=configs/criteo_kaggle.cfg", "--ps_ip=127.0.0.1", "--ps_port=1337" ,"--testing=True", "--test_iters=5", "--test_threshold=0.742"]
 
 try:

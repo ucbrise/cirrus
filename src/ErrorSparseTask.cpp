@@ -107,7 +107,10 @@ void ErrorSparseTask::error_response() {
   }
 }
 
-void ErrorSparseTask::run(const Configuration& config) {
+void ErrorSparseTask::run(const Configuration& config,
+                          bool testing,
+                          int iters,
+                          double test_threshold) {
   std::cout << "Creating error response thread" << std::endl;
   std::thread error_thread(std::bind(&ErrorSparseTask::error_response, this));
 
@@ -159,9 +162,17 @@ void ErrorSparseTask::run(const Configuration& config) {
   std::cout << "[ERROR_TASK] Computing accuracies"
     << "\n";
 
+  int iterations = 0;
+  FEATURE_TYPE total_accuracy = 0;
   while (1) {
     usleep(ERROR_INTERVAL_USEC);
-
+    if (iterations >= iters && testing) {
+      exit(EXIT_FAILURE);
+    }
+    if ((total_accuracy / minibatches_vec.size()) >= test_threshold &&
+        testing) {
+      exit(EXIT_SUCCESS);
+    }
     try {
       // first we get the model
 #ifdef DEBUG
@@ -178,7 +189,7 @@ void ErrorSparseTask::run(const Configuration& config) {
         << "[ERROR_TASK] computing loss."
         << std::endl;
       FEATURE_TYPE total_loss = 0;
-      FEATURE_TYPE total_accuracy = 0;
+      total_accuracy = 0;
       uint64_t total_num_samples = 0;
       uint64_t total_num_features = 0;
       uint64_t start_index = 0;
@@ -216,6 +227,7 @@ void ErrorSparseTask::run(const Configuration& config) {
     } catch(...) {
       std::cout << "run_compute_error_task unknown id" << std::endl;
     }
+    iterations++;
   }
 }
 

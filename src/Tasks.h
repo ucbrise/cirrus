@@ -77,9 +77,9 @@ class LogisticSparseTaskS3 : public MLTask {
     /**
      * Worker here is a value 0..nworkers - 1
      */
-    void run(const Configuration& config, int worker);
+    void run(const Configuration& config, int worker, int test_iters);
 
-  private:
+   private:
     class SparseModelGet {
       public:
         SparseModelGet(const std::string& ps_ip, int ps_port) :
@@ -157,7 +157,10 @@ class ErrorSparseTask : public MLTask {
                    const std::string& ps_ip,
                    uint64_t ps_port);
 
-   void run(const Configuration& config);
+   void run(const Configuration& config,
+            bool testing,
+            int iters,
+            double test_threshold);
    void error_response();
 
   private:
@@ -411,9 +414,9 @@ class MFNetflixTask : public MLTask {
     /**
      * Worker here is a value 0..nworkers - 1
      */
-    void run(const Configuration& config, int worker);
+    void run(const Configuration& config, int worker, int test_iters);
 
-  private:
+   private:
     class MFModelGet {
       public:
         MFModelGet(const std::string& ps_ip, int ps_port) :

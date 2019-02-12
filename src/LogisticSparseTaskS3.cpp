@@ -161,9 +161,9 @@ void LogisticSparseTaskS3::run(const Configuration& config,
         printed_rate = true;
         std::cout << "Update rate/sec last 2 mins: " << (1.0 * count / elapsed_sec) << std::endl;
       }
-      if (test_iters > 0 && count > test_iters) {
-        exit(0);
-      }
+    }
+    if (test_iters > 0 && count > test_iters) {
+      exit(0);
     }
   }
 }

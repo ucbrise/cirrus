@@ -1,0 +1,26 @@
+To test the experience of a new user:
+1. `pip install -e python/frontend/cirrus`
+2. `cirrus_setup`
+3. Run /python/frontend/cirrus/examples/logistic_regression.ipynb. The cell that
+    prints the error task's output should show increasing accuracy.
+4. Run /python/frontend/cirrus/examples/hyperparameter_optimization.ipynb. The
+    I=0, I=1, and so on.
+
+To test the full process for building, publishing, and running:
+1. `pip install -e python/frontend/cirrus`
+2. `cirrus_setup --instance-resources-only`
+3. Use the AWS console to create an S3 bucket named "cirrus-public-<yourname>".
+    Open the bucket, and in the "Permissions" tab, open the "Public access
+    settings" section. Disable "Block new public ACLs and uploading public
+    objects (Recommended)" and "Remove public access granted through public ACLs
+    (Recommended)".
+4. Change PUBLISHED_BUILD in /python/frontend/cirrus/cirrus/setup.py to
+    "s3://cirrus-public-<yourname>".
+5. Run /python/frontend/cirrus/examples/build.ipynb.
+6. Run /python/frontend/cirrus/examples/publish.ipynb.
+7. `cirrus_setup`
+8. Run /python/frontend/cirrus/examples/logistic_regression.ipynb. The cell that
+    prints the error task's output should show increasing accuracy.
+9. Run /python/frontend/cirrus/examples/hyperparameter_optimization.ipynb. The
+    cell that prints the error task's output should show increasing accuracy for
+    I=0, I=1, and so on.

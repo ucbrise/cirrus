@@ -11,9 +11,6 @@ import toml
 
 DEFAULT_LABEL = struct.pack("i", 0)
 REDIS_TOML = "redis.toml"
-ec2c = boto3.client('ec2')
-lc = boto3.client('lambda')
-iam_client = boto3.client('iam')
 
 class Timer(object):
     """ A class to time functions. """

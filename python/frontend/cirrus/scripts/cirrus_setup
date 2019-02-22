@@ -1,0 +1,7 @@
+#!/usr/bin/env python
+
+from cirrus import setup
+
+if __name__ == "__main__":
+    # Run this using `cirrus_setup`.
+    setup.run_interactive_setup()

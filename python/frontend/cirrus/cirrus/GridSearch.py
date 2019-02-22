@@ -8,15 +8,21 @@ import math
 
 import graph
 from utils import *
+from . import automate
+from . import configuration
+from . import parameter_server
 
 logging.basicConfig(filename="cirrusbundle.log", level=logging.WARNING)
 
-# NOTE: This is a temporary measure. Ideally this zip would be on the cloud.
-# Due to constant updates to bundle.zip, its more convienient to have it local
+class GridSearch(object):
+    # All searches that are currently running.
+    _running_searches = []
 
-bundle_zip_location="/home/camus/code/cirrus-1/python/frontend/cirrus/cirrus/bundle.zip"
 
-class GridSearch:
+    @classmethod
+    def kill_all_searches(cls):
+        for search in list(cls._running_searches):
+            search.kill_all()
 
 
     # TODO: Add some sort of optional argument checking
@@ -25,11 +31,10 @@ class GridSearch:
                  param_base=None,
                  hyper_vars=[],
                  hyper_params=[],
-                 machines=[],
+                 instances=[],
                  num_jobs=1,
                  timeout=-1,
                  ):
-
         # Private Variables
         self.cirrus_objs = [] # Stores each singular experiment
         self.infos = []       # Stores metadata associated with each experiment
@@ -44,14 +49,7 @@ class GridSearch:
         self.set_timeout = timeout # Timeout. -1 means never timeout
         self.num_jobs = num_jobs     # Number of threads checking check_queue
         self.hyper_vars = hyper_vars
-
-        ips = []
-        for public_dns in machines:
-            private_ip = public_dns_to_private_ip(public_dns)
-            ips.append(private_ip)
-        print ips
-
-        self.machines = zip(machines, ips)
+        self.instances = instances
 
         # Setup
         self.set_task_parameters(
@@ -59,10 +57,9 @@ class GridSearch:
                 param_base=param_base,
                 hyper_vars=hyper_vars,
                 hyper_params=hyper_params,
-                machines=self.machines)
+                instances=instances)
 
-
-        self.adjust_num_threads();
+        self.adjust_num_threads()
 
     def adjust_num_threads(self):
         # make sure we don't have more threads than experiments
@@ -70,36 +67,30 @@ class GridSearch:
 
 
     # User must either specify param_dict_lst, or hyper_vars, hyper_params, and param_base
-    def set_task_parameters(self, task, param_base=None, hyper_vars=[], hyper_params=[], machines=[]):
+    def set_task_parameters(self, task, param_base=None, hyper_vars=[], hyper_params=[], instances=[]):
         possibilities = list(itertools.product(*hyper_params))
         base_port = 1337
         index = 0
-        num_machines = len(machines)
-
-        lambdas = get_all_lambdas()
-
-        for p in possibilities:
+        num_machines = len(instances)
+        for i, p in enumerate(possibilities):
             configuration = zip(hyper_vars, p)
             modified_config = param_base.copy()
             for var_name, var_value in configuration:
                 modified_config[var_name] = var_value
-            modified_config['ps_ip_port'] = base_port
-            modified_config['ps_ip_public'] = machines[index][0]
-            modified_config['ps_ip_private'] = machines[index][1]
-
+            modified_config["ps"] = parameter_server.ParameterServer(
+                instances[index], base_port, base_port+1,
+                modified_config["n_workers"])
             index = (index + 1) % num_machines
             base_port += 2
+
+            modified_config["experiment_id"] = i
 
             c = task(**modified_config)
             self.cirrus_objs.append(c)
             self.infos.append({'color': get_random_color()})
             self.loss_lst.append({})
             self.param_lst.append(modified_config)
-            lambda_name = "testfunc1_%d" % c.worker_size
-            if not lambda_exists(lambdas, lambda_name, c.worker_size, bundle_zip_location):
-                print lambda_name + " Does not exist"
-                lambdas.append({'FunctionName': lambda_name})
-                create_lambda(bundle_zip_location, size=c.worker_size)
+
 
     # Fetches custom metadata from experiment i
     def get_info_for(self, i):
@@ -143,7 +134,6 @@ class GridSearch:
         return [item[1] for item in lst]
 
     def start_queue_threads(self):
-
         # Function that checks each experiment to restore lambdas, grab metrics
         def custodian(cirrus_objs, thread_id, num_jobs):
             index = thread_id
@@ -151,10 +141,9 @@ class GridSearch:
             start_time = time.time()
 
             time.sleep(5)  # HACK: Sleep for 5 seconds to wait for PS to start
-            while True:
+            while self.custodians_should_continue:
                 cirrus_obj = cirrus_objs[index]
 
-                cirrus_obj.relaunch_lambdas()
                 loss = cirrus_obj.get_time_loss()
                 self.loss_lst[index] = loss
 
@@ -173,63 +162,76 @@ class GridSearch:
                     time.sleep(0.5)
                     start_time = time.time()
 
-        # Dictionary of commands per machine
-        command_dict = {}
-        for machine in self.machines:
-            command_dict[machine[0]] = []
 
-        # Grab commands each machine needs to run
-        for c in self.cirrus_objs:
-            c.get_command(command_dict)
+        def unbuffer_instance(instance):
+            status, stdout, stderr = instance.buffer_commands(False)
+            if status != 0:
+                print("An error occurred while unbuffering commands on an"
+                      " instance. The exit code was %d and the stderr was:"
+                      % status)
+                print(stderr)
+                raise RuntimeError("An error occured while unbuffering"
+                                   " commands on an instance.")
 
-        # Write those commands into bash files
-        command_dict_to_file(command_dict)
 
-        # Number of threads
-        copy_threads = min(len(self.machines), self.num_jobs)
+        for instance in self.instances:
+            instance.buffer_commands(True)
 
-        # Copies bash files to machines and starts experiment
-        def copy_and_run(thread_id):
-            while True:
-                if thread_id >= len(self.machines):
-                    return
+        for cirrus_obj in self.cirrus_objs:
+            cirrus_obj.run(False)
 
-                sh_file = "machine_%d.sh" % thread_id
-                ubuntu_machine = "ubuntu@%s" % self.machines[thread_id][0]
-
-                cmd = "scp %s %s:~/" % (sh_file, ubuntu_machine)
-                os.system(cmd)
-                cmd = 'ssh %s "killall parameter_server; chmod +x %s; ./%s &"' % (ubuntu_machine, sh_file, sh_file)
-                os.system(cmd)
-                thread_id += copy_threads
-
-        p_lst = []
-        for i in range(copy_threads):
-            p = threading.Thread(target=copy_and_run, args=(i,))
-            p.start()
-            p_lst.append(p)
-
-        [p.join() for p in p_lst]
+        threads = []
+        for instance in self.instances:
+            t = threading.Thread(
+                target=unbuffer_instance,
+                args=(instance,))
+            t.start()
+            threads.append(t)
+        [t.join() for t in threads]
 
         # Start custodian threads
+        self.custodians_should_continue = True
         for i in range(self.num_jobs):
             p = threading.Thread(target=custodian, args=(self.cirrus_objs, i, self.num_jobs))
             p.start()
+
 
     def get_number_experiments(self):
         return len(self.cirrus_objs)
 
     def set_threads(self, n):
-        
-
-
         self.num_jobs = min(n, self.get_number_experiments())
 
-        self.adjust_num_threads();
+        self.adjust_num_threads()
 
 
     # Start threads to maintain all experiments
     def run(self, UI=False):
+        # Check that the AWS account has enough reserved concurrent executions
+        #   available to create a Lambda with capacity_each reserved concurrent
+        #   executions for each of the len(self.cirrus_objs) tasks.
+        capacity_each = \
+            int(configuration.config()["aws"]["lambda_concurrency_limit"])
+        capacity_total = capacity_each * len(self.cirrus_objs)
+        capacity_available = automate.get_available_concurrency()
+        if capacity_total > capacity_available:
+            raise RuntimeError("This grid search consists of %d tasks and "
+                "Cirrus was configured to reserve %d worker capacity for each "
+                "task using the setup script. This means that this grid search "
+                "would require %d*%d=%d reserved worker capacity, however the "
+                "AWS account only has %d worker capacity available. Please "
+                "resolve this issue by (1) decreasing the number of tasks in "
+                "this grid search by decreasing the number of hyperparameter "
+                "combinations, (2) decreasing the reserved worker capacity per "
+                "task by re-running the setup script, (3) deleting any "
+                "existing Lambda functions in this AWS account, or (4) "
+                "requesting an increased limit from AWS." %
+                (len(self.cirrus_objs), capacity_each, len(self.cirrus_objs),
+                 capacity_each, capacity_total, capacity_available))
+
+        # Add this grid search to the list of running grid searches.
+        self._running_searches.append(self)
+
         self.start_queue_threads()
 
         if UI:
@@ -242,8 +244,13 @@ class GridSearch:
 
     # Stop all experiments
     def kill_all(self):
+        # Remove this grid search from the list of running grid searches.
+        self._running_searches.remove(self)
+
         for cirrus_ob in self.cirrus_objs:
             cirrus_ob.kill()
+
+        self.custodians_should_continue = False
 
     # Get data regarding experiment i.
     def get_info(self, i, param=None):

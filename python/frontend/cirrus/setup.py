@@ -15,4 +15,5 @@ setup(
     packages=find_packages(exclude=('tests', 'docs')),
     license=open('LICENSE'),
     long_description=open('README.md').read(),
+    scripts=["scripts/cirrus_setup"]
 )

@@ -87,7 +87,7 @@ class ParameterServer(object):
             "nohup",
             "./parameter_server",
             "--config", config_filename,
-            "--nworkers", str(self._num_workers),
+            "--nworkers", str(self._num_workers + 20),
             "--rank", "1",
             "--ps_port", str(self._ps_port),
             "&>", "ps_out_%d" % self._ps_port,

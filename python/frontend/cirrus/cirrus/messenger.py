@@ -59,4 +59,4 @@ def send_kill_signal(ip="127.0.0.1", port=1337):
 
 if __name__ == "__main__":
 
-    print get_last_time_error("18.237.161.88", 1338)
+    print get_num_updates("54.190.24.129", 1337)

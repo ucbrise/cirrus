@@ -254,7 +254,7 @@ class BaseTask(object):
         if self.is_dead():
             return 0
         if fetch:
-            out = messenger.get_num_lambdas(self.ps_ip_public, self.ps_ip_port)
+            out = messenger.get_num_lambdas(self.ps)
             if out is not None:
                 self.last_num_lambdas = out
             return self.last_num_lambdas
@@ -266,7 +266,7 @@ class BaseTask(object):
             return self.time_ups_lst
         if fetch:
             t = time.time() - self.start_time
-            ups = messenger.get_num_updates(self.ps_ip_public, self.ps_ip_port)
+            ups = messenger.get_num_updates(self.ps)
             self.fetch_metric(self.UPDATES_PER_SECOND).append((t, ups))
         return self.fetch_metric(self.UPDATES_PER_SECOND)
 

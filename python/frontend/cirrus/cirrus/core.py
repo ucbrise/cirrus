@@ -158,7 +158,6 @@ class BaseTask(object):
 
 
     def get_time_loss(self, rtl=False):
-        print("here")
         if self.is_dead():
             if rtl:
                 return self.real_time_loss_lst

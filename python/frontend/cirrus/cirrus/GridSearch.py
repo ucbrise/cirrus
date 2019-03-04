@@ -146,6 +146,7 @@ class GridSearch(object):
 
                 loss = cirrus_obj.get_time_loss()
                 ups = cirrus_obj.get_updates_per_second()
+                num_lambdas = cirrus_obj.get_num_lambdas()
                 self.loss_lst[index] = loss
 
                 logging.info("Thread", thread_id, "exp", index, "loss", self.loss_lst[index])

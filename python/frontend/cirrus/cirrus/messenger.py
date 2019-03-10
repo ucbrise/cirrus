@@ -28,8 +28,7 @@ def get_last_time_error(ps):
         clientsocket.sendto(GET_LAST_TIME_ERROR, (ps.public_ip(), ps.error_port()))
         clientsocket.settimeout(10)
         s = clientsocket.recv(256)      # Receives a packet of 3 floats or 256 bytes
-        res = struct.unpack("ddd", s) # Unpack 3 floats
-        return (res[0], res[1], res[2], res[2])
+        return struct.unpack("dddd", s) # Unpack 3 floats
     except Exception, e:
         return None
 
@@ -59,4 +58,4 @@ def send_kill_signal(ip="127.0.0.1", port=1337):
 
 if __name__ == "__main__":
 
-    print get_num_updates("54.190.24.129", 1337)
+    print get_num_updates("18.237.213.139", 1337)

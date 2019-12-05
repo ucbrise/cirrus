@@ -263,8 +263,8 @@ def public_dns_to_private_ip(public_dns):
     return instances[0]['PrivateIpAddress']
 
 
-def lambda_exists(existing, name):
-    """ lambda_exists(existing, name, size, zip_location)
+def lambda_exists(existing, name, size, zip_location):
+    """
     TODO: Check to see if uploaded SHA256 matches current bundle's SHA256
     Code below doesn't work, not sure if I need to hash zip or
     underlying code.

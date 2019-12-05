@@ -16,8 +16,8 @@ class CollaborativeFilteringTask(BaseTask):
             grad_t = 1
         else:
             grad_t = 0
-        config = "input_path: /home/ec2-user/cirrus/examples/ml/tests/test_mf/nf_parsed \n" + \
-                 "input_type: csv \n" + \
+        config = "load_input_path: /home/ec2-user/cirrus/examples/ml/tests/test_mf/nf_parsed \n" + \
+                 "load_input_type: csv \n" + \
                  "minibatch_size: %d \n" % self.minibatch_size + \
                  "s3_size: 10000 \n" + \
                  "model_type: CollaborativeFiltering \n" + \
@@ -38,7 +38,7 @@ class CollaborativeFilteringTask(BaseTask):
 def CollaborativeFiltering(
             n_workers,
             n_ps,
-            lambda_size,
+            worker_size,
             dataset,
         learning_rate, epsilon,
         progress_callback,
@@ -62,7 +62,7 @@ def CollaborativeFiltering(
     return CollaborativeFilteringTask(
             n_workers=n_workers,
             n_ps=n_ps,
-            lambda_size=lambda_size,
+            worker_size=worker_size,
             dataset=dataset,
             learning_rate=learning_rate,
             epsilon=epsilon,

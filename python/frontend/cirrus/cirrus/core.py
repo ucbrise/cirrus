@@ -27,7 +27,7 @@ class BaseTask(object):
 
     def __init__(self,
             n_workers,
-            lambda_size,
+            worker_size,
             n_ps,
             dataset,
             learning_rate,
@@ -52,6 +52,7 @@ class BaseTask(object):
         self.thread = threading.Thread(target=self.run)
         self.n_workers = n_workers
         self.n_ps = n_ps
+        self.worker_size = worker_size
         self.dataset=dataset
         self.learning_rate = learning_rate
         self.epsilon = epsilon
@@ -85,7 +86,7 @@ class BaseTask(object):
                     self.n_ps,
                     0,
                     self.n_workers,
-                    self.lambda_size)
+                    self.worker_size)
 
         self.start_time = time.time()
 
@@ -257,7 +258,7 @@ class BaseTask(object):
             for i in range(shortage):
                 try:
                     response = lambda_client.invoke(
-                        FunctionName=lambda_name,
+                        FunctionName="%s_%d" % (lambda_name, self.worker_size),
                         InvocationType='Event',
                         LogType='Tail',
                         Payload=payload)

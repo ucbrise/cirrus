@@ -1,5 +1,5 @@
-#ifndef _CONSTANTS_H_
-#define _CONSTANTS_H_
+#ifndef CONSTANTS_H_
+#define CONSTANTS_H_
 
 enum PS_OP {
   SEND_LR_GRADIENT,
@@ -22,4 +22,4 @@ enum PS_OP {
 
 #define MAGIC_NUMBER (0x1337)
 
-#endif // _CONSTANTS_H_
+#endif // CONSTANTS_H_

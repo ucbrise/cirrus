@@ -1,7 +1,7 @@
 #if 0
 
-#ifndef _SERIALIZERS_H_
-#define _SERIALIZERS_H_
+#ifndef SERIALIZERS_H_
+#define SERIALIZERS_H_
 
 #include <arpa/inet.h>
 #include <string>
@@ -249,5 +249,5 @@ class sm_model_deserializer {
     std::string name;   //< name associated with this serializer
 };
 
-#endif  // _SERIALIZERS_H_
+#endif  // SERIALIZERS_H_
 #endif

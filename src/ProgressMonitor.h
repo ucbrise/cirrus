@@ -1,5 +1,5 @@
-#ifndef _PROGRESS_MONITOR_H_
-#define _PROGRESS_MONITOR_H_
+#ifndef PROGRESS_MONITOR_H_
+#define PROGRESS_MONITOR_H_
 
 #include "Configuration.h"
 #include "Redis.h"
@@ -20,4 +20,4 @@ class ProgressMonitor {
 
 } // namespace cirrus
 
-#endif  // _PROGRESS_MONITOR_H_
+#endif  // PROGRESS_MONITOR_H_

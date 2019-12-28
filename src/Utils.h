@@ -1,5 +1,5 @@
-#ifndef _UTILS_H_
-#define _UTILS_H_
+#ifndef UTILS_H_
+#define UTILS_H_
 
 #include <sys/time.h>
 #include <unistd.h>
@@ -151,4 +151,4 @@ uint64_t hash_f(const char* s);
 
 } // namespace cirrus
 
-#endif  // _UTILS_H_
+#endif  // UTILS_H_

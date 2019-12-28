@@ -1,5 +1,5 @@
-#ifndef _MODELGRADIENT_H_
-#define _MODELGRADIENT_H_
+#ifndef MODELGRADIENT_H_
+#define MODELGRADIENT_H_
 
 #include <cstdint>
 #include <cassert>
@@ -191,4 +191,4 @@ class MFSparseGradient : public ModelGradient {
 
 } // namespace cirrus
 
-#endif  // _MODELGRADIENT_H_
+#endif  // MODELGRADIENT_H_

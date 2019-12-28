@@ -1,5 +1,5 @@
-#ifndef _SPARSEDATASET_H_
-#define _SPARSEDATASET_H_
+#ifndef SPARSEDATASET_H_
+#define SPARSEDATASET_H_
 
 #include <vector>
 #include <cstdint>
@@ -120,4 +120,4 @@ class SparseDataset {
 
 } // namespace cirrus
 
-#endif  // _SPARSEDATASET_H_
+#endif  // SPARSEDATASET_H_

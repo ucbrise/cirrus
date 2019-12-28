@@ -1,5 +1,5 @@
-#ifndef _TASKS_SOFTMAX_H_
-#define _TASKS_SOFTMAX_H_
+#ifndef TASKS_SOFTMAX_H_
+#define TASKS_SOFTMAX_H_
 
 #include <Configuration.h>
 #include <string>
@@ -126,4 +126,4 @@ class LoadingTask : public MLTask {
  private:
 };
 
-#endif  //_TASKS_H_
+#endif  //_TASKS_SOFTMAX_H_

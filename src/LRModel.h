@@ -1,5 +1,5 @@
-#ifndef _LRMODEL_H_
-#define _LRMODEL_H_
+#ifndef LRMODEL_H_
+#define LRMODEL_H_
 
 #include <vector>
 #include <utility>
@@ -141,4 +141,4 @@ class LRModel : public CirrusModel {
 
 } // namespace cirrus
 
-#endif  // _LRMODEL_H_
+#endif  // LRMODEL_H_

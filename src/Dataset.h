@@ -1,5 +1,5 @@
-#ifndef _DATASET_H_
-#define _DATASET_H_
+#ifndef DATASET_H_
+#define DATASET_H_
 
 #include <vector>
 #include <cstdint>
@@ -125,4 +125,4 @@ class Dataset {
 
 }
 
-#endif  // _DATASET_H_
+#endif  // DATASET_H_

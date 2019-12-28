@@ -1,5 +1,5 @@
-#ifndef _CIRRUS_REDIS_H_
-#define _CIRRUS_REDIS_H_
+#ifndef CIRRUS_REDIS_H_
+#define CIRRUS_REDIS_H_
 
 extern "C" {
 
@@ -43,4 +43,4 @@ uint64_t redis_list_size(redisContext*, const char* list_name);
 
 }
 
-#endif  // _CIRRUS_REDIS_H_
+#endif  // CIRRUS_REDIS_H_

@@ -1,5 +1,5 @@
-#ifndef _MATRIX_H_
-#define _MATRIX_H_
+#ifndef MATRIX_H_
+#define MATRIX_H_
 
 #include <cstring>
 #include <iostream>
@@ -83,4 +83,4 @@ class Matrix {
 
 }
 
-#endif  // _MATRIX_H_
+#endif  // MATRIX_H_

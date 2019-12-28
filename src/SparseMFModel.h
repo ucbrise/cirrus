@@ -1,5 +1,5 @@
-#ifndef _SPARSEMFMODEL_H_
-#define _SPARSEMFMODEL_H_
+#ifndef SPARSEMFMODEL_H_
+#define SPARSEMFMODEL_H_
 
 #include <vector>
 #include <utility>
@@ -181,4 +181,4 @@ private:
 
 } // namespace cirrus
 
-#endif  // _MFMODEL_H_
+#endif  // SPARSEMFMODEL_H_

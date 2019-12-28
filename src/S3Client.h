@@ -1,5 +1,5 @@
-#ifndef _CIRRUS_S3CLIENT_H_
-#define _CIRRUS_S3CLIENT_H_
+#ifndef CIRRUS_S3CLIENT_H_
+#define CIRRUS_S3CLIENT_H_
 
 #include <aws/core/Aws.h>
 #include <aws/core/client/ClientConfiguration.h>

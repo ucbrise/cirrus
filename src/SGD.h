@@ -1,5 +1,5 @@
-#ifndef _SGD_H_
-#define _SGD_H_
+#ifndef SGD_H_
+#define SGD_H_
 
 #include "OptimizationMethod.h"
 
@@ -16,4 +16,4 @@ class SGD : public OptimizationMethod {
 
 }  // namespace cirrus
 
-#endif  // _SGD_H_
+#endif  // SGD_H_

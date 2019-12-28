@@ -1,5 +1,5 @@
-#ifndef _CIRRUS_S3_H
-#define _CIRRUS_S3_H
+#ifndef CIRRUS_S3_H
+#define CIRRUS_S3_H
 
 #include <aws/core/Aws.h>
 #include <aws/s3/S3Client.h>
@@ -22,4 +22,4 @@ void s3_shutdown_aws();
 
 }  // namespace cirrus
 
-#endif  // _CIRRUS_S3_H
+#endif  // CIRRUS_S3_H

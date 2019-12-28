@@ -1,5 +1,5 @@
-#ifndef _S3_ITERATOR_H_
-#define _S3_ITERATOR_H_
+#ifndef S3_ITERATOR_H_
+#define S3_ITERATOR_H_
 
 #include <Configuration.h>
 #include <SparseDataset.h>
@@ -20,4 +20,4 @@ class S3Iterator {
 
 } // namespace cirrus
 
-#endif  // _S3_ITERATOR_H_
+#endif  // S3_ITERATOR_H_

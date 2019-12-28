@@ -19,7 +19,7 @@ class CircularBuffer
     explicit CircularBuffer(uint64_t capacity);
     CircularBuffer(const CircularBuffer<T> &rhs);
     CircularBuffer(CircularBuffer<T>&& rhs);
-    ~CircularBuffer() { if (_buffer) delete[] _buffer; }
+    ~CircularBuffer() { delete[] _buffer; }
 
     CircularBuffer<T>& operator=(CircularBuffer<T> rhs);
 

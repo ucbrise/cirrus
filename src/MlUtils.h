@@ -1,5 +1,5 @@
-#ifndef _MLUTILS_H_
-#define _MLUTILS_H_
+#ifndef MLUTILS_H_
+#define MLUTILS_H_
 
 #include <cmath>
 #include <string>
@@ -36,4 +36,4 @@ double log_aux(double x);
 
 }  // namespace mlutils
 
-#endif  // _MLUTILS_H_
+#endif  // MLUTILS_H_

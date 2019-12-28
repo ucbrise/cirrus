@@ -1,5 +1,5 @@
-#ifndef _SOFTMAXMODEL_H_
-#define _SOFTMAXMODEL_H_
+#ifndef SOFTMAXMODEL_H_
+#define SOFTMAXMODEL_H_
 
 #include <Model.h>
 #include <utility>
@@ -112,4 +112,4 @@ class SoftmaxModel : public CirrusModel {
 
 } // namespace cirrus
 
-#endif  // _SOFTMAXMODEL_H_
+#endif  // SOFTMAXMODEL_H_

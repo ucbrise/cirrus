@@ -1,5 +1,5 @@
-#ifndef _OPTMETHOD_H_
-#define _OPTMETHOD_H_
+#ifndef OPTMETHOD_H_
+#define OPTMETHOD_H_
 
 #include <vector>
 #include <utility>
@@ -26,4 +26,4 @@ class OptimizationMethod {
 
 }  // namespace cirrus
 
-#endif  // _OPTMETHOD_H_
+#endif  // OPTMETHOD_H_

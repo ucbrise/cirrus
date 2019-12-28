@@ -1,5 +1,5 @@
-#ifndef _ADAGRAD_H_
-#define _ADAGRAD_H_
+#ifndef ADAGRAD_H_
+#define ADAGRAD_H_
 
 #include "OptimizationMethod.h"
 
@@ -18,4 +18,4 @@ class AdaGrad: public OptimizationMethod {
 
 }  // namespace cirrus
 
-#endif // _ADAGRAD_H_
+#endif // ADAGRAD_H_

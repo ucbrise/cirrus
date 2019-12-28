@@ -1,5 +1,5 @@
-#ifndef _TASKS_H_
-#define _TASKS_H_
+#ifndef TASKS_H_
+#define TASKS_H_
 
 #include <Configuration.h>
 
@@ -448,4 +448,4 @@ class MFNetflixTask : public MLTask {
 
 }
 
-#endif  // _TASKS_H_
+#endif  // TASKS_H_

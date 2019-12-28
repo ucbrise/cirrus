@@ -1,5 +1,5 @@
-#ifndef _INPUT_H_
-#define _INPUT_H_
+#ifndef INPUT_H_
+#define INPUT_H_
 
 #include <functional>
 #include <Dataset.h>
@@ -213,4 +213,4 @@ class InputReader {
 
 } // namespace cirrus
 
-#endif  // _INPUT_H_
+#endif  // INPUT_H_

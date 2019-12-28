@@ -1,5 +1,5 @@
-#ifndef _CONFIGURATION_H_
-#define _CONFIGURATION_H_
+#ifndef CONFIGURATION_H_
+#define CONFIGURATION_H_
 
 #include <string>
 
@@ -206,4 +206,4 @@ class Configuration {
 
 }  // namespace cirrus
 
-#endif  // _CONFIGURATION_H_
+#endif  // CONFIGURATION_H_

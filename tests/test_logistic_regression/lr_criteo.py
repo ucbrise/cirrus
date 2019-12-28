@@ -118,7 +118,8 @@ def logistic_regression(train, test, l_rate, n_epoch):
 # Test the logistic regression algorithm on the diabetes dataset
 seed(1)
 # load and prepare data
-filename = 'criteo_data/day_1_100k_filtered'
+#filename = 'criteo_data/day_1_100k_filtered'
+filename = '/home/joao/Downloads/criteo_kaggle/train.txt_10K'
 
 print("Loading dataset")
 dataset = load_csv_tab(filename)
@@ -133,9 +134,9 @@ minmax = dataset_minmax(dataset)
 normalize_dataset(dataset, minmax)
 
 # evaluate algorithm
-n_folds = 5
+n_folds = 2
 l_rate = 0.001
-n_epoch = 10000
+n_epoch = 1000
 
 print("Evaluating algorithm")
 scores = evaluate_algorithm(dataset, logistic_regression, n_folds, l_rate, n_epoch)

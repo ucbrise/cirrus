@@ -1,5 +1,5 @@
-#ifndef _MFMODEL_H_
-#define _MFMODEL_H_
+#ifndef MFMODEL_H_
+#define MFMODEL_H_
 
 #include <vector>
 #include <utility>
@@ -178,4 +178,4 @@ class MFModel : public CirrusModel {
 
 } // namespace cirrus
 
-#endif  // _MFMODEL_H_
+#endif  // MFMODEL_H_

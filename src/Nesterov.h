@@ -1,5 +1,5 @@
-#ifndef _NESTEROV_H_
-#define _NESTEROV_H_
+#ifndef NESTEROV_H_
+#define NESTEROV_H_
 
 #include "OptimizationMethod.h"
 
@@ -21,4 +21,4 @@ class Nesterov : public OptimizationMethod {
 
 }  // namespace cirrus
 
-#endif  // _NESTEROV_H_
+#endif  // NESTEROV_H_

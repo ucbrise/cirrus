@@ -1,5 +1,5 @@
-#ifndef _REDIS_ITERATOR_H_
-#define _REDIS_ITERATOR_H_
+#ifndef REDIS_ITERATOR_H_
+#define REDIS_ITERATOR_H_
 
 #include <thread>
 #include <mutex>
@@ -31,4 +31,4 @@ class RedisIterator {
   uint64_t read_ahead = 5;  // how many values to read ahead
 };
 
-#endif  // _REDIS_ITERATOR_H_
+#endif  // REDIS_ITERATOR_H_

@@ -1,5 +1,5 @@
-#ifndef _MOMENTUM_H_
-#define _MOMENTUM_H_
+#ifndef MOMENTUM_H_
+#define MOMENTUM_H_
 
 #include "OptimizationMethod.h"
 
@@ -19,4 +19,4 @@ class Momentum : public OptimizationMethod {
 
 }  // namespace cirrus
 
-#endif  // _MOMENTUM_H_
+#endif  // MOMENTUM_H_

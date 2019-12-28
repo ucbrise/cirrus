@@ -1,5 +1,5 @@
-#ifndef _SYNCHRONIZATION_H_
-#define _SYNCHRONIZATION_H_
+#ifndef SYNCHRONIZATION_H_
+#define SYNCHRONIZATION_H_
 
 #include <errno.h>
 #include <semaphore.h>
@@ -237,4 +237,4 @@ class SpinLock : public Lock {
 
 }  // namespace cirrus
 
-#endif  // _SYNCHRONIZATION_H_
+#endif  // SYNCHRONIZATION_H_

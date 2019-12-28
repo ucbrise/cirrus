@@ -1,5 +1,5 @@
-#ifndef _SPARSE_LRMODEL_H_
-#define _SPARSE_LRMODEL_H_
+#ifndef SPARSE_LRMODEL_H_
+#define SPARSE_LRMODEL_H_
 
 #include <vector>
 #include <utility>
@@ -218,4 +218,4 @@ class SparseLRModel : public CirrusModel {
 
 } // namespace cirrus
 
-#endif  // _LRMODEL_H_
+#endif  // SPARSE_LRMODEL_H_

@@ -1,5 +1,5 @@
-#ifndef _S3_ITERATORTEXT_H_
-#define _S3_ITERATORTEXT_H_
+#ifndef S3_ITERATORTEXT_H_
+#define S3_ITERATORTEXT_H_
 
 #include <CircularBuffer.h>
 #include <Configuration.h>
@@ -96,4 +96,4 @@ class S3IteratorLibsvm : public S3Iterator {
 
 }  // namespace cirrus
 
-#endif  // _S3_ITERATORTEXT_H_
+#endif  // S3_ITERATORTEXT_H_

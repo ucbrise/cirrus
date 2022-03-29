@@ -11,7 +11,7 @@ Flask-Compress==1.4.0
 ipython==5.8.0
 Markdown==2.6.11
 mmh3==2.5.1
-paramiko==2.4.2
+paramiko==2.10.1
 plotly==2.7.0
 pylint==1.9.3
 redis==2.10.6
